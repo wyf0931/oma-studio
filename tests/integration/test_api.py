@@ -331,6 +331,8 @@ def test_agent_editor_uses_clickable_three_step_wizard_with_skill_search():
     styles = Path("static/styles.css").read_text(encoding="utf-8")
 
     assert 'class="steps agent-wizard-steps"' in html
+    assert 'class="divider agent-wizard-divider"' in html
+    assert 'class="text-lg font-bold agent-wizard-title"' in html
     assert "Basics" in html
     assert "Permissions" in html
     assert "Capabilities" in html
@@ -342,6 +344,7 @@ def test_agent_editor_uses_clickable_three_step_wizard_with_skill_search():
     assert "agentSkillSearch" in script
     assert "grid-template-columns: repeat(3, minmax(0, 1fr))" in styles
     assert ".agent-wizard-actions" in styles
+    assert "min-height: min(620px, calc(100dvh - 40px))" in styles
 
 
 def test_agent_editor_keeps_nonempty_draft_open_on_backdrop_click():

@@ -76,7 +76,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260913-agent-wizard" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260914-agent-wizard-layout" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -2565,7 +2565,7 @@
       <div class="modal-box agent-dialog-box">
         <div class="dialog-head">
           <div>
-            <h2 x-text="editingAgent ? 'Edit Agent' : 'New Agent'"></h2>
+            <h2 class="text-lg font-bold agent-wizard-title" x-text="editingAgent ? 'Edit Agent' : 'New Agent'"></h2>
           </div>
           <button class="icon-btn" @click="closeAgentDialog()" aria-label="Close agent editor">
             <i data-lucide="x" aria-hidden="true"></i>
@@ -2607,6 +2607,7 @@
               Capabilities
             </li>
           </ul>
+          <div class="divider agent-wizard-divider"></div>
 
           <section class="agent-wizard-panel" x-show="agentWizardStep === 1">
             <div class="agent-form-intro">

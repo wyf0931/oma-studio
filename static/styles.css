@@ -2243,6 +2243,20 @@ body {
  width: 100%;
  margin: 18px 0 8px;
 }
+.agent-dialog:has(.agent-wizard-steps) .agent-dialog-box {
+ min-height: min(620px, calc(100dvh - 40px));
+}
+.dialog-head .agent-wizard-title {
+ margin: 0;
+ font-size: 1.125rem;
+ letter-spacing: -0.02em;
+ line-height: 1.3;
+}
+.agent-wizard-divider {
+ min-height: 0;
+ margin: 0;
+ color: var(--line);
+}
 .agent-wizard-steps .step {
  cursor: pointer;
  font-size: 12px;
