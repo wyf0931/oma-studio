@@ -12,10 +12,15 @@ from .store import IMAGE_TOOLS, WEB_TOOLS, pi_terminal_failure
 
 logger = logging.getLogger(__name__)
 
-INSTRUCTION_GENERATOR_PROMPT = """You write production instructions for OMA Studio specialist agents.
+INSTRUCTION_GENERATOR_PROMPT = """You write a production-ready profile for an
+OMA Studio specialist agent.
 
-Return only the finished Markdown instruction. Do not add a preamble, commentary,
-or a Markdown code fence. Keep it under 7,000 characters.
+Return only one valid JSON object. Do not add a preamble, commentary, or a JSON
+code fence. The JSON object must have exactly these keys:
+{"instruction": string, "description": string, "tags": string[], "quickstarts": string[]}.
+
+Keep instruction under 7,000 characters, description under 240 characters,
+tags to 1-5 distinct concise labels, and quickstarts to 3-5 practical prompts.
 
 Create a focused domain specialist, never a broad general-purpose assistant. Use
 the supplied configuration and selected skill documentation as the source of
@@ -42,6 +47,41 @@ or data access unless a selected capability supports it."""
 
 class PiRpcError(RuntimeError):
     pass
+
+
+def parse_agent_profile(text: str) -> dict[str, Any]:
+    text = text.strip()
+    if text.startswith("```") and text.endswith("```"):
+        text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+    try:
+        profile = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise PiRpcError("Pi returned an invalid agent profile draft") from exc
+    if not isinstance(profile, dict):
+        raise PiRpcError("Pi returned an invalid agent profile draft")
+
+    instruction = profile.get("instruction")
+    description = profile.get("description")
+    tags = profile.get("tags")
+    quickstarts = profile.get("quickstarts")
+    if not isinstance(instruction, str) or not instruction.strip():
+        raise PiRpcError("Pi returned an empty instruction draft")
+    if len(instruction) > 10000:
+        raise PiRpcError("Generated instruction exceeds the 10,000 character limit")
+    if not isinstance(description, str) or len(description.strip()) > 240:
+        raise PiRpcError("Pi returned an invalid description draft")
+    if not isinstance(tags, list) or not all(isinstance(tag, str) for tag in tags):
+        raise PiRpcError("Pi returned invalid tags")
+    if not isinstance(quickstarts, list) or not all(
+        isinstance(prompt, str) for prompt in quickstarts
+    ):
+        raise PiRpcError("Pi returned invalid shortcuts")
+    return {
+        "instruction": instruction.strip(),
+        "description": description.strip(),
+        "tags": [tag.strip() for tag in tags if tag.strip()],
+        "quickstarts": [prompt.strip() for prompt in quickstarts if prompt.strip()],
+    }
 
 
 class ActiveTurn:
@@ -386,7 +426,7 @@ class PiRuntimeManager:
             command += ["--skill", self._resource_path(path)]
         return command
 
-    async def generate_agent_instruction(self, draft: dict) -> str:
+    async def generate_agent_profile(self, draft: dict) -> dict[str, Any]:
         """Generate an instruction without creating a Pi session or platform data."""
         client = PiRpcClient(
             self._instruction_generator_command(draft),
@@ -396,19 +436,12 @@ class PiRuntimeManager:
         try:
             await client.start()
             result = await client.prompt(
-                "Create the specialist agent instruction from this validated "
+                "Create the specialist agent profile from this validated "
                 f"configuration:\n{json.dumps(draft, ensure_ascii=False)}"
             )
         finally:
             await client.close()
-        instruction = result.get("text", "").strip()
-        if instruction.startswith("```") and instruction.endswith("```"):
-            instruction = instruction.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-        if not instruction:
-            raise PiRpcError("Pi returned an empty instruction draft")
-        if len(instruction) > 10000:
-            raise PiRpcError("Generated instruction exceeds the 10,000 character limit")
-        return instruction
+        return parse_agent_profile(result.get("text", ""))
 
     def _resource_path(self, value: str) -> str:
         """Map host Pi and agent-neutral paths to their container mounts."""

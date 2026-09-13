@@ -169,6 +169,8 @@ function platform() {
     newAgentExtensions: [],
     newAgentSkills: [],
     newAgentMcpServers: [],
+    agentWizardStep: 1,
+    agentSkillSearch: "",
     mode: ["development", "production"].includes(new URLSearchParams(location.search).get("mode"))
       ? new URLSearchParams(location.search).get("mode")
       : "production",
@@ -2695,13 +2697,49 @@ function platform() {
       this.newAgentExtensions = this.defaultResources("extensions");
       this.newAgentSkills = this.defaultResources("skills");
       this.newAgentMcpServers = this.defaultResources("mcp_servers");
+      this.agentWizardStep = 1;
+      this.agentSkillSearch = "";
       this.createDialog = true;
     },
     hasAgentDraft() {
-      return Boolean(this.newAgentName.trim() || this.newAgentInstruction.trim());
+      return Boolean(
+        this.newAgentName.trim() ||
+        this.newAgentDescription.trim() ||
+        this.newAgentTags.trim() ||
+        this.newAgentQuickstarts.trim() ||
+        this.newAgentInstruction.trim() ||
+        this.newAgentAvatarFile,
+      );
     },
     dismissAgentDialogFromBackdrop() {
       if (!this.hasAgentDraft()) this.createDialog = false;
+    },
+    closeAgentDialog() {
+      if (this.newAgentAvatarPreview) URL.revokeObjectURL(this.newAgentAvatarPreview);
+      this.createDialog = false;
+      this.editingAgent = null;
+      this.newAgentAvatarFile = null;
+      this.newAgentAvatarPreview = "";
+      this.agentWizardStep = 1;
+      this.agentSkillSearch = "";
+    },
+    setAgentWizardStep(step) {
+      if (![1, 2, 3].includes(step)) return;
+      this.agentWizardStep = step;
+      this.$nextTick(() => this.resizeAgentTextareas());
+    },
+    nextAgentWizardStep() {
+      this.setAgentWizardStep(Math.min(3, this.agentWizardStep + 1));
+    },
+    previousAgentWizardStep() {
+      this.setAgentWizardStep(Math.max(1, this.agentWizardStep - 1));
+    },
+    agentSkillItems() {
+      const query = this.agentSkillSearch.trim().toLowerCase();
+      if (!query) return this.resources.skills;
+      return this.resources.skills.filter((item) =>
+        `${item.name || ""} ${item.description || ""}`.toLowerCase().includes(query),
+      );
     },
     async generateAgentInstruction() {
       if (this.generatingInstruction) return;
@@ -2712,6 +2750,9 @@ function platform() {
           body: JSON.stringify({
             name: this.newAgentName,
             instruction: this.newAgentInstruction,
+            description: this.newAgentDescription,
+            tags: this.profileTags(this.newAgentTags),
+            quickstarts: this.profileQuickstarts(this.newAgentQuickstarts),
             ...this.agentModelConfigPayload(),
             tools: this.newAgentTools,
             extensions: this.newAgentExtensions,
@@ -2719,8 +2760,13 @@ function platform() {
             mcp_servers: this.newAgentMcpServers,
           }),
         });
-        this.newAgentInstruction = data.instruction;
-        this.showToast("Instruction generated");
+        this.newAgentInstruction = data.instruction || this.newAgentInstruction;
+        this.newAgentDescription = data.description || this.newAgentDescription;
+        if (Array.isArray(data.tags) && data.tags.length) this.newAgentTags = data.tags.join(", ");
+        if (Array.isArray(data.quickstarts) && data.quickstarts.length)
+          this.newAgentQuickstarts = data.quickstarts.join("\n");
+        this.$nextTick(() => this.resizeAgentTextareas());
+        this.showToast("Agent profile optimized");
       } catch (error) {
         this.showError(error);
       } finally {
@@ -3019,6 +3065,8 @@ function platform() {
         .filter(Boolean);
       this.newAgentSkills = (agent.skills || []).map((path) => this.resourcePath("skills", path)).filter(Boolean);
       this.newAgentMcpServers = [...(agent.mcp_servers || [])];
+      this.agentWizardStep = 1;
+      this.agentSkillSearch = "";
       this.dialog = null;
       this.createDialog = true;
       this.$nextTick(() => this.resizeAgentTextareas());

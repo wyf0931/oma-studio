@@ -1599,7 +1599,7 @@ body {
 }
 .tool-group-grid {
  display: grid;
- grid-template-columns: repeat(2, minmax(0, 1fr));
+ grid-template-columns: repeat(3, minmax(0, 1fr));
  gap: 10px;
 }
 .tool-group {
@@ -2238,6 +2238,78 @@ body {
 }
 .instruction-generate-button:hover {
  color: var(--color-primary);
+}
+.agent-wizard-steps {
+ width: 100%;
+ margin: 18px 0 8px;
+}
+.agent-wizard-steps .step {
+ cursor: pointer;
+ font-size: 12px;
+}
+.agent-wizard-panel {
+ padding: 20px 0 4px;
+}
+.agent-wizard-panel > .form-field,
+.agent-wizard-panel > .agent-provider-row {
+ padding-bottom: 20px;
+ margin-bottom: 20px;
+ border-bottom: 1px solid var(--line);
+}
+.agent-wizard-panel > .form-field:last-child {
+ margin-bottom: 0;
+ border-bottom: 0;
+}
+.agent-wizard-basics .agent-instruction-field {
+ margin-top: 0;
+}
+.agent-wizard-basics .textarea,
+.agent-wizard-basics .agent-instruction-field .textarea {
+ min-height: 0;
+}
+.agent-provider-row .agent-model-fields {
+ margin-top: 0;
+}
+.agent-skills-field {
+ border-bottom: 0 !important;
+}
+.agent-skill-search {
+ width: 100%;
+ margin: 8px 0 12px;
+}
+.agent-skills-grid {
+ max-height: 360px;
+}
+.agent-wizard-actions {
+ position: sticky;
+ bottom: -27px;
+ z-index: 2;
+ margin: 20px -27px -27px;
+ padding: 14px 27px;
+ border-top: 1px solid var(--line);
+ background: var(--color-base-100);
+}
+.agent-optimize-button {
+ gap: 6px;
+}
+.agent-wizard-action-spacer {
+ flex: 1;
+}
+@media (max-width: 800px) {
+ .tool-group-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+ }
+ .agent-wizard-steps .step {
+  font-size: 11px;
+ }
+ .agent-wizard-actions {
+  bottom: -18px;
+  margin-right: -18px;
+  margin-bottom: -18px;
+  margin-left: -18px;
+  padding-right: 18px;
+  padding-left: 18px;
+ }
 }
 .picker-chevron {
  margin-left: 10px;

@@ -255,12 +255,19 @@ def test_instruction_draft_uses_validated_selected_capabilities(client, monkeypa
 
     async def fake_generate(draft):
         captured.update(draft)
-        return "# Role\nCreate technical diagrams."
+        return {
+            "instruction": "# Role\nCreate technical diagrams.",
+            "description": "Create accurate technical diagrams.",
+            "tags": ["Architecture", "Diagrams"],
+            "quickstarts": [
+                "Draw a system diagram",
+                "Map this API",
+                "Explain this flow",
+            ],
+        }
 
     monkeypatch.setattr(agents_router, "discover_resources", lambda *_args: catalog)
-    monkeypatch.setattr(
-        main_module.runtime, "generate_agent_instruction", fake_generate
-    )
+    monkeypatch.setattr(main_module.runtime, "generate_agent_profile", fake_generate)
 
     response = client.post(
         "/api/agents/instruction-draft",
@@ -278,7 +285,12 @@ def test_instruction_draft_uses_validated_selected_capabilities(client, monkeypa
     )
 
     assert response.status_code == 200
-    assert response.json() == {"instruction": "# Role\nCreate technical diagrams."}
+    assert response.json() == {
+        "instruction": "# Role\nCreate technical diagrams.",
+        "description": "Create accurate technical diagrams.",
+        "tags": ["Architecture", "Diagrams"],
+        "quickstarts": ["Draw a system diagram", "Map this API", "Explain this flow"],
+    }
     assert captured["skills"] == [skill_path]
     assert captured["skill_catalog"] == catalog["skills"]
     assert captured["extensions"] == catalog["extensions"]
@@ -306,6 +318,30 @@ def test_agent_instruction_generator_control_is_present():
     assert "Auto (system default)" in html
     assert "agentModelConfigPayload()" in script
     assert "usesAutoModelConfig()" in script
+    assert "agentWizardStep" in script
+    assert "agentSkillItems()" in script
+    assert "closeAgentDialog()" in script
+    assert "data.tags" in script
+    assert "data.quickstarts" in script
+
+
+def test_agent_editor_uses_clickable_three_step_wizard_with_skill_search():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+
+    assert 'class="steps agent-wizard-steps"' in html
+    assert "Basics" in html
+    assert "Permissions" in html
+    assert "Capabilities" in html
+    assert '@click="setAgentWizardStep(1)"' in html
+    assert 'id="agent-skill-search"' in html
+    assert "agentSkillItems()" in html
+    assert "agentWizardStep === 3" in html
+    assert "closeAgentDialog()" in html
+    assert "agentSkillSearch" in script
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr))" in styles
+    assert ".agent-wizard-actions" in styles
 
 
 def test_agent_editor_keeps_nonempty_draft_open_on_backdrop_click():
@@ -314,7 +350,8 @@ def test_agent_editor_keeps_nonempty_draft_open_on_backdrop_click():
 
     assert '@click.self="dismissAgentDialogFromBackdrop()"' in html
     assert "hasAgentDraft()" in script
-    assert "this.newAgentName.trim() || this.newAgentInstruction.trim()" in script
+    assert "this.newAgentDescription.trim()" in script
+    assert "this.newAgentQuickstarts.trim()" in script
     assert "if (!this.hasAgentDraft()) this.createDialog = false;" in script
 
 
@@ -365,9 +402,9 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260912-mobile-chat-layout" in Path(
-        "static/index.html"
-    ).read_text(encoding="utf-8")
+    assert "app.js?v=20260913-agent-wizard" in Path("static/index.html").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_chat_viewport_and_composer_use_latest_message_and_seven_line_contract():

@@ -76,7 +76,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260912-mobile-composer-spacing" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260913-agent-wizard" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -2567,237 +2567,307 @@
           <div>
             <h2 x-text="editingAgent ? 'Edit Agent' : 'New Agent'"></h2>
           </div>
-          <button class="icon-btn" @click="createDialog = false">
+          <button class="icon-btn" @click="closeAgentDialog()" aria-label="Close agent editor">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
-        <form @submit.prevent="submitAgent">
-          <div class="agent-form-intro">
-            <div class="avatar-upload-panel">
-              <input
-                id="new-agent-avatar"
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                @change="uploadAgentAvatar($event)"
-                hidden
-              />
-              <label class="avatar-upload" for="new-agent-avatar">
-                <template x-if="newAgentAvatarPreview || (editingAgent && avatarUrl(editingAgent))"
-                  ><img class="avatar-upload-image" :src="newAgentAvatarPreview || avatarUrl(editingAgent)" alt=""
-                /></template>
-                <template x-if="!newAgentAvatarPreview && !(editingAgent && avatarUrl(editingAgent))"
-                  ><span class="avatar-upload-placeholder">
-                    <i data-lucide="image-plus" aria-hidden="true"></i>
-                    <span>Choose avatar</span>
-                  </span></template
-                >
-              </label>
-              <p class="avatar-upload-note">JPEG, PNG, WebP, or GIF · 5 MB max</p>
-            </div>
-            <div class="agent-form-main">
-              <div class="form-field">
-                <label for="new-agent-name">name</label
-                ><input
-                  id="new-agent-name"
-                  class="input input-bordered"
-                  x-model="newAgentName"
-                  required
-                  maxlength="80"
-                  placeholder="e.g. researcher"
-                />
-              </div>
-              <div class="form-field">
-                <label for="new-agent-tags">tags <small>(up to 5, comma-separated)</small></label>
+        <form @submit.prevent="agentWizardStep === 3 && submitAgent()">
+          <ul class="steps agent-wizard-steps" aria-label="Agent setup steps">
+            <li
+              class="step"
+              :class="{'step-primary': agentWizardStep >= 1}"
+              data-content="1"
+              role="button"
+              tabindex="0"
+              @click="setAgentWizardStep(1)"
+              @keydown.enter.prevent="setAgentWizardStep(1)"
+            >
+              Basics
+            </li>
+            <li
+              class="step"
+              :class="{'step-primary': agentWizardStep >= 2}"
+              data-content="2"
+              role="button"
+              tabindex="0"
+              @click="setAgentWizardStep(2)"
+              @keydown.enter.prevent="setAgentWizardStep(2)"
+            >
+              Permissions
+            </li>
+            <li
+              class="step"
+              :class="{'step-primary': agentWizardStep >= 3}"
+              data-content="3"
+              role="button"
+              tabindex="0"
+              @click="setAgentWizardStep(3)"
+              @keydown.enter.prevent="setAgentWizardStep(3)"
+            >
+              Capabilities
+            </li>
+          </ul>
+
+          <section class="agent-wizard-panel" x-show="agentWizardStep === 1">
+            <div class="agent-form-intro">
+              <div class="avatar-upload-panel">
                 <input
-                  id="new-agent-tags"
-                  class="input input-bordered"
-                  x-model="newAgentTags"
-                  placeholder="e.g. Research, Writing, Strategy"
+                  id="new-agent-avatar"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  @change="uploadAgentAvatar($event)"
+                  hidden
                 />
-              </div>
-            </div>
-          </div>
-          <div class="agent-form-content">
-            <div class="form-field">
-              <label for="new-agent-description">description</label>
-              <textarea
-                id="new-agent-description"
-                class="textarea textarea-bordered"
-                x-model="newAgentDescription"
-                @input="resizeAgentTextarea($event)"
-                maxlength="240"
-                rows="1"
-                placeholder="Describe the result this Agent helps users achieve…"
-              ></textarea>
-            </div>
-            <div class="form-field">
-              <label for="new-agent-quickstarts">shortcuts <small>(3-5 prompts, one per line)</small></label>
-              <textarea
-                id="new-agent-quickstarts"
-                class="textarea textarea-bordered"
-                x-model="newAgentQuickstarts"
-                @input="resizeAgentTextarea($event)"
-                maxlength="1200"
-                rows="1"
-                placeholder="Help me…\nReview this…"
-              ></textarea>
-            </div>
-            <div class="form-field agent-instruction-field">
-              <label class="agent-section-label" for="new-agent-instruction">Instruction</label>
-              <div class="instruction-textarea-wrap">
-                <textarea
-                  id="new-agent-instruction"
-                  class="textarea textarea-bordered"
-                  x-model="newAgentInstruction"
-                  @input="resizeAgentTextarea($event)"
-                  required
-                  maxlength="10000"
-                  rows="1"
-                  placeholder="Tell this agent how it should behave…"
-                ></textarea>
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-sm btn-square instruction-generate-button"
-                  :disabled="generatingInstruction"
-                  @click="generateAgentInstruction"
-                  title="Generate specialist instruction"
-                  aria-label="Generate specialist instruction"
-                >
-                  <i x-show="!generatingInstruction" data-lucide="pencil-sparkles" aria-hidden="true"></i>
-                  <span
-                    x-show="generatingInstruction"
-                    class="loading loading-spinner loading-xs"
-                    aria-hidden="true"
-                  ></span>
-                </button>
-              </div>
-            </div>
-            <div class="agent-model-fields">
-              <div class="form-field">
-                <label for="new-agent-provider">Provider</label
-                ><select
-                  id="new-agent-provider"
-                  class="select select-bordered"
-                  x-model="newAgentProvider"
-                  @change="changeAgentProvider()"
-                >
-                  <option value="">Auto (system default)</option>
-                  <template x-for="provider in resources.providers" :key="provider.id"
-                    ><option :value="provider.id" x-text="provider.name"></option
-                  ></template>
-                </select>
-              </div>
-              <div class="form-field">
-                <label for="new-agent-model">Model</label
-                ><select
-                  id="new-agent-model"
-                  class="select select-bordered"
-                  x-model="newAgentModel"
-                  @change="changeAgentModel()"
-                  :disabled="!newAgentProvider"
-                >
-                  <option value="">Auto</option>
-                  <template x-for="model in modelsFor()" :key="model.id"
-                    ><option :value="model.id" x-text="model.name"></option
-                  ></template>
-                </select>
-              </div>
-              <div class="form-field">
-                <label for="new-agent-thinking">Thinking effort</label
-                ><select
-                  id="new-agent-thinking"
-                  class="select select-bordered"
-                  x-model="newAgentThinkingLevel"
-                  :disabled="!newAgentProvider || !newAgentModel"
-                >
-                  <option value="">Auto</option>
-                  <template x-for="level in thinkingLevelsFor()" :key="level"
-                    ><option :value="level" x-text="level"></option
-                  ></template>
-                </select>
-              </div>
-            </div>
-            <p
-              class="agent-model-auto-note"
-              x-show="usesAutoModelConfig()"
-              x-text="'Auto uses: ' + autoModelConfigLabel()"
-            ></p>
-          </div>
-          <div class="form-field">
-            <label class="agent-section-label">Built-in tools</label>
-            <div class="tool-group-grid">
-              <template x-for="group in toolGroups" :key="group.id">
-                <label class="tool-group" :title="group.description">
-                  <input
-                    type="checkbox"
-                    class="checkbox checkbox-sm"
-                    :checked="toolGroupState(group) === 'all'"
-                    :indeterminate="toolGroupState(group) === 'partial'"
-                    @change="toggleToolGroup(group)"
-                  />
-                  <span class="tool-group-copy">
-                    <b x-text="group.label"></b>
-                    <small class="tool-group-tools" x-text="group.tools.join(' · ')"></small>
-                  </span>
+                <label class="avatar-upload" for="new-agent-avatar">
+                  <template x-if="newAgentAvatarPreview || (editingAgent && avatarUrl(editingAgent))"
+                    ><img class="avatar-upload-image" :src="newAgentAvatarPreview || avatarUrl(editingAgent)" alt=""
+                  /></template>
+                  <template x-if="!newAgentAvatarPreview && !(editingAgent && avatarUrl(editingAgent))"
+                    ><span class="avatar-upload-placeholder">
+                      <i data-lucide="image-plus" aria-hidden="true"></i>
+                      <span>Choose avatar</span>
+                    </span></template
+                  >
                 </label>
-              </template>
-            </div>
-          </div>
-          <div class="form-field">
-            <label class="agent-section-label">Extensions</label>
-            <div class="resource-check-grid">
-              <template x-if="resources.extensions.length === 0"
-                ><span class="resource-empty">No extensions discovered</span></template
-              ><template x-for="item in resources.extensions" :key="item.id"
-                ><label class="resource-check" :title="item.description || item.path"
+                <p class="avatar-upload-note">JPEG, PNG, WebP, or GIF · 5 MB max</p>
+              </div>
+              <div class="agent-form-main">
+                <div class="form-field">
+                  <label for="new-agent-name">name</label
                   ><input
-                    type="checkbox"
-                    class="checkbox checkbox-sm"
-                    :value="item.path"
-                    :checked="newAgentExtensions.includes(item.path)"
-                    @change="toggleResource('extensions', item.path)" /><span
-                    ><b x-text="item.name"></b><small x-text="item.description || item.path"></small></span></label
-              ></template>
+                    id="new-agent-name"
+                    class="input input-bordered"
+                    x-model="newAgentName"
+                    required
+                    maxlength="80"
+                    placeholder="e.g. researcher"
+                  />
+                </div>
+                <div class="form-field">
+                  <label for="new-agent-tags">tags <small>(up to 5, comma-separated)</small></label>
+                  <input
+                    id="new-agent-tags"
+                    class="input input-bordered"
+                    x-model="newAgentTags"
+                    placeholder="e.g. Research, Writing, Strategy"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="form-field">
-            <label class="agent-section-label">Skills</label>
-            <div class="resource-check-grid">
-              <template x-if="resources.skills.length === 0"
-                ><span class="resource-empty">No skills discovered</span></template
-              ><template x-for="item in resources.skills" :key="item.id"
-                ><label class="resource-check" :title="item.description || item.path"
-                  ><input
-                    type="checkbox"
-                    class="checkbox checkbox-sm"
-                    :value="item.path"
-                    :checked="newAgentSkills.includes(item.path)"
-                    @change="toggleResource('skills', item.path)" /><span
-                    ><b x-text="item.name"></b><small x-text="item.description || item.path"></small></span></label
-              ></template>
+            <div class="agent-form-content agent-wizard-basics">
+              <div class="form-field">
+                <label for="new-agent-description">description</label>
+                <textarea
+                  id="new-agent-description"
+                  class="textarea textarea-bordered"
+                  x-model="newAgentDescription"
+                  @input="resizeAgentTextarea($event)"
+                  maxlength="240"
+                  rows="1"
+                  placeholder="Describe the result this Agent helps users achieve…"
+                ></textarea>
+              </div>
+              <div class="form-field">
+                <label for="new-agent-quickstarts">shortcuts <small>(3-5 prompts, one per line)</small></label>
+                <textarea
+                  id="new-agent-quickstarts"
+                  class="textarea textarea-bordered"
+                  x-model="newAgentQuickstarts"
+                  @input="resizeAgentTextarea($event)"
+                  maxlength="1200"
+                  rows="1"
+                  placeholder="Help me…\nReview this…"
+                ></textarea>
+              </div>
+              <div class="form-field agent-instruction-field">
+                <label class="agent-section-label" for="new-agent-instruction">Instruction</label>
+                <div class="instruction-textarea-wrap">
+                  <textarea
+                    id="new-agent-instruction"
+                    class="textarea textarea-bordered"
+                    x-model="newAgentInstruction"
+                    @input="resizeAgentTextarea($event)"
+                    required
+                    maxlength="10000"
+                    rows="1"
+                    placeholder="Tell this agent how it should behave…"
+                  ></textarea>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="form-field">
-            <label class="agent-section-label">MCP servers</label>
-            <div class="resource-check-grid mcp-check-grid">
-              <template x-if="resources.mcp_servers.length === 0"
-                ><span class="resource-empty">No MCP servers discovered</span></template
-              ><template x-for="server in resources.mcp_servers" :key="server.id"
-                ><label class="resource-check" :title="server.path"
-                  ><input
-                    type="checkbox"
-                    class="checkbox checkbox-sm"
-                    :value="server.id"
-                    :checked="newAgentMcpServers.includes(server.id)"
-                    @change="toggleResource('mcp', server.id)" /><span
-                    ><b x-text="server.name"></b
-                    ><small x-text="server.description || server.path"></small></span></label
-              ></template>
+          </section>
+
+          <section class="agent-wizard-panel" x-show="agentWizardStep === 2" x-cloak>
+            <div class="form-field agent-provider-row">
+              <label class="agent-section-label">Provider</label>
+              <div class="agent-model-fields">
+                <div class="form-field">
+                  <label for="new-agent-provider">Provider</label
+                  ><select
+                    id="new-agent-provider"
+                    class="select select-bordered"
+                    x-model="newAgentProvider"
+                    @change="changeAgentProvider()"
+                  >
+                    <option value="">Auto (system default)</option>
+                    <template x-for="provider in resources.providers" :key="provider.id"
+                      ><option :value="provider.id" x-text="provider.name"></option
+                    ></template>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label for="new-agent-model">Model</label
+                  ><select
+                    id="new-agent-model"
+                    class="select select-bordered"
+                    x-model="newAgentModel"
+                    @change="changeAgentModel()"
+                    :disabled="!newAgentProvider"
+                  >
+                    <option value="">Auto</option>
+                    <template x-for="model in modelsFor()" :key="model.id"
+                      ><option :value="model.id" x-text="model.name"></option
+                    ></template>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label for="new-agent-thinking">Thinking effort</label
+                  ><select
+                    id="new-agent-thinking"
+                    class="select select-bordered"
+                    x-model="newAgentThinkingLevel"
+                    :disabled="!newAgentProvider || !newAgentModel"
+                  >
+                    <option value="">Auto</option>
+                    <template x-for="level in thinkingLevelsFor()" :key="level"
+                      ><option :value="level" x-text="level"></option
+                    ></template>
+                  </select>
+                </div>
+              </div>
+              <p
+                class="agent-model-auto-note"
+                x-show="usesAutoModelConfig()"
+                x-text="'Auto uses: ' + autoModelConfigLabel()"
+              ></p>
             </div>
-          </div>
-          <div class="dialog-actions">
-            <button type="button" class="btn btn-sm btn-ghost" @click="createDialog = false">Cancel</button
-            ><button type="submit" class="btn btn-sm btn-primary" :disabled="creating">
+            <div class="form-field">
+              <label class="agent-section-label">Built-in tools</label>
+              <div class="tool-group-grid">
+                <template x-for="group in toolGroups" :key="group.id">
+                  <label class="tool-group" :title="group.description">
+                    <input
+                      type="checkbox"
+                      class="checkbox checkbox-sm"
+                      :checked="toolGroupState(group) === 'all'"
+                      :indeterminate="toolGroupState(group) === 'partial'"
+                      @change="toggleToolGroup(group)"
+                    />
+                    <span class="tool-group-copy">
+                      <b x-text="group.label"></b>
+                      <small class="tool-group-tools" x-text="group.tools.join(' · ')"></small>
+                    </span>
+                  </label>
+                </template>
+              </div>
+            </div>
+            <div class="form-field">
+              <label class="agent-section-label">Extensions</label>
+              <div class="resource-check-grid">
+                <template x-if="resources.extensions.length === 0"
+                  ><span class="resource-empty">No extensions discovered</span></template
+                ><template x-for="item in resources.extensions" :key="item.id"
+                  ><label class="resource-check" :title="item.description || item.path"
+                    ><input
+                      type="checkbox"
+                      class="checkbox checkbox-sm"
+                      :value="item.path"
+                      :checked="newAgentExtensions.includes(item.path)"
+                      @change="toggleResource('extensions', item.path)" /><span
+                      ><b x-text="item.name"></b><small x-text="item.description || item.path"></small></span></label
+                ></template>
+              </div>
+            </div>
+            <div class="form-field">
+              <label class="agent-section-label">MCP servers</label>
+              <div class="resource-check-grid mcp-check-grid">
+                <template x-if="resources.mcp_servers.length === 0"
+                  ><span class="resource-empty">No MCP servers discovered</span></template
+                ><template x-for="server in resources.mcp_servers" :key="server.id"
+                  ><label class="resource-check" :title="server.path"
+                    ><input
+                      type="checkbox"
+                      class="checkbox checkbox-sm"
+                      :value="server.id"
+                      :checked="newAgentMcpServers.includes(server.id)"
+                      @change="toggleResource('mcp', server.id)" /><span
+                      ><b x-text="server.name"></b
+                      ><small x-text="server.description || server.path"></small></span></label
+                ></template>
+              </div>
+            </div>
+          </section>
+
+          <section class="agent-wizard-panel" x-show="agentWizardStep === 3" x-cloak>
+            <div class="form-field agent-skills-field">
+              <label class="agent-section-label" for="agent-skill-search">Skills</label>
+              <input
+                id="agent-skill-search"
+                class="input input-bordered agent-skill-search"
+                x-model="agentSkillSearch"
+                type="search"
+                placeholder="Search skills by name or description…"
+              />
+              <div class="resource-check-grid agent-skills-grid">
+                <template x-if="resources.skills.length === 0"
+                  ><span class="resource-empty">No skills discovered</span></template
+                ><template x-if="resources.skills.length && agentSkillItems().length === 0"
+                  ><span class="resource-empty">No matching skills</span></template
+                ><template x-for="item in agentSkillItems()" :key="item.id"
+                  ><label class="resource-check" :title="item.description || item.path"
+                    ><input
+                      type="checkbox"
+                      class="checkbox checkbox-sm"
+                      :value="item.path"
+                      :checked="newAgentSkills.includes(item.path)"
+                      @change="toggleResource('skills', item.path)" /><span
+                      ><b x-text="item.name"></b><small x-text="item.description || item.path"></small></span></label
+                ></template>
+              </div>
+            </div>
+          </section>
+
+          <div class="dialog-actions agent-wizard-actions">
+            <button type="button" class="btn btn-sm btn-ghost" @click="closeAgentDialog()">Cancel</button>
+            <button
+              type="button"
+              class="btn btn-sm btn-ghost agent-optimize-button"
+              :disabled="generatingInstruction"
+              @click="generateAgentInstruction"
+              title="Optimize agent profile"
+            >
+              <i x-show="!generatingInstruction" data-lucide="pencil-sparkles" aria-hidden="true"></i>
+              <span x-show="generatingInstruction" class="loading loading-spinner loading-xs" aria-hidden="true"></span>
+              <span x-text="generatingInstruction ? 'Optimizing' : 'Optimize'"></span>
+            </button>
+            <span class="agent-wizard-action-spacer"></span>
+            <button
+              type="button"
+              class="btn btn-sm btn-ghost"
+              x-show="agentWizardStep > 1"
+              @click="previousAgentWizardStep()"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-primary"
+              x-show="agentWizardStep < 3"
+              @click="nextAgentWizardStep()"
+            >
+              Next
+            </button>
+            <button type="submit" class="btn btn-sm btn-primary" x-show="agentWizardStep === 3" :disabled="creating">
               <span x-text="editingAgent ? 'Save' : 'Create'"></span>
             </button>
           </div>
@@ -3011,6 +3081,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260912-mobile-chat-layout"></script>
+    <script src="/static/app.js?v=20260913-agent-wizard"></script>
   </body>
 </html>
