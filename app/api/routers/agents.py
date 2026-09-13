@@ -228,10 +228,11 @@ def create_router(
             "skill_catalog": [skill_by_path[path] for path in payload.skills],
         }
         try:
-            instruction = await runtime.generate_agent_instruction(draft)
+            profile = await runtime.generate_agent_profile(draft)
         except PiRpcError as exc:
             raise HTTPException(503, str(exc)) from exc
-        return {"instruction": instruction}
+        validate_profile(profile["tags"], profile["quickstarts"])
+        return profile
 
     @router.get("/api/market/agents")
     async def list_market_agents():

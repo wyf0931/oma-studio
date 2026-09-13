@@ -1,7 +1,9 @@
 import asyncio
 from types import SimpleNamespace
 
-from app.pi_rpc import PiRpcClient, PiRuntimeManager
+import pytest
+
+from app.pi_rpc import PiRpcClient, PiRpcError, PiRuntimeManager, parse_agent_profile
 
 
 def test_agent_provider_and_model_override_global_defaults():
@@ -174,6 +176,22 @@ def test_instruction_generator_is_ephemeral_and_loads_selected_skills_read_only(
     assert "/home/node/.agents/skills/diagram-design" in command
     assert command[command.index("--provider") + 1] == "zhipu"
     assert command[command.index("--model") + 1] == "glm-5.3-flash"
+
+
+def test_parse_agent_profile_requires_structured_profile_fields():
+    profile = parse_agent_profile(
+        '{"instruction":"# Role\\nDiagram expert",'
+        '"description":"Create diagrams",'
+        '"tags":["Architecture"],'
+        '"quickstarts":["Draw one","Explain one","Review one"]}'
+    )
+
+    assert profile["instruction"] == "# Role\nDiagram expert"
+    assert profile["tags"] == ["Architecture"]
+    assert len(profile["quickstarts"]) == 3
+
+    with pytest.raises(PiRpcError, match="invalid agent profile"):
+        parse_agent_profile("# Role\nNot JSON")
 
 
 def test_stream_prompt_emits_assistant_message_boundaries():
