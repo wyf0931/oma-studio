@@ -405,9 +405,9 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260913-agent-wizard" in Path("static/index.html").read_text(
-        encoding="utf-8"
-    )
+    assert "app.js?v=20260914-market-agent-delete" in Path(
+        "static/index.html"
+    ).read_text(encoding="utf-8")
 
 
 def test_chat_viewport_and_composer_use_latest_message_and_seven_line_contract():
@@ -894,6 +894,67 @@ def test_deleting_installed_agent_copy_does_not_delete_source_or_publication(cli
         if item["id"] == listing["id"]
     )
     assert remaining["install_count"] == 1
+
+
+def test_admin_can_delete_marketplace_publication_without_deleting_installed_copy(
+    client,
+):
+    source = client.post(
+        "/api/agents",
+        json={"name": f"published-{uuid4().hex[:8]}", "instruction": "Keep this"},
+    ).json()
+    listing = client.post(
+        f"/api/agents/{source['id']}/publish", json={"version": "v1.0.0"}
+    ).json()["agent"]
+    created = client.post(
+        "/api/users", json={"username": f"market-user-{uuid4().hex[:8]}"}
+    ).json()
+
+    client.post("/api/auth/logout")
+    assert (
+        client.post(
+            "/api/auth/login",
+            json={"username": created["username"], "password": "test-user-password"},
+        ).status_code
+        == 200
+    )
+    installed = client.post(
+        f"/api/market/agents/{listing['id']}/install", json={"version": "v1.0.0"}
+    ).json()["agent"]
+    assert client.delete(f"/api/market/agents/{listing['id']}").status_code == 403
+
+    client.post(
+        "/api/auth/login",
+        json={"username": "admin", "password": "test-admin-password"},
+    )
+    deleted = client.delete(f"/api/market/agents/{listing['id']}")
+    assert deleted.status_code == 200
+    assert deleted.json() == {"ok": True, "id": listing["id"]}
+    assert all(
+        item["id"] != listing["id"]
+        for item in client.get("/api/market/agents").json()["agents"]
+    )
+    assert client.get(f"/api/agents/{source['id']}").status_code == 200
+
+    client.post(
+        "/api/auth/login",
+        json={"username": created["username"], "password": "test-user-password"},
+    )
+    assert client.get(f"/api/agents/{installed['id']}").status_code == 200
+
+
+def test_marketplace_agent_delete_ui_is_admin_only_and_confirmed():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+
+    assert "x-show=\"authUser?.role === 'admin'\"" in html
+    assert 'data-lucide="trash-2"' in html
+    assert "deleteMarketAgent(item)" in html
+    assert "confirmDeleteMarketAgent()" in html
+    assert "DELETE /api/market/agents/{id}" not in html
+    assert "`/api/market/agents/${agent.id}`" in script
+    assert 'method: "DELETE"' in script
+    assert "Existing installed Agents and" in html
 
 
 def test_auth_login_uses_24_hour_cookie(client):

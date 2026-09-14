@@ -3684,6 +3684,9 @@ pre,
 .market-agent-install-action:focus-visible {
  opacity: 1;
 }
+.market-agent-delete-action {
+ margin-left: 0;
+}
 .agent-publish-dialog .form-field {
  margin-top: 20px;
 }

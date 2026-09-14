@@ -109,6 +109,8 @@ function platform() {
     marketPublishTarget: null,
     marketPublishVersion: "v1.0.0",
     marketPublishing: false,
+    marketDeleteAgentTarget: null,
+    marketDeletingAgent: false,
     marketInstallAgentTarget: null,
     marketInstallingAgent: false,
     marketCatalogSearch: "",
@@ -3000,6 +3002,24 @@ function platform() {
     },
     installMarketAgent(agent) {
       this.marketInstallAgentTarget = agent;
+    },
+    deleteMarketAgent(agent) {
+      if (this.authUser?.role === "admin") this.marketDeleteAgentTarget = agent;
+    },
+    async confirmDeleteMarketAgent() {
+      const agent = this.marketDeleteAgentTarget;
+      if (!agent || this.marketDeletingAgent) return;
+      this.marketDeletingAgent = true;
+      try {
+        await this.api(`/api/market/agents/${agent.id}`, { method: "DELETE" });
+        this.marketAgents = this.marketAgents.filter((item) => item.id !== agent.id);
+        this.marketDeleteAgentTarget = null;
+        this.showToast(`Agent ${agent.name} removed from Marketplace`);
+      } catch (error) {
+        this.showError(error);
+      } finally {
+        this.marketDeletingAgent = false;
+      }
     },
     async confirmInstallMarketAgent() {
       const agent = this.marketInstallAgentTarget;
