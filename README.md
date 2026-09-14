@@ -1,14 +1,34 @@
 # OMA Studio
 
-An experimental, local-first agent platform built with **FastAPI**, **Pi RPC mode**, and a lightweight **Alpine.js + DaisyUI** web interface.
+**OMA** means **Oh My Agent**. OMA Studio is the open-source, local-first workspace for people who want a small team of useful Agents around their everyday work.
 
-OMA Studio explores a practical separation of concerns:
+It is designed first for personal studios and small teams working on research, content, operations, planning, knowledge organization, analysis, and other repeatable knowledge work. Coding is one of the capabilities available through the underlying Pi runtime, but it is not the product's main use case.
 
-- Pi owns agent execution, tool calls, streaming events, and durable session transcripts.
-- The platform owns agents, chat metadata, resource discovery, and the web experience.
-- SQLModel-backed SQLite stores only platform metadata; it does not duplicate Pi message history.
+Create an Agent with a clear role, working instructions, trusted tools, and reusable Skills. Use it in a Chat, run it on a schedule with an Autopilot, and keep the files it produces in the Library. The whole workspace runs on infrastructure you control, with local storage and a model connection you choose.
 
-> Status: MVP / active experiment. APIs, storage, and sandboxing integrations may change.
+[ohmyagent.ai](https://ohmyagent.ai) is the Oh My Agent project site. The hosted workspace is available at [studio.ohmyagent.ai](https://studio.ohmyagent.ai).
+
+OMA Studio is built with **FastAPI**, **Pi RPC mode**, and a lightweight **Alpine.js + DaisyUI** web interface.
+
+The project keeps a clear division of responsibility:
+
+- Pi runs Agents, tools, streaming events, and durable session transcripts.
+- OMA Studio manages Agents, Chat metadata, resource discovery, schedules, generated files, and the web experience.
+- SQLModel-backed SQLite stores platform metadata only. It does not copy message history or tool results.
+
+> Status: MVP / active open-source project. APIs, storage, and sandboxing integrations may change.
+
+## Who it is for
+
+OMA Studio is for a person or a small team that has recurring work and wants a dependable place to run it with Agents. Typical examples include research briefs, content preparation, market or competitor tracking, document organization, internal knowledge work, reporting, and other workflows where a clear method matters as much as the final answer.
+
+It can also run coding tasks because Pi provides file and command-line tools. That capability is useful when it supports the work around a project, but OMA Studio is not presented as an IDE or a replacement for a developer's preferred coding environment.
+
+## What OMA Studio provides
+
+An Agent holds a role, instructions, model settings, trusted tools, and reusable Skills. A Chat is where the work happens. An Autopilot runs a recurring instruction on a schedule. The Library keeps files created during that work so they can be reviewed, downloaded, and used again.
+
+The result is a small, inspectable workspace for turning good ways of working into repeatable practice. You can run it on your own machine or deploy it to infrastructure you control.
 
 ## Screenshots
 
@@ -53,20 +73,25 @@ OMA Studio explores a practical separation of concerns:
 
 ## Features
 
-- Chat with Pi through RPC mode, including streamed assistant output.
+- Reusable Agents for research, writing, operations, planning, analysis, and other knowledge-work roles.
+- Chat with Agents through Pi RPC mode, including streamed assistant output.
 - Pi-managed session history, addressable at `/chat/<chat-id>`.
 - Markdown rendering for assistant messages, code blocks, tables, lists, thinking, tool calls, and collapsible tool results.
 - Generated-file drawer for Chat sessions, with metadata cards and a new-tab Markdown viewer with Mermaid support.
 - Library page aggregating Agent-created files with Agent filtering, name search, pagination, download, and source-chat links.
 - Autopilots for scheduled Agent instructions, manual runs, run history, and linked Chat sessions.
 - Agent definitions with instruction, Provider, Model, built-in tool allowlist, extensions, skills, and MCP servers.
-- Marketplace discovery of Pi resources, plus skills.sh search and skill installation.
+- Marketplace discovery of Skills, Extensions, MCP Servers, and Agent templates, plus skills.sh search and Skill installation.
 - System, Light, and Dark themes managed from Settings → General; new visitors follow their system preference by default.
 - JSONL request tracing with `X-Request-ID` correlation and persistent Docker-mounted logs.
 - A small operational CLI: `bin/ops.sh start|stop|restart|status|logs` (Docker Compose mode).
 
 ## Design principles
 
+- **Work comes first.** OMA Studio is aimed at practical knowledge work for individuals and small teams. Coding is supported, but the product is not organized around software development.
+- **Keep ownership close to the user.** The default setup runs locally, stores data in inspectable files, and lets the operator choose the model connection and workspace.
+- **Turn good work into a repeatable role.** An Agent combines instructions, a model, trusted capabilities, and reusable Skills so a useful way of working can be used again.
+- **Leave a usable result behind.** Chats, scheduled runs, and generated files make work easier to review, continue, and reuse.
 - **Pi is the source of truth for messages.** The platform does not copy message transcripts into SQLite.
 - **One Agent per chat.** An Agent's instruction, Provider, Model, tool allowlist, extensions, skills, and MCP selection are fixed when a chat starts.
 - **Explicit capability selection.** Discovering a resource does not enable it. Agents must opt in to tools, extensions, skills, and MCP servers.
@@ -85,7 +110,7 @@ FastAPI
   └── Pi RPC bridge
           │ JSONL RPC
           ▼
-      Pi coding agent
+      Pi Agent runtime
   ├── Pi session JSONL history
   ├── tools / extensions / skills
   └── MCP adapter (optional)
@@ -112,7 +137,7 @@ The session UUID is deliberately shared between platform metadata and Pi. This a
 
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/)
-- A local [Pi coding agent](https://github.com/earendil-works/pi)
+- A local [Pi Agent runtime](https://github.com/earendil-works/pi)
 - A configured Pi provider credential, such as DeepSeek
 
 ## Quick start
@@ -330,7 +355,7 @@ The Image creation tool group exposes stable `generate_image` and `edit_image` t
 
 Generated and edited images are written to `generated/<chat-id>/` in `PI_CWD` and discovered by Chat Files and Library. Image files open through the browser-native file endpoint rather than an inline chat preview. `edit_image` only reads an image uploaded to the active Chat or one previously generated in that same Chat. Existing visual Chat models receive user-authorized image uploads through Pi RPC's native image payload; no separate `describe_image` tool is needed.
 
-Pi persists image payloads as Base64 in session history. OMA deliberately keeps the first release simple; [Issue #131](https://github.com/wyf0931/pi-rpc-pydemo/issues/131) tracks a bounded image-context strategy before image-heavy workflows become the default.
+Pi persists image payloads as Base64 in session history. OMA deliberately keeps the first release simple; [Issue #131](https://github.com/wyf0931/oma-studio/issues/131) tracks a bounded image-context strategy before image-heavy workflows become the default.
 
 If the `pi-mcp-adapter` extension is selected, its `mcp` and `mcpScript` tools are added to the Pi allowlist so enabled MCP servers can be called.
 
@@ -437,7 +462,7 @@ In particular:
 
 The planned production execution model is a pluggable `SandboxRunner`, beginning with an OpenShell integration. The goal is one policy-controlled sandbox per active chat or project, with explicit workspace, network, credential, CPU, and memory limits.
 
-See [OpenShell sandbox runner proposal](https://github.com/wyf0931/pi-rpc-pydemo/issues/1) for the intended integration and acceptance criteria.
+See [OpenShell sandbox runner proposal](https://github.com/wyf0931/oma-studio/issues/1) for the intended integration and acceptance criteria.
 
 ## Development
 
@@ -487,9 +512,9 @@ The test suite covers SQLite persistence and migration, Agent Provider/Model ove
 ## Roadmap
 
 - [ ] OpenShell-backed `SandboxRunner` for policy-controlled Pi execution.
-- [ ] Project workspaces and per-project sandbox policies.
+- [ ] Project-aware workspaces and per-project policies.
 - [ ] Durable production datastore beyond the current SQLite-backed metadata store.
-- [ ] Agent marketplace, autopilots, and library modules.
+- [ ] Richer team collaboration and organization-level Agent sharing.
 
 ## Contributing
 

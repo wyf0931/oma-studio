@@ -13,7 +13,7 @@
 set -euo pipefail
 
 ROOT=/opt/apps/oma-studio
-REPO_URL="https://github.com/wyf0931/pi-rpc-pydemo.git"
+REPO_URL="https://github.com/wyf0931/oma-studio.git"
 REF="${1:-main}"
 
 # Load OMA_PORT etc. for the health check.

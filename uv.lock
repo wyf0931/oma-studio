@@ -262,7 +262,7 @@ wheels = [
 ]
 
 [[package]]
-name = "pi-agent-platform"
+name = "oma-studio"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
