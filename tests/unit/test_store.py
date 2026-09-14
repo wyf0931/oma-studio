@@ -30,6 +30,20 @@ def test_default_agent_and_agent_crud(tmp_path: Path):
     assert store.delete_agent(default["id"]) is False
 
 
+def test_default_agent_instruction_migrates_legacy_value(tmp_path: Path):
+    store = Store(tmp_path / "db.json")
+    default = store.ensure_default_agent()
+    store.update_agent(
+        default["id"], {"instruction": "Be helpful, clear, and concise."}
+    )
+
+    refreshed = store.ensure_default_agent()
+
+    assert refreshed["instruction"] == (
+        "Be helpful, clear, concise and easy to follow; don't sacrifice clarity for brevity."
+    )
+
+
 def test_agent_user_profile_metadata_round_trips(tmp_path: Path):
     store = Store(tmp_path / "db.json")
     agent = store.create_agent(

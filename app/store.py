@@ -19,6 +19,8 @@ WEB_TOOLS = ["web_fetch", "web_search", "publish_artifact"]
 IMAGE_TOOLS = ["generate_image", "edit_image"]
 PLATFORM_TOOLS = WEB_TOOLS + IMAGE_TOOLS
 SUPPORTED_TOOLS = BUILTIN_TOOLS + PLATFORM_TOOLS
+DEFAULT_AGENT_INSTRUCTION = "Be helpful, clear, concise and easy to follow; don't sacrifice clarity for brevity."
+LEGACY_DEFAULT_AGENT_INSTRUCTION = "Be helpful, clear, and concise."
 
 
 def now_iso() -> str:
@@ -237,8 +239,11 @@ class Store:
         agent = self.get_agent("default-assistant")
         if agent:
             values = {}
+            if agent.get("instruction") == LEGACY_DEFAULT_AGENT_INSTRUCTION:
+                values["instruction"] = DEFAULT_AGENT_INSTRUCTION
             if "tools_configured" not in agent or "provider" not in agent:
                 values = {
+                    **values,
                     "tools": agent.get("tools") or default_tools or [],
                     "tools_configured": True,
                     "provider": agent.get("provider"),
@@ -253,7 +258,7 @@ class Store:
         item = {
             "id": "default-assistant",
             "name": "assistant",
-            "instruction": "Be helpful, clear, and concise.",
+            "instruction": DEFAULT_AGENT_INSTRUCTION,
             "description": "A general-purpose assistant for everyday work.",
             "tags": [],
             "quickstarts": [],
