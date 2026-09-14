@@ -1,5 +1,5 @@
 {
-  "name": "pi-agent-platform-ui",
+  "name": "oma-studio-ui",
   "private": true,
   "scripts": {
     "build:css": "tailwindcss -i frontend/input.css -o static/typography.css --minify",

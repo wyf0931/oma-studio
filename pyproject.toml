@@ -1,7 +1,7 @@
 [project]
-name = "pi-agent-platform"
+name = "oma-studio"
 version = "0.1.0"
-description = "A small FastAPI + Alpine.js platform for Pi RPC agents"
+description = "A local-first workspace for personal and small-team Agents"
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"
 dependencies = [
