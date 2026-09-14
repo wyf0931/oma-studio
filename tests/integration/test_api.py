@@ -500,6 +500,17 @@ def test_generated_images_render_as_responsive_file_artifacts_and_refresh_files(
     assert "max-height: 62svh" in styles
 
 
+def test_agent_picker_menus_limit_height_and_scroll_overflow():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+
+    assert 'class="agent-picker-menu"' in html
+    assert 'class="agent-picker-menu filter-agent-picker-menu"' in html
+    assert "max-height: min(232px, calc(100dvh - 180px))" in styles
+    assert "overflow-y: auto" in styles
+    assert "max-height: 280px" not in styles
+
+
 def test_chat_image_artifacts_use_daisyui_skeleton_loading_state():
     script = Path("static/app.js").read_text(encoding="utf-8")
     styles = Path("static/styles.css").read_text(encoding="utf-8")
