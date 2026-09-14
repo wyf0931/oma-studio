@@ -389,6 +389,21 @@ class Store:
             "author_username": author.get("username", "admin") if author else "admin",
         }
 
+    def delete_agent_publication(self, publication_id: str) -> bool:
+        if not self._find(
+            "agent_publications", lambda item: item.get("id") == publication_id
+        ):
+            return False
+        self._remove(
+            "agent_publication_versions",
+            lambda item: item.get("publication_id") == publication_id,
+        )
+        return bool(
+            self._remove(
+                "agent_publications", lambda item: item.get("id") == publication_id
+            )
+        )
+
     def has_agent_publication_version(self, publication_id: str, version: str) -> bool:
         return bool(
             self._find(

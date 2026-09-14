@@ -46,6 +46,21 @@ def test_agent_user_profile_metadata_round_trips(tmp_path: Path):
     assert saved["quickstarts"] == ["Rewrite this clearly.", "Give me three titles."]
 
 
+def test_deleting_agent_publication_keeps_installed_copy(tmp_path: Path):
+    store = Store(tmp_path / "db.json")
+    source = store.create_agent("publisher", "Share this agent")
+    publication = store.publish_agent(source, "admin", "v1.0.0")
+    store.publish_agent(source, "admin", "v1.1.0")
+    installed = store.install_agent_publication(publication["id"], "user-1")
+
+    assert installed is not None
+    assert store.delete_agent_publication(publication["id"]) is True
+    assert store.get_agent_publication(publication["id"]) is None
+    assert store.list_agent_publications() == []
+    assert store.get_agent(installed["id"]) is not None
+    assert store.delete_agent_publication(publication["id"]) is False
+
+
 def test_chat_index_does_not_store_messages(tmp_path: Path):
     store = Store(tmp_path / "db.json")
     agent = store.ensure_default_agent()

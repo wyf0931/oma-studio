@@ -76,7 +76,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260914-agent-wizard-layout" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260914-market-agent-delete" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -1071,6 +1071,16 @@
                       >
                         <i data-lucide="plus" aria-hidden="true"></i>
                       </button>
+                      <button
+                        type="button"
+                        class="trash-btn market-agent-delete-action"
+                        x-show="authUser?.role === 'admin'"
+                        @click.stop="deleteMarketAgent(item)"
+                        :aria-label="'Delete ' + item.name + ' from Marketplace'"
+                        title="Delete published Agent"
+                      >
+                        <i data-lucide="trash-2" aria-hidden="true"></i>
+                      </button>
                     </div>
                   </div>
                 </article>
@@ -1372,6 +1382,46 @@
                 </button>
               </div>
             </form>
+          </div>
+        </dialog>
+        <dialog
+          class="modal modal-middle"
+          :open="!!marketDeleteAgentTarget"
+          x-show="marketDeleteAgentTarget"
+          x-cloak
+          @click.self="marketDeleteAgentTarget = null"
+        >
+          <div class="modal-box confirm-box">
+            <div class="dialog-head">
+              <div>
+                <div class="eyebrow">Delete Marketplace Agent</div>
+                <h2>Remove <span x-text="marketDeleteAgentTarget?.name"></span>?</h2>
+              </div>
+              <button
+                type="button"
+                class="icon-btn"
+                @click="marketDeleteAgentTarget = null"
+                aria-label="Close delete dialog"
+              >
+                <i data-lucide="x" aria-hidden="true"></i>
+              </button>
+            </div>
+            <p class="confirm-copy">
+              This removes the published Marketplace listing and prevents future installs. Existing installed Agents and
+              the original Agent will remain available.
+            </p>
+            <div class="dialog-actions">
+              <button type="button" class="btn btn-ghost" @click="marketDeleteAgentTarget = null">Cancel</button>
+              <button
+                type="button"
+                class="btn btn-error"
+                @click="confirmDeleteMarketAgent()"
+                :disabled="marketDeletingAgent"
+              >
+                <span x-show="!marketDeletingAgent">Delete</span>
+                <span x-show="marketDeletingAgent" class="loading loading-spinner loading-sm"></span>
+              </button>
+            </div>
           </div>
         </dialog>
         <dialog
@@ -3082,6 +3132,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260913-agent-wizard"></script>
+    <script src="/static/app.js?v=20260914-market-agent-delete"></script>
   </body>
 </html>

@@ -72,6 +72,7 @@ def create_router(
     visible_or_404: Callable[[dict | None, Request, str], dict],
     visible_records: Callable[[list[dict], Request], list[dict]],
     user_id: Callable[[Request], str],
+    require_admin: Callable[[Request], dict],
 ) -> APIRouter:
     router = APIRouter(tags=["agents"])
 
@@ -271,6 +272,13 @@ def create_router(
         if not path:
             raise HTTPException(404, "Published Agent avatar not found")
         return FileResponse(path)
+
+    @router.delete("/api/market/agents/{publication_id}")
+    async def delete_market_agent(publication_id: str, request: Request):
+        require_admin(request)
+        if not store.delete_agent_publication(publication_id):
+            raise HTTPException(404, "Published Agent not found")
+        return {"ok": True, "id": publication_id}
 
     @router.post("/api/market/agents/{publication_id}/install", status_code=201)
     async def install_market_agent(

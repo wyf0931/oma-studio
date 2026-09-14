@@ -413,6 +413,7 @@ This MVP is a single FastAPI application with a static frontend. The main endpoi
 | `GET /api/resources` | Discover extensions, skills, MCP servers, Providers, and Models |
 | `GET /api/market/agents` | List organization Agent publications and latest versions |
 | `GET /api/market/agents/{id}/avatar` | Read a published Agent avatar |
+| `DELETE /api/market/agents/{id}` | Delete a published Agent listing (admin only; installed copies remain) |
 | `POST /api/market/agents/{id}/install` | Install a published Agent as a private copy |
 | `POST /api/market/skills/search` | Search skills.sh for installable skills |
 | `POST /api/market/skills/preview` | Preview skills available from a GitHub source |
