@@ -3496,6 +3496,9 @@ pre,
 .agent-catalog-toolbar > .btn {
  justify-self: end;
 }
+.agent-catalog-search {
+ max-width: none;
+}
 .agent-catalog-toolbar .send-btn,
 .autopilot-new {
  display: inline-flex;
