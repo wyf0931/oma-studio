@@ -1246,8 +1246,12 @@ def test_sidebar_footer_uses_a_grouped_profile_menu_with_existing_actions():
 
     assert "sidebar-profile" in html
     assert "avatar-placeholder sidebar-profile-avatar" in html
-    assert "Settings" in html and "Usage" in html and "Users" in html
-    assert "Help &amp; feedback" in html and "About" in html
+    assert (
+        "t('nav.settings')" in html
+        and "t('nav.usage')" in html
+        and "t('nav.users')" in html
+    )
+    assert "t('nav.helpFeedback')" in html and "t('nav.about')" in html
     assert 'data-lucide="log-out"' in html
     assert "profileMenuOpen" in script
     assert "openProfileUsers()" in script
