@@ -3487,9 +3487,14 @@ pre,
  justify-self: end;
 }
 .agent-catalog-toolbar {
- display: flex;
- justify-content: flex-end;
+ display: grid;
+ grid-template-columns: minmax(0, 1fr) auto;
+ align-items: center;
+ gap: 12px;
  margin: 0 0 16px;
+}
+.agent-catalog-toolbar > .btn {
+ justify-self: end;
 }
 .agent-catalog-toolbar .send-btn,
 .autopilot-new {
@@ -3826,6 +3831,12 @@ pre,
  }
 }
 @media (max-width: 640px) {
+ .agent-catalog-toolbar {
+  grid-template-columns: 1fr;
+ }
+ .agent-catalog-toolbar > .btn {
+  justify-self: stretch;
+ }
  .market-catalog-toolbar {
   grid-template-columns: 1fr;
  }
