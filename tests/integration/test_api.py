@@ -405,9 +405,9 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260915-i18n-market-search" in Path(
-        "static/index.html"
-    ).read_text(encoding="utf-8")
+    assert "app.js?v=20260915-currency-all" in Path("static/index.html").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_chat_viewport_and_composer_use_latest_message_and_seven_line_contract():

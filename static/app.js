@@ -1681,7 +1681,7 @@ function platform() {
         : date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     },
     usageCost(value) {
-      return `$${this.usageNumber(value).toFixed(4)}`;
+      return `¥${this.usageNumber(value).toFixed(4)}`;
     },
     async openSettingsTab(tab) {
       this.settingsTab = tab;
@@ -3378,7 +3378,7 @@ function platform() {
         usage.search || usage.fetch
           ? `<span class="usage-stat usage-tools" title="Web tool calls"><i data-lucide="globe" aria-hidden="true"></i><span>search ${usage.search || 0} · fetch ${usage.fetch || 0}</span></span>`
           : "",
-        stat("coins", "Estimated cost", `$${(Number(usage.cost) || 0).toFixed(2)}`),
+        stat("coins", "Estimated cost", `¥${(Number(usage.cost) || 0).toFixed(2)}`),
       ].join("");
     },
     faviconFor(url) {

@@ -21,6 +21,8 @@ def test_usage_statistics_has_a_single_sidebar_entry_and_dialog():
     assert "usageData.sessions" in html
     assert "usageData.users" in html
     assert "usageData.agents" in html
+    assert "return `¥${this.usageNumber(value).toFixed(4)}`" in script
+    assert "`¥${(Number(usage.cost) || 0).toFixed(2)}`" in script
     assert "x-show=\"authUser?.role === 'admin'\"" in html
     assert "usageTab === 'users' && authUser?.role === 'admin'" in html
     assert "usageTab === 'agents' && authUser?.role === 'admin'" in html
