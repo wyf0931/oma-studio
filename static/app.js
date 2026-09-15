@@ -313,12 +313,15 @@ function platform() {
     t(key, options = {}) {
       this.i18nReady;
       const fallback = options.defaultValue || key;
-      if (window.i18next?.isInitialized) return window.i18next.t(key, { ...options, defaultValue: fallback });
       const lookup = (messages) =>
         String(key)
           .split(".")
           .reduce((value, part) => value?.[part], messages);
-      return lookup(this.i18nMessages[this.language]) ?? lookup(this.i18nMessages.en) ?? fallback;
+      const localMessage = lookup(this.i18nMessages[this.language]) ?? lookup(this.i18nMessages.en);
+      if (typeof localMessage === "string") {
+        return localMessage.replace(/{{\s*(\w+)\s*}}/g, (_, name) => String(options[name] ?? ""));
+      }
+      return window.i18next?.isInitialized ? window.i18next.t(key, { ...options, defaultValue: fallback }) : fallback;
     },
     localizedMessage(message) {
       const exactKey = {
@@ -1643,7 +1646,7 @@ function platform() {
       const date = new Date(value);
       return Number.isNaN(date.getTime())
         ? String(value)
-        : date.toLocaleDateString(this.locale(), { month: "short", day: "numeric" });
+        : date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     },
     usageCost(value) {
       return `$${this.usageNumber(value).toFixed(4)}`;

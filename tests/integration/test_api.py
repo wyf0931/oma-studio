@@ -405,9 +405,9 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260915-i18n-menus-errors" in Path("static/index.html").read_text(
-        encoding="utf-8"
-    )
+    assert "app.js?v=20260915-i18n-local-resources" in Path(
+        "static/index.html"
+    ).read_text(encoding="utf-8")
 
 
 def test_chat_viewport_and_composer_use_latest_message_and_seven_line_contract():
@@ -1251,6 +1251,7 @@ def test_sidebar_footer_uses_a_grouped_profile_menu_with_existing_actions():
         and "t('nav.usage')" in html
         and "t('nav.users')" in html
     )
+    assert "t('nav.workspace')" not in html
     assert "t('nav.helpFeedback')" in html and "t('nav.about')" in html
     assert 'data-lucide="log-out"' in html
     assert "profileMenuOpen" in script

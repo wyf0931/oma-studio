@@ -337,6 +337,7 @@ body {
  gap: 10px;
  min-height: 36px;
  color: var(--ink);
+ font-size: 14px;
 }
 .sidebar-profile-menu li > button .lucide {
  width: 17px;

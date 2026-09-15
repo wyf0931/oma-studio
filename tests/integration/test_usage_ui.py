@@ -11,7 +11,12 @@ def test_usage_statistics_has_a_single_sidebar_entry_and_dialog():
     assert 'class="modal modal-middle usage-dialog"' in html
     assert "usageOpen" in script
     assert "`/api/usage?days=${encodeURIComponent(this.usageRange)}`" in script
-    assert "Usage trend" in html
+    assert "t('usage.trend')" in html
+    assert "t('usage.today')" in html
+    assert "t('usage.last30Days')" in html
+    assert "t('usage.overview')" in html
+    assert "All workspace activity" not in html
+    assert 'toLocaleDateString("en-US"' in script
     assert ":points=" in html
     assert "usageData.sessions" in html
     assert "usageData.users" in html

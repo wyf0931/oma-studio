@@ -42,7 +42,13 @@
     "search": "搜索",
     "searchResources": "搜索资源",
     "page": "页",
-    "pages": "页"
+    "pages": "页",
+    "name": "名称",
+    "agent": "智能体",
+    "size": "大小",
+    "created": "创建时间",
+    "actions": "操作",
+    "status": "状态"
   },
   "auth": {
     "welcomeBack": "欢迎回来",
@@ -95,6 +101,7 @@
   "library": {
     "title": "资料库",
     "subtitle": "你的智能体创建的文件。",
+    "searchFiles": "搜索文件",
     "allAgents": "全部智能体",
     "noFiles": "没有生成的文件",
     "noFilesFound": "未找到生成的文件。",
@@ -106,6 +113,7 @@
   "autopilots": {
     "title": "定时任务",
     "subtitle": "按计划运行智能体指令。",
+    "search": "搜索定时任务",
     "new": "新建",
     "noAutopilots": "还没有定时任务",
     "runHistory": "运行记录",
@@ -181,6 +189,7 @@
     "mcpExists": "MCP 服务 {{name}} 已经存在"
   },
   "usage": {
+    "eyebrow": "工作区分析",
     "title": "用量统计",
     "subtitle": "从聊天记录中追踪智能体活动、Token 和预估成本。",
     "overview": "概览",
@@ -197,7 +206,17 @@
     "byAgent": "按智能体统计",
     "workspaceGroupedUser": "按账号汇总工作区活动。",
     "workspaceGroupedAgent": "按智能体汇总工作区活动。",
-    "invalidRange": "用量范围不能超过 90 天"
+    "invalidRange": "用量范围不能超过 90 天",
+    "today": "今天",
+    "last7Days": "最近 7 天",
+    "last30Days": "最近 30 天",
+    "dateRange": "用量时间范围",
+    "sections": "用量分区",
+    "trend": "用量趋势",
+    "trendHelp": "所选时间段内的每日预估成本。",
+    "sessionDetails": "会话详情",
+    "sessionDetailsHelp": "按会话创建日期统计用量。",
+    "loadingData": "正在加载用量数据…"
   },
   "share": {
     "create": "创建分享链接",

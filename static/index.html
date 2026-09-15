@@ -258,7 +258,6 @@
                 x-cloak
                 @click.stop
               >
-                <li class="menu-title"><span x-text="t('nav.workspace')"></span></li>
                 <li>
                   <button type="button" @click="openProfileSettings()">
                     <i data-lucide="settings" aria-hidden="true"></i><span x-text="t('nav.settings')"></span>
@@ -654,8 +653,8 @@
                 class="input"
                 x-model="librarySearch"
                 @input.debounce.300ms="loadLibrary(1)"
-                placeholder="Search files"
-                aria-label="Search files"
+                :placeholder="t('library.searchFiles')"
+                :aria-label="t('library.searchFiles')"
             /></label>
           </div>
           <div class="library-table-wrap">
@@ -668,11 +667,11 @@
             <table class="table library-table" x-show="!libraryLoading && libraryFiles.length">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Agent</th>
-                  <th>Size</th>
-                  <th>Created</th>
-                  <th>Actions</th>
+                  <th x-text="t('common.name')"></th>
+                  <th x-text="t('common.agent')"></th>
+                  <th x-text="t('common.size')"></th>
+                  <th x-text="t('common.created')"></th>
+                  <th x-text="t('common.actions')"></th>
                 </tr>
               </thead>
               <tbody>
@@ -1488,8 +1487,8 @@
                 class="input"
                 x-model="autopilotSearch"
                 @input.debounce.300ms="loadAutopilots()"
-                placeholder="Search autopilots"
-                aria-label="Search autopilots"
+                :placeholder="t('autopilots.search')"
+                :aria-label="t('autopilots.search')"
             /></label>
             <div class="agent-picker filter-agent-picker" @click.outside="autopilotAgentPickerOpen = false">
               <button
@@ -1542,11 +1541,11 @@
             <table class="table autopilot-table" x-show="!autopilotLoading && autopilots.length">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Agent</th>
-                  <th>Schedule</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th x-text="t('common.name')"></th>
+                  <th x-text="t('common.agent')"></th>
+                  <th x-text="t('autopilots.schedule')"></th>
+                  <th x-text="t('common.status')"></th>
+                  <th x-text="t('common.actions')"></th>
                 </tr>
               </thead>
               <tbody>
@@ -2246,23 +2245,23 @@
       <div class="modal-box usage-modal-box">
         <div class="usage-header">
           <div>
-            <div class="eyebrow">Workspace analytics</div>
+            <div class="eyebrow" x-text="t('usage.eyebrow')"></div>
             <h2 x-text="t('usage.title')"></h2>
             <p x-text="t('usage.subtitle')"></p>
           </div>
-          <button type="button" class="icon-btn" @click="usageOpen = false" aria-label="Close usage statistics">
+          <button type="button" class="icon-btn" @click="usageOpen = false" :aria-label="t('common.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
         <div class="usage-toolbar">
-          <div class="join usage-range-tabs" role="tablist" aria-label="Usage date range">
+          <div class="join usage-range-tabs" role="tablist" :aria-label="t('usage.dateRange')">
             <button
               type="button"
               class="join-item btn btn-sm"
               :class="usageRange === '1' ? 'btn-primary' : 'btn-ghost'"
               @click="setUsageRange('1')"
             >
-              Today
+              <span x-text="t('usage.today')"></span>
             </button>
             <button
               type="button"
@@ -2270,7 +2269,7 @@
               :class="usageRange === '7' ? 'btn-primary' : 'btn-ghost'"
               @click="setUsageRange('7')"
             >
-              Last 7 days
+              <span x-text="t('usage.last7Days')"></span>
             </button>
             <button
               type="button"
@@ -2278,22 +2277,18 @@
               :class="usageRange === '30' ? 'btn-primary' : 'btn-ghost'"
               @click="setUsageRange('30')"
             >
-              Last 30 days
+              <span x-text="t('usage.last30Days')"></span>
             </button>
           </div>
-          <span
-            class="usage-scope"
-            x-text="authUser?.role === 'admin' ? 'All workspace activity' : 'Your activity'"
-          ></span>
         </div>
-        <div class="tabs tabs-boxed usage-tabs" role="tablist" aria-label="Usage sections">
+        <div class="tabs tabs-boxed usage-tabs" role="tablist" :aria-label="t('usage.sections')">
           <button
             type="button"
             class="tab"
             :class="{ 'tab-active': usageTab === 'overview' }"
             @click="usageTab = 'overview'"
           >
-            Overview
+            <span x-text="t('usage.overview')"></span>
           </button>
           <button
             type="button"
@@ -2301,7 +2296,7 @@
             :class="{ 'tab-active': usageTab === 'sessions' }"
             @click="usageTab = 'sessions'"
           >
-            Sessions
+            <span x-text="t('usage.sessions')"></span>
           </button>
           <button
             type="button"
@@ -2311,7 +2306,7 @@
             :class="{ 'tab-active': usageTab === 'users' }"
             @click="usageTab = 'users'"
           >
-            Users
+            <span x-text="t('nav.users')"></span>
           </button>
           <button
             type="button"
@@ -2321,13 +2316,13 @@
             :class="{ 'tab-active': usageTab === 'agents' }"
             @click="usageTab = 'agents'"
           >
-            Agents
+            <span x-text="t('nav.agents')"></span>
           </button>
         </div>
         <div class="usage-body">
           <div class="usage-loading" x-show="usageLoading" x-cloak role="status" aria-live="polite">
             <span class="loading loading-spinner loading-sm"></span>
-            <span>Loading usage data…</span>
+            <span x-text="t('usage.loadingData')"></span>
           </div>
           <div class="alert alert-error usage-error" x-show="usageError" x-text="usageError" x-cloak></div>
           <section class="usage-panel" x-show="usageTab === 'overview' && !usageLoading" x-cloak>
@@ -2364,8 +2359,8 @@
             <div class="usage-chart-card card">
               <div class="usage-chart-heading">
                 <div>
-                  <h3>Usage trend</h3>
-                  <p>Daily estimated cost over the selected period.</p>
+                  <h3 x-text="t('usage.trend')"></h3>
+                  <p x-text="t('usage.trendHelp')"></p>
                 </div>
                 <span class="usage-chart-total" x-text="usageCost(usageData.summary.cost)"></span>
               </div>
@@ -2385,7 +2380,7 @@
                 </svg>
               </div>
               <div class="usage-chart-labels">
-                <span x-show="!usageData.daily.length">No usage recorded for this period.</span>
+                <span x-show="!usageData.daily.length" x-text="t('usage.noUsage')"></span>
                 <template x-for="label in usageChartLabels()" :key="label.id">
                   <span x-text="label.label"></span>
                 </template>
@@ -2395,8 +2390,8 @@
           <section class="usage-panel" x-show="usageTab === 'sessions' && !usageLoading" x-cloak>
             <div class="usage-section-heading">
               <div>
-                <h3>Session details</h3>
-                <p>Usage attributed to each chat session by creation date.</p>
+                <h3 x-text="t('usage.sessionDetails')"></h3>
+                <p x-text="t('usage.sessionDetailsHelp')"></p>
               </div>
               <span class="usage-count" x-text="usageData.sessions.length + ' sessions'"></span>
             </div>
@@ -3174,6 +3169,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260915-i18n-menus-errors"></script>
+    <script src="/static/app.js?v=20260915-i18n-local-resources"></script>
   </body>
 </html>

@@ -42,7 +42,13 @@
     "search": "Search",
     "searchResources": "Search resources",
     "page": "page",
-    "pages": "pages"
+    "pages": "pages",
+    "name": "Name",
+    "agent": "Agent",
+    "size": "Size",
+    "created": "Created",
+    "actions": "Actions",
+    "status": "Status"
   },
   "auth": {
     "welcomeBack": "Welcome back",
@@ -95,6 +101,7 @@
   "library": {
     "title": "Library",
     "subtitle": "Files created by your agents.",
+    "searchFiles": "Search files",
     "allAgents": "All agents",
     "noFiles": "No generated files",
     "noFilesFound": "No generated files found.",
@@ -106,6 +113,7 @@
   "autopilots": {
     "title": "Autopilots",
     "subtitle": "Run an agent instruction on a schedule.",
+    "search": "Search autopilots",
     "new": "New",
     "noAutopilots": "No autopilots yet",
     "runHistory": "Run history",
@@ -181,6 +189,7 @@
     "mcpExists": "MCP server {{name}} already exists"
   },
   "usage": {
+    "eyebrow": "Workspace analytics",
     "title": "Usage statistics",
     "subtitle": "Track agent activity, tokens, and estimated cost from your chat history.",
     "overview": "Overview",
@@ -197,7 +206,17 @@
     "byAgent": "Usage by agent",
     "workspaceGroupedUser": "Workspace activity grouped by account.",
     "workspaceGroupedAgent": "Workspace activity grouped by agent.",
-    "invalidRange": "Usage range cannot exceed 90 days"
+    "invalidRange": "Usage range cannot exceed 90 days",
+    "today": "Today",
+    "last7Days": "Last 7 days",
+    "last30Days": "Last 30 days",
+    "dateRange": "Usage date range",
+    "sections": "Usage sections",
+    "trend": "Usage trend",
+    "trendHelp": "Daily estimated cost over the selected period.",
+    "sessionDetails": "Session details",
+    "sessionDetailsHelp": "Usage attributed to each chat session by creation date.",
+    "loadingData": "Loading usage data…"
   },
   "share": {
     "create": "Create share link",
