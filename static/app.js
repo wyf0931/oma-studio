@@ -2576,6 +2576,21 @@ function platform() {
       div.textContent = text;
       return div.innerHTML;
     },
+    agentAvatarMarkup(agent, size = "", market = false) {
+      const name = String(agent?.name || "Agent");
+      const url = market ? (agent?.avatar_available ? this.marketAgentAvatarUrl(agent) : "") : this.avatarUrl(agent);
+      const classes = ["agent-mark", size, "agent-avatar-image"].filter(Boolean).join(" ");
+      return url
+        ? `<img class="${classes}" src="${this.escape(url)}" alt="${this.escape(name)} avatar" />`
+        : `<span class="${classes}" aria-hidden="true">${this.escape(this.initials(name))}</span>`;
+    },
+    agentTagsMarkup(tags, limit = 4) {
+      if (!Array.isArray(tags)) return "";
+      return tags
+        .slice(0, limit)
+        .map((tag) => `<span class="badge badge-ghost">${this.escape(String(tag))}</span>`)
+        .join("");
+    },
     agentName(id) {
       return this.agents.find((a) => a.id === id)?.name || "unknown agent";
     },

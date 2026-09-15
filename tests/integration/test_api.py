@@ -405,9 +405,9 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260914-market-agent-delete" in Path(
-        "static/index.html"
-    ).read_text(encoding="utf-8")
+    assert "app.js?v=20260915-agent-ui-polish" in Path("static/index.html").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_chat_viewport_and_composer_use_latest_message_and_seven_line_contract():
@@ -545,6 +545,17 @@ def test_mobile_chat_truncates_tool_paths_and_keeps_composer_in_safe_area():
 def test_agent_profile_detail_contract_is_user_facing():
     html = Path("static/index.html").read_text(encoding="utf-8")
     script = Path("static/app.js").read_text(encoding="utf-8")
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    assert html.count("New Task") == 4
+    assert "agentAvatarMarkup(agent, 'large')" in html
+    assert "agentAvatarMarkup(dialog, 'large')" in html
+    assert "agentTagsMarkup(agent.tags)" in html
+    assert "agentTagsMarkup(dialog.tags)" in html
+    assert 'agentAvatarMarkup(agent, size = "", market = false)' in script
+    assert "agentTagsMarkup(tags, limit = 4)" in script
+    assert "grid-template-columns: repeat(3, minmax(0, 1fr))" in styles
+    assert "flex-wrap: nowrap" in styles
+    assert "aspect-ratio: 1" in styles
     assert 'class="agent-card-tags"' in html
     assert 'class="badge badge-ghost"' in html
     assert "Try asking me" in html

@@ -76,7 +76,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260914-market-agent-delete" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260915-agent-ui-polish" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -137,7 +137,7 @@
             <i data-lucide="menu" aria-hidden="true"></i></button
           ><a class="mobile-brand" href="#" @click.prevent="newChat()"
             ><img src="/static/oma-logo-transparent.png" alt="OMA studio" /><span>OMA studio</span></a
-          ><button type="button" class="btn btn-ghost btn-circle" @click="newChat()" aria-label="New chat">
+          ><button type="button" class="btn btn-ghost btn-circle" @click="newChat()" aria-label="New Task">
             <i data-lucide="plus" aria-hidden="true"></i>
           </button>
         </div>
@@ -166,7 +166,7 @@
               @click="newChat()"
             >
               <span class="menu-icon"><i data-lucide="message-square-plus" aria-hidden="true"></i></span
-              ><span class="menu-label">New chat</span>
+              ><span class="menu-label">New Task</span>
             </button>
             <button class="menu-item" :class="{active: page === 'library'}" @click="go('library')">
               <span class="menu-icon"><i data-lucide="library" aria-hidden="true"></i></span
@@ -197,7 +197,7 @@
                   aria-label="Search chats"
                 >
                   <i data-lucide="search" aria-hidden="true"></i></button
-                ><button class="icon-btn" @click="newChat()" title="New chat" aria-label="New chat">
+                ><button class="icon-btn" @click="newChat()" title="New Task" aria-label="New Task">
                   <i data-lucide="plus" aria-hidden="true"></i>
                 </button>
               </div>
@@ -777,23 +777,12 @@
                 @keydown.enter="dialog = agent"
               >
                 <div class="card-top agent-card-identity">
-                  <template x-if="avatarUrl(agent)">
-                    <img
-                      class="agent-mark large agent-avatar-image"
-                      :src="avatarUrl(agent)"
-                      :alt="agent.name + ' avatar'"
-                    />
-                  </template>
-                  <template x-if="!avatarUrl(agent)">
-                    <span class="agent-mark large" x-text="initials(agent.name)"></span>
-                  </template>
+                  <span class="agent-avatar-slot" x-html="agentAvatarMarkup(agent, 'large')"></span>
                   <h3 x-text="agent.name"></h3>
                 </div>
                 <p class="agent-instruction" x-text="agent.instruction"></p>
                 <div class="agent-card-tags" x-show="agent.tags?.length">
-                  <template x-for="tag in agent.tags" :key="tag">
-                    <span class="badge badge-ghost" x-text="tag"></span>
-                  </template>
+                  <span x-html="agentTagsMarkup(agent.tags)"></span>
                 </div>
                 <div class="card-bottom">
                   <div class="agent-card-bottom-start">
@@ -926,7 +915,7 @@
                 <article class="card card-border market-card bg-base-100" :title="item.description || item.path">
                   <div class="card-body">
                     <div class="market-card-top">
-                      <span class="agent-mark" x-text="initials(item.name)"></span>
+                      <span class="agent-avatar-slot" x-html="agentAvatarMarkup(item)"></span>
                       <h2 class="card-title" x-text="item.name"></h2>
                     </div>
                     <p class="market-description" x-text="item.description || 'No description available'"></p>
@@ -961,7 +950,7 @@
                 <article class="card card-border market-card bg-base-100" :title="item.description || item.path">
                   <div class="card-body">
                     <div class="market-card-top">
-                      <span class="agent-mark" x-text="initials(item.name)"></span>
+                      <span class="agent-avatar-slot" x-html="agentAvatarMarkup(item)"></span>
                       <h2 class="card-title" x-text="item.name"></h2>
                     </div>
                     <p class="market-description" x-text="item.description || 'No description available'"></p>
@@ -996,7 +985,7 @@
                 <article class="card card-border market-card bg-base-100" :title="item.description || item.path">
                   <div class="card-body">
                     <div class="market-card-top">
-                      <span class="agent-mark" x-text="initials(item.name)"></span>
+                      <span class="agent-avatar-slot" x-html="agentAvatarMarkup(item)"></span>
                       <h2 class="card-title" x-text="item.name"></h2>
                       <span class="badge badge-soft badge-info badge-sm">Available</span>
                     </div>
@@ -1039,17 +1028,7 @@
                 <article class="card card-border market-card agent-market-card bg-base-100">
                   <div class="card-body">
                     <div class="market-card-top">
-                      <template x-if="item.avatar_available">
-                        <img
-                          class="agent-mark"
-                          :src="marketAgentAvatarUrl(item)"
-                          :alt="item.name + ' avatar'"
-                          @error="$el.remove()"
-                        />
-                      </template>
-                      <template x-if="!item.avatar_available">
-                        <span class="agent-mark" x-text="initials(item.name)"></span>
-                      </template>
+                      <span class="agent-avatar-slot" x-html="agentAvatarMarkup(item, '', true)"></span>
                       <h2 class="card-title" x-text="item.name"></h2>
                     </div>
                     <p class="market-description" x-text="item.instruction"></p>
@@ -2493,24 +2472,16 @@
           </div>
           <div class="detail-group">
             <div class="agent-profile-identity">
-              <template x-if="avatarUrl(dialog)"
-                ><img
-                  class="agent-mark large agent-avatar-image"
-                  :src="avatarUrl(dialog)"
-                  :alt="dialog.name + ' avatar'"
-              /></template>
-              <template x-if="!avatarUrl(dialog)"
-                ><span class="agent-mark large" x-text="initials(dialog.name)"></span
-              ></template>
-              <div>
+              <span class="agent-avatar-slot" x-html="agentAvatarMarkup(dialog, 'large')"></span>
+              <div class="agent-profile-copy">
                 <h3 x-text="dialog.name"></h3>
                 <p x-text="dialog.description || 'Ready to help with your work.'"></p>
+                <div
+                  class="agent-profile-tags"
+                  x-show="dialog.tags?.length"
+                  x-html="agentTagsMarkup(dialog.tags)"
+                ></div>
               </div>
-            </div>
-            <div class="agent-profile-tags" x-show="dialog.tags?.length">
-              <template x-for="tag in dialog.tags" :key="tag">
-                <span class="badge badge-ghost" x-text="tag"></span>
-              </template>
             </div>
           </div>
           <div class="detail-group">
@@ -3132,6 +3103,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260914-market-agent-delete"></script>
+    <script src="/static/app.js?v=20260915-agent-ui-polish"></script>
   </body>
 </html>
