@@ -193,6 +193,7 @@
     "reserved": "{{name}} 为下一版本预留。"
   },
   "marketplace": {
+    "add": "新增",
     "title": "市场",
     "subtitle": "浏览此工作区中可用的资源。",
     "skills": "技能",

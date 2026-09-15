@@ -193,6 +193,7 @@
     "reserved": "{{name}} is reserved for the next iteration."
   },
   "marketplace": {
+    "add": "Add",
     "title": "Marketplace",
     "subtitle": "Browse the resources available in this workspace.",
     "skills": "Skills",
