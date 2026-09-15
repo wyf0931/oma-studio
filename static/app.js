@@ -1032,7 +1032,12 @@ function platform() {
         paused: "status.paused",
         success: "status.success",
         error: "status.error",
-      }[String(status || "").toLowerCase()];
+        cancelled: "status.cancelled",
+      }[
+        String(status || "")
+          .trim()
+          .toLowerCase()
+      ];
       return key ? this.t(key) : status;
     },
     openFile(file) {

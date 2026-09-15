@@ -57,7 +57,8 @@
     "running": "运行中",
     "paused": "已暂停",
     "success": "成功",
-    "error": "失败"
+    "error": "失败",
+    "cancelled": "已取消"
   },
   "auth": {
     "welcomeBack": "欢迎回来",
@@ -123,6 +124,7 @@
     "title": "定时任务",
     "subtitle": "按计划运行智能体指令。",
     "search": "搜索定时任务",
+    "filterByAgent": "按智能体筛选定时任务",
     "new": "新增",
     "newTitle": "新增定时任务",
     "edit": "编辑定时任务",

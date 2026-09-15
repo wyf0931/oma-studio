@@ -58,7 +58,8 @@
     "running": "Running",
     "paused": "Paused",
     "success": "Success",
-    "error": "Error"
+    "error": "Error",
+    "cancelled": "Cancelled"
   },
   "auth": {
     "welcomeBack": "Welcome back",
@@ -124,6 +125,7 @@
     "title": "Autopilots",
     "subtitle": "Run an agent instruction on a schedule.",
     "search": "Search autopilots",
+    "filterByAgent": "Filter autopilots by agent",
     "new": "New",
     "newTitle": "New Autopilot",
     "edit": "Edit Autopilot",
