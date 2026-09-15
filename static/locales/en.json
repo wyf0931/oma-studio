@@ -315,6 +315,7 @@
     "deleteAutopilot": "Delete autopilot"
   },
   "errors": {
+    "network": "Network request failed. Check your connection and try again.",
     "loadUsage": "Unable to load usage statistics.",
     "invalidTimezone": "Timezone must be a valid IANA timezone",
     "invalidRange": "Usage range cannot exceed 90 days",

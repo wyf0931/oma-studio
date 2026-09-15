@@ -335,6 +335,8 @@ function platform() {
         "File reference is incomplete": "chat.fileIncomplete",
         "System timezone updated": "toasts.timezoneUpdated",
         "Agent profile optimized": "toasts.agentOptimized",
+        "Failed to fetch": "errors.network",
+        "NetworkError when attempting to fetch resource.": "errors.network",
         "Agent updated": "agents.updated",
         "Agent created": "agents.created",
       }[message];

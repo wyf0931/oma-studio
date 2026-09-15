@@ -405,7 +405,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260915-market-actions" in Path("static/index.html").read_text(
+    assert "app.js?v=20260915-error-copy" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 

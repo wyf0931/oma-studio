@@ -315,6 +315,7 @@
     "deleteAutopilot": "删除定时任务"
   },
   "errors": {
+    "network": "网络请求失败，请检查网络连接后重试。",
     "loadUsage": "无法加载用量统计。",
     "invalidTimezone": "时区必须是有效的 IANA 时区",
     "invalidRange": "用量范围不能超过 90 天",
