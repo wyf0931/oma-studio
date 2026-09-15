@@ -18,6 +18,8 @@ function platform() {
     language: ["en", "zh-CN"].includes(localStorage.getItem("oma-language"))
       ? localStorage.getItem("oma-language")
       : "en",
+    i18nReady: false,
+    i18nMessages: {},
     systemTimezone: "",
     themePreference: "system",
     runError: "",
@@ -289,6 +291,7 @@ function platform() {
             return [locale, await response.json()];
           }),
         );
+        this.i18nMessages = Object.fromEntries(resources);
         const resourceMap = Object.fromEntries(
           resources.map(([locale, messages]) => [locale, { translation: messages }]),
         );
@@ -305,10 +308,17 @@ function platform() {
         console.warn("OMA i18n initialization failed; using English fallback", error);
       }
       this.syncDocumentLanguage();
+      this.i18nReady = true;
     },
     t(key, options = {}) {
+      this.i18nReady;
       const fallback = options.defaultValue || key;
-      return window.i18next?.isInitialized ? window.i18next.t(key, { ...options, defaultValue: fallback }) : fallback;
+      if (window.i18next?.isInitialized) return window.i18next.t(key, { ...options, defaultValue: fallback });
+      const lookup = (messages) =>
+        String(key)
+          .split(".")
+          .reduce((value, part) => value?.[part], messages);
+      return lookup(this.i18nMessages[this.language]) ?? lookup(this.i18nMessages.en) ?? fallback;
     },
     localizedMessage(message) {
       const key = {
