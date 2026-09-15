@@ -342,7 +342,7 @@
               <div class="chat-empty-logo">
                 <img src="/static/oma-logo-transparent.png" alt="OMA studio" />
               </div>
-              <h1>Stay hungry. Stay foolish.</h1>
+              <h1 x-text="t('chat.stayHungry')"></h1>
               <p class="chat-empty-subtitle" x-text="t('chat.whatShouldWeDo')"></p>
               <div class="start-grid">
                 <div class="aura aura-rainbow aura-lg">
@@ -371,14 +371,14 @@
                       <textarea
                         id="new-chat-message"
                         name="message"
-                        rows="3"
+                        rows="2"
                         class="textarea textarea-bordered start-input"
                         x-model="draft"
                         @input="resizeStartInput($event); updateSkillCommandState()"
                         @scroll="syncSkillCommandScroll($event)"
                         @keydown="handleSkillCommandKeydown($event)"
                         @keydown.enter.meta.prevent="sendFirst()"
-                        placeholder="What would you like to explore?"
+                        :placeholder="t('chat.whatExplore')"
                       ></textarea>
                     </div>
                     <div
@@ -3245,6 +3245,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260915-error-copy"></script>
+    <script src="/static/app.js?v=20260915-new-chat-i18n"></script>
   </body>
 </html>
