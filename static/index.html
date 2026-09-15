@@ -1842,7 +1842,15 @@
                   <td>
                     <span
                       class="badge badge-soft"
-                      :class="run.status === 'success' ? 'badge-success' : run.status === 'error' ? 'badge-error' : 'badge-ghost'"
+                      :class="
+                        run.status === 'success'
+                          ? 'badge-success'
+                          : run.status === 'error'
+                            ? 'badge-error'
+                            : run.status === 'cancelled'
+                              ? 'badge-warning'
+                              : 'badge-ghost'
+                      "
                       x-text="statusLabel(run.status)"
                     ></span>
                   </td>

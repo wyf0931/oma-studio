@@ -4091,8 +4091,12 @@ pre,
 .autopilot-runs-table {
  margin-top: 24px;
  overflow: auto;
+ border: 1px solid var(--line);
+ border-radius: var(--radius-box);
+ background: var(--color-base-100);
 }
 .autopilot-runs-table .table {
+ width: 100%;
  min-width: 560px;
 }
 @media (max-width: 700px) {
