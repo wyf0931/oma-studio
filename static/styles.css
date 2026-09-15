@@ -1553,7 +1553,7 @@ body {
  padding-right: clamp(28px, 4vw, 64px);
 }
 .agents-page .page-heading {
- margin-bottom: 28px;
+ margin-bottom: 24px;
 }
 .agents-page .agent-grid {
  grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3432,6 +3432,9 @@ pre,
 .market-page {
  padding-top: 28px;
 }
+.market-page .page-heading {
+ margin-bottom: 24px;
+}
 .agents-page .page-heading,
 .autopilots-page .page-heading,
 .library-page .page-heading,
@@ -3446,7 +3449,7 @@ pre,
  margin-top: 0;
 }
 .market-tabs {
- margin-bottom: 24px;
+ margin-bottom: 16px;
  gap: 4px;
  overflow-x: auto;
 }
@@ -3455,7 +3458,7 @@ pre,
  grid-template-columns: repeat(3, minmax(0, 1fr));
  align-items: center;
  gap: 12px;
- margin: -8px 0 16px;
+ margin: 0 0 16px;
 }
 .market-catalog-toolbar > .btn {
  grid-column: 3;
@@ -3464,7 +3467,7 @@ pre,
 .agent-catalog-toolbar {
  display: flex;
  justify-content: flex-end;
- margin: -12px 0 16px;
+ margin: 0 0 16px;
 }
 .agent-catalog-toolbar .send-btn,
 .autopilot-new {
@@ -3994,10 +3997,13 @@ pre,
 .autopilots-page {
  padding-top: 28px;
 }
+.autopilots-page .page-heading {
+ margin-bottom: 24px;
+}
 .autopilot-filters {
  display: flex;
  gap: 12px;
- margin: -10px 0 24px;
+ margin: 0 0 24px;
 }
 .autopilot-filters .library-search {
  flex: 1;
