@@ -15,12 +15,13 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 from .storage_models import TABLE_MODELS
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 SCHEMA_ALTERS = {
     "agents": {
         "description": "TEXT",
         "tags_json": "TEXT NOT NULL DEFAULT '[]'",
         "quickstarts_json": "TEXT NOT NULL DEFAULT '[]'",
+        "deleted_at": "TEXT",
     }
 }
 T = TypeVar("T", bound=SQLModel)

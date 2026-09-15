@@ -134,8 +134,8 @@ def test_existing_sqlite_gets_agent_profile_columns(tmp_path: Path):
             "SELECT value FROM schema_meta WHERE key='version'"
         ).scalar()
     engine.dispose()
-    assert {"description", "tags_json", "quickstarts_json"} <= columns
-    assert version == "2"
-    backups = list(tmp_path.glob("platform.sqlite3.schema-v2.*.bak"))
+    assert {"description", "tags_json", "quickstarts_json", "deleted_at"} <= columns
+    assert version == "3"
+    backups = list(tmp_path.glob("platform.sqlite3.schema-v3.*.bak"))
     assert len(backups) == 1
     assert backups[0].stat().st_size > 0

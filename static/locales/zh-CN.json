@@ -118,7 +118,8 @@
     "notFound": "找不到聊天",
     "uploadNotFound": "找不到上传文件",
     "deleteChat": "删除聊天",
-    "deleteConversation": "移除对话？"
+    "deleteConversation": "移除对话？",
+    "agentUnavailable": "此聊天使用的智能体已删除或不存在，请重新创建任务。"
   },
   "library": {
     "title": "资料库",
