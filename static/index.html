@@ -160,7 +160,7 @@
               </button>
             </div>
           </div>
-          <nav class="sidebar-menu" aria-label="Workspace navigation">
+          <nav class="sidebar-menu" :aria-label="t('nav.workspaceNavigation')">
             <button
               class="new-chat menu-item primary-menu"
               :class="{active: page === 'chat' && !activeChat}"
@@ -194,8 +194,8 @@
                   type="button"
                   class="sidebar-tool expanded-search"
                   @click="openChatSearch()"
-                  title="Search chats"
-                  aria-label="Search chats"
+                  :title="t('nav.searchChats')"
+                  :aria-label="t('nav.searchChats')"
                 >
                   <i data-lucide="search" aria-hidden="true"></i></button
                 ><button class="icon-btn" @click="newChat()" title="New Task" aria-label="New Task">
@@ -204,8 +204,8 @@
               </div>
             </div>
             <template x-if="chats.length === 0"
-              ><div class="empty-history">Your conversations will appear here.</div></template
-            >
+              ><div class="empty-history" x-text="t('chat.emptyHistory')"></div
+            ></template>
             <div class="history-list">
               <template x-for="chat in chats" :key="chat.id">
                 <div
@@ -225,8 +225,8 @@
                     type="button"
                     class="history-trash"
                     @click.stop="deleteChat(chat)"
-                    title="Delete chat"
-                    aria-label="Delete chat"
+                    :title="t('chat.deleteChat')"
+                    :aria-label="t('chat.deleteChat')"
                   >
                     <i data-lucide="trash-2" aria-hidden="true"></i>
                   </button>
@@ -242,7 +242,7 @@
                 @click.stop="profileMenuOpen = !profileMenuOpen"
                 :aria-expanded="profileMenuOpen"
                 aria-haspopup="menu"
-                aria-label="Open profile menu"
+                :aria-label="t('nav.openProfileMenu')"
               >
                 <div class="avatar avatar-placeholder sidebar-profile-avatar">
                   <div><span x-text="profileAvatarInitials()"></span></div>
@@ -258,31 +258,33 @@
                 x-cloak
                 @click.stop
               >
-                <li class="menu-title"><span>Workspace</span></li>
+                <li class="menu-title"><span x-text="t('nav.workspace')"></span></li>
                 <li>
                   <button type="button" @click="openProfileSettings()">
-                    <i data-lucide="settings" aria-hidden="true"></i>Settings
+                    <i data-lucide="settings" aria-hidden="true"></i><span x-text="t('nav.settings')"></span>
                   </button>
                 </li>
                 <li>
                   <button type="button" @click="openProfileUsage()">
-                    <i data-lucide="chart-pie" aria-hidden="true"></i>Usage
+                    <i data-lucide="chart-pie" aria-hidden="true"></i><span x-text="t('nav.usage')"></span>
                   </button>
                 </li>
                 <li x-show="authUser?.role === 'admin'">
                   <button type="button" @click="openProfileUsers()">
-                    <i data-lucide="users" aria-hidden="true"></i>Users
+                    <i data-lucide="users" aria-hidden="true"></i><span x-text="t('nav.users')"></span>
                   </button>
                 </li>
                 <li class="sidebar-profile-divider" aria-hidden="true"></li>
-                <li class="menu-title"><span>Support</span></li>
+                <li class="menu-title"><span x-text="t('nav.support')"></span></li>
                 <li class="menu-disabled">
                   <button type="button" disabled>
-                    <i data-lucide="circle-help" aria-hidden="true"></i>Help &amp; feedback
+                    <i data-lucide="circle-help" aria-hidden="true"></i><span x-text="t('nav.helpFeedback')"></span>
                   </button>
                 </li>
                 <li class="menu-disabled">
-                  <button type="button" disabled><i data-lucide="info" aria-hidden="true"></i>About</button>
+                  <button type="button" disabled>
+                    <i data-lucide="info" aria-hidden="true"></i><span x-text="t('nav.about')"></span>
+                  </button>
                 </li>
                 <li class="sidebar-profile-divider" aria-hidden="true"></li>
                 <li>
@@ -298,7 +300,7 @@
           type="button"
           class="mobile-sidebar-overlay"
           @click="mobileSidebarOpen = false"
-          aria-label="Close chat history"
+          :aria-label="t('nav.closeChatHistory')"
         ></button>
 
         <section class="content-panel" x-ref="chatContent" x-show="page === 'chat'" x-cloak>
@@ -331,7 +333,7 @@
                 <img src="/static/oma-logo-transparent.png" alt="OMA studio" />
               </div>
               <h1>Stay hungry. Stay foolish.</h1>
-              <p class="chat-empty-subtitle">What should we do?</p>
+              <p class="chat-empty-subtitle" x-text="t('chat.whatShouldWeDo')"></p>
               <div class="start-grid">
                 <div class="aura aura-rainbow aura-lg">
                   <div class="start-card rounded-box">
@@ -1092,16 +1094,16 @@
           <div class="modal-box market-install-dialog">
             <div class="dialog-head" x-show="marketTab === 'skills'">
               <div>
-                <h2>Install skill</h2>
+                <h2 x-text="t('marketplace.installSkill')"></h2>
                 <p>Search skills.sh and add a skill to this workspace.</p>
               </div>
-              <button type="button" class="icon-btn" @click="closeMarketInstall()" aria-label="Close install dialog">
+              <button type="button" class="icon-btn" @click="closeMarketInstall()" :aria-label="t('common.close')">
                 <i data-lucide="x" aria-hidden="true"></i>
               </button>
             </div>
             <div class="dialog-head" x-show="marketTab === 'extensions'">
               <div>
-                <h2>Install extension</h2>
+                <h2 x-text="t('marketplace.installExtension')"></h2>
                 <p>
                   Find an extension package at
                   <a class="link link-primary" href="https://pi.dev/packages" target="_blank" rel="noopener noreferrer"
@@ -1109,7 +1111,7 @@
                   >.
                 </p>
               </div>
-              <button type="button" class="icon-btn" @click="closeMarketInstall()" aria-label="Close install dialog">
+              <button type="button" class="icon-btn" @click="closeMarketInstall()" :aria-label="t('common.close')">
                 <i data-lucide="x" aria-hidden="true"></i>
               </button>
             </div>
@@ -1137,7 +1139,7 @@
               </p>
               <div class="dialog-actions">
                 <button type="submit" class="btn btn-soft btn-primary" :disabled="marketExtensionAction">
-                  <span x-show="!marketExtensionAction">Install</span>
+                  <span x-show="!marketExtensionAction" x-text="t('common.install')"></span>
                   <span x-show="marketExtensionAction" class="loading loading-spinner loading-sm"></span>
                 </button>
               </div>
@@ -1236,12 +1238,8 @@
               </div>
             </div>
             <div class="market-install-note">
-              <span x-show="marketTab === 'skills'"
-                >Review a skill before installing it. Installed skills run with the agent's permissions.</span
-              >
-              <span x-show="marketTab === 'extensions'"
-                >Review the package before installing it. Extensions run with the agent's permissions.</span
-              >
+              <span x-show="marketTab === 'skills'"><span x-text="t('marketplace.reviewSkill')"></span></span>
+              <span x-show="marketTab === 'extensions'"><span x-text="t('marketplace.reviewExtension')"></span></span>
             </div>
           </div>
         </dialog>
@@ -1255,8 +1253,8 @@
           <div class="modal-box market-install-dialog">
             <div class="dialog-head">
               <div>
-                <h2>Add MCP server</h2>
-                <p>Paste an mcpServers JSON configuration. Server names are detected automatically.</p>
+                <h2 x-text="t('marketplace.addMcpServer')"></h2>
+                <p x-text="t('marketplace.mcpHelp')"></p>
               </div>
               <button
                 type="button"
@@ -1283,9 +1281,14 @@
                 Detected: <span x-text="marketMcpNames().join(', ') || 'No valid server names yet'"></span>
               </p>
               <div class="dialog-actions">
-                <button type="button" class="btn btn-ghost" @click="closeMarketMcpAdd()">Cancel</button>
+                <button
+                  type="button"
+                  class="btn btn-ghost"
+                  @click="closeMarketMcpAdd()"
+                  x-text="t('common.cancel')"
+                ></button>
                 <button type="submit" class="btn btn-primary" :disabled="marketMcpAction || !marketMcpNames().length">
-                  <span x-show="!marketMcpAction">Add</span>
+                  <span x-show="!marketMcpAction" x-text="t('common.add')"></span>
                   <span x-show="marketMcpAction" class="loading loading-spinner loading-sm"></span>
                 </button>
               </div>
@@ -1302,7 +1305,7 @@
           <div class="modal-box confirm-box">
             <div class="dialog-head">
               <div>
-                <div class="eyebrow">Uninstall resource</div>
+                <div class="eyebrow" x-text="t('dialogs.uninstallResource')"></div>
                 <h2>Remove <span x-text="marketUninstallTarget?.item.name"></span>?</h2>
               </div>
               <button type="button" class="icon-btn" @click="marketUninstallTarget = null" aria-label="Close">
@@ -1317,7 +1320,12 @@
               ></span>
             </p>
             <div class="dialog-actions">
-              <button type="button" class="btn btn-ghost" @click="marketUninstallTarget = null">Cancel</button>
+              <button
+                type="button"
+                class="btn btn-ghost"
+                @click="marketUninstallTarget = null"
+                x-text="t('common.cancel')"
+              ></button>
               <button type="button" class="btn btn-error" @click="confirmMarketUninstall()">
                 <span x-text="marketUninstallTarget?.kind === 'mcp_servers' ? 'Delete' : 'Uninstall'"></span>
               </button>
@@ -1334,7 +1342,7 @@
           <div class="modal-box confirm-box agent-publish-dialog">
             <div class="dialog-head">
               <div>
-                <div class="eyebrow">Share Agent</div>
+                <div class="eyebrow" x-text="t('agents.shareAgent')"></div>
                 <h2>Publish <span x-text="marketPublishTarget?.name"></span>?</h2>
               </div>
               <button
@@ -1351,7 +1359,7 @@
             </p>
             <form @submit.prevent="confirmPublishAgent()">
               <label class="form-field">
-                <span>Version</span>
+                <span x-text="t('dialogs.version')"></span>
                 <input
                   class="input input-bordered"
                   x-model="marketPublishVersion"
@@ -1362,9 +1370,14 @@
                 />
               </label>
               <div class="dialog-actions">
-                <button type="button" class="btn btn-ghost" @click="marketPublishTarget = null">Cancel</button>
+                <button
+                  type="button"
+                  class="btn btn-ghost"
+                  @click="marketPublishTarget = null"
+                  x-text="t('common.cancel')"
+                ></button>
                 <button type="submit" class="btn btn-primary" :disabled="marketPublishing">
-                  <span x-show="!marketPublishing">Publish</span>
+                  <span x-show="!marketPublishing" x-text="t('common.publish')"></span>
                   <span x-show="marketPublishing" class="loading loading-spinner loading-sm"></span>
                 </button>
               </div>
@@ -1381,7 +1394,7 @@
           <div class="modal-box confirm-box">
             <div class="dialog-head">
               <div>
-                <div class="eyebrow">Delete Marketplace Agent</div>
+                <div class="eyebrow" x-text="t('marketplace.deleteMarketplaceAgent')"></div>
                 <h2>Remove <span x-text="marketDeleteAgentTarget?.name"></span>?</h2>
               </div>
               <button
@@ -1398,14 +1411,19 @@
               the original Agent will remain available.
             </p>
             <div class="dialog-actions">
-              <button type="button" class="btn btn-ghost" @click="marketDeleteAgentTarget = null">Cancel</button>
+              <button
+                type="button"
+                class="btn btn-ghost"
+                @click="marketDeleteAgentTarget = null"
+                x-text="t('common.cancel')"
+              ></button>
               <button
                 type="button"
                 class="btn btn-error"
                 @click="confirmDeleteMarketAgent()"
                 :disabled="marketDeletingAgent"
               >
-                <span x-show="!marketDeletingAgent">Delete</span>
+                <span x-show="!marketDeletingAgent" x-text="t('common.delete')"></span>
                 <span x-show="marketDeletingAgent" class="loading loading-spinner loading-sm"></span>
               </button>
             </div>
@@ -1421,7 +1439,7 @@
           <div class="modal-box confirm-box">
             <div class="dialog-head">
               <div>
-                <div class="eyebrow">Install Agent</div>
+                <div class="eyebrow" x-text="t('marketplace.installAgent')"></div>
                 <h2>Install <span x-text="marketInstallAgentTarget?.name"></span>?</h2>
               </div>
               <button
@@ -1438,14 +1456,19 @@
               Your changes will not affect the original.
             </p>
             <div class="dialog-actions">
-              <button type="button" class="btn btn-ghost" @click="marketInstallAgentTarget = null">Cancel</button>
+              <button
+                type="button"
+                class="btn btn-ghost"
+                @click="marketInstallAgentTarget = null"
+                x-text="t('common.cancel')"
+              ></button>
               <button
                 type="button"
                 class="btn btn-primary"
                 @click="confirmInstallMarketAgent()"
                 :disabled="marketInstallingAgent"
               >
-                <span x-show="!marketInstallingAgent">Install</span>
+                <span x-show="!marketInstallingAgent" x-text="t('common.install')"></span>
                 <span x-show="marketInstallingAgent" class="loading loading-spinner loading-sm"></span>
               </button>
             </div>
@@ -1820,10 +1843,10 @@
       <div class="modal-box confirm-box">
         <div class="dialog-head">
           <div>
-            <div class="eyebrow">Delete autopilot</div>
+            <div class="eyebrow" x-text="t('dialogs.deleteAutopilot')"></div>
             <h2>Remove <span x-text="autopilotDeleteTarget?.name"></span>?</h2>
           </div>
-          <button class="icon-btn" @click="autopilotDeleteTarget = null" aria-label="Close">
+          <button class="icon-btn" @click="autopilotDeleteTarget = null" :aria-label="t('common.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
@@ -1831,8 +1854,12 @@
           This removes the automation definition. Existing sessions and run history remain available.
         </p>
         <div class="dialog-actions">
-          <button class="btn btn-sm btn-ghost" @click="autopilotDeleteTarget = null">Cancel</button
-          ><button class="btn btn-sm btn-error" @click="confirmDeleteAutopilot()">Delete</button>
+          <button
+            class="btn btn-sm btn-ghost"
+            @click="autopilotDeleteTarget = null"
+            x-text="t('common.cancel')"
+          ></button
+          ><button class="btn btn-sm btn-error" @click="confirmDeleteAutopilot()" x-text="t('common.delete')"></button>
         </div>
       </div>
     </dialog>
@@ -1847,10 +1874,10 @@
       <div class="modal-box">
         <div class="dialog-head">
           <div>
-            <div class="eyebrow">Chat history</div>
-            <h2>Search chats</h2>
+            <div class="eyebrow" x-text="t('nav.chatHistory')"></div>
+            <h2 x-text="t('dialogs.searchChats')"></h2>
           </div>
-          <button class="icon-btn" @click="searchOpen = false" aria-label="Close">
+          <button class="icon-btn" @click="searchOpen = false" :aria-label="t('common.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
@@ -1860,9 +1887,9 @@
             ><input
               class="input"
               x-model="chatSearchQuery"
-              placeholder="Search by session name"
+              :placeholder="t('dialogs.searchBySession')"
               autofocus
-              aria-label="Search sessions"
+              :aria-label="t('dialogs.searchSessions')"
           /></label>
           <div
             class="agent-picker filter-agent-picker chat-search-agent-picker"
@@ -1874,7 +1901,7 @@
               @click="chatSearchAgentPickerOpen = !chatSearchAgentPickerOpen"
               :aria-expanded="chatSearchAgentPickerOpen"
               aria-haspopup="listbox"
-              aria-label="Filter chats by agent"
+              :aria-label="t('dialogs.filterChats')"
             >
               <span
                 class="agent-avatar"
@@ -1894,7 +1921,7 @@
             >
               <button type="button" class="agent-picker-option" @click="selectChatSearchAgent('')">
                 <span class="agent-avatar" x-text="initials('All')"></span>
-                <span><b>All agents</b></span>
+                <span><b x-text="t('library.allAgents')"></b></span>
               </button>
               <template x-for="agent in agents" :key="agent.id">
                 <button type="button" class="agent-picker-option" @click="selectChatSearchAgent(agent.id)">
@@ -1906,7 +1933,8 @@
           </div>
         </div>
         <div class="chat-search-results">
-          <template x-if="searchChatResults().length === 0"><div class="files-empty">No matching chats</div></template
+          <template x-if="searchChatResults().length === 0"
+            ><div class="files-empty" x-text="t('library.noMatchingChats')"></div></template
           ><template x-for="chat in searchChatResults()" :key="chat.id"
             ><button type="button" class="chat-search-item" @click="selectSearchChat(chat)">
               <span
@@ -1929,16 +1957,16 @@
       <div class="modal-box">
         <div class="dialog-head">
           <div>
-            <div class="eyebrow">Administration</div>
-            <h2>Add user</h2>
+            <div class="eyebrow" x-text="t('dialogs.administration')"></div>
+            <h2 x-text="t('dialogs.addUser')"></h2>
           </div>
-          <button type="button" class="icon-btn" @click="userAddOpen = false" aria-label="Close add user">
+          <button type="button" class="icon-btn" @click="userAddOpen = false" :aria-label="t('common.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
         <form @submit.prevent="createManagedUser()">
           <label class="form-field">
-            <span>Username</span>
+            <span x-text="t('auth.username')"></span>
             <input
               class="input input-bordered"
               x-model="newUserUsername"
@@ -1948,14 +1976,19 @@
             />
           </label>
           <label class="form-field">
-            <span>Email <small>(optional)</small></span>
+            <span>Email <small x-text="'(' + t('dialogs.optional') + ')'"></small></span>
             <input class="input input-bordered" type="email" x-model="newUserEmail" autocomplete="off" />
           </label>
-          <p class="user-default-password">Default password: <code>OMA888</code></p>
+          <p class="user-default-password"><span x-text="t('dialogs.defaultPassword')"></span> <code>OMA888</code></p>
           <div class="dialog-actions">
-            <button type="button" class="btn btn-ghost" @click="userAddOpen = false">Cancel</button>
+            <button
+              type="button"
+              class="btn btn-ghost"
+              @click="userAddOpen = false"
+              x-text="t('common.cancel')"
+            ></button>
             <button type="submit" class="btn btn-primary" :disabled="userCreating">
-              <span x-show="!userCreating">Add user</span>
+              <span x-show="!userCreating" x-text="t('dialogs.addUser')"></span>
               <span x-show="userCreating" class="loading loading-spinner loading-sm"></span>
             </button>
           </div>
@@ -1972,17 +2005,27 @@
       <div class="modal-box confirm-box">
         <div class="dialog-head">
           <div>
-            <div class="eyebrow">Administration</div>
-            <h2>Delete <span x-text="userDeleteTarget?.username"></span>?</h2>
+            <div class="eyebrow" x-text="t('dialogs.administration')"></div>
+            <h2><span x-text="t('common.delete')"></span> <span x-text="userDeleteTarget?.username"></span>?</h2>
           </div>
-          <button type="button" class="icon-btn" @click="userDeleteTarget = null" aria-label="Close">
+          <button type="button" class="icon-btn" @click="userDeleteTarget = null" :aria-label="t('common.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
-        <p class="confirm-copy">This user will no longer be able to sign in.</p>
+        <p class="confirm-copy" x-text="t('dialogs.userCannotSignIn')"></p>
         <div class="dialog-actions">
-          <button type="button" class="btn btn-ghost" @click="userDeleteTarget = null">Cancel</button>
-          <button type="button" class="btn btn-error" @click="confirmDeleteUser()">Delete user</button>
+          <button
+            type="button"
+            class="btn btn-ghost"
+            @click="userDeleteTarget = null"
+            x-text="t('common.cancel')"
+          ></button>
+          <button
+            type="button"
+            class="btn btn-error"
+            @click="confirmDeleteUser()"
+            x-text="t('dialogs.deleteUser')"
+          ></button>
         </div>
       </div>
     </dialog>
@@ -1996,17 +2039,22 @@
       <div class="modal-box confirm-box">
         <div class="dialog-head">
           <div>
-            <div class="eyebrow">Session</div>
-            <h2>Log out?</h2>
+            <div class="eyebrow" x-text="t('dialogs.session')"></div>
+            <h2 x-text="t('dialogs.logoutQuestion')"></h2>
           </div>
-          <button type="button" class="icon-btn" @click="logoutConfirmOpen = false" aria-label="Close logout dialog">
+          <button type="button" class="icon-btn" @click="logoutConfirmOpen = false" :aria-label="t('common.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
-        <p class="confirm-copy">You will need to sign in again to access the workspace.</p>
+        <p class="confirm-copy" x-text="t('dialogs.signInAgain')"></p>
         <div class="dialog-actions">
-          <button type="button" class="btn btn-ghost" @click="logoutConfirmOpen = false">Cancel</button>
-          <button type="button" class="btn btn-error" @click="confirmLogout()">Log out</button>
+          <button
+            type="button"
+            class="btn btn-ghost"
+            @click="logoutConfirmOpen = false"
+            x-text="t('common.cancel')"
+          ></button>
+          <button type="button" class="btn btn-error" @click="confirmLogout()" x-text="t('nav.logout')"></button>
         </div>
       </div>
     </dialog>
@@ -2548,10 +2596,10 @@
       <div class="modal-box confirm-box">
         <div class="dialog-head">
           <div>
-            <div class="eyebrow">Delete chat</div>
-            <h2>Remove conversation?</h2>
+            <div class="eyebrow" x-text="t('dialogs.deleteChat')"></div>
+            <h2 x-text="t('dialogs.removeConversation')"></h2>
           </div>
-          <button class="icon-btn" @click="deleteChatTarget = null" aria-label="Close">
+          <button class="icon-btn" @click="deleteChatTarget = null" :aria-label="t('common.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
@@ -2559,8 +2607,18 @@
           This removes the Pi session and files generated by this chat. The Agent definition will remain.
         </p>
         <div class="dialog-actions">
-          <button type="button" class="btn btn-sm btn-ghost" @click="deleteChatTarget = null">Cancel</button
-          ><button type="button" class="btn btn-sm btn-error" @click="confirmDeleteChat()">Delete</button>
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost"
+            @click="deleteChatTarget = null"
+            x-text="t('common.cancel')"
+          ></button
+          ><button
+            type="button"
+            class="btn btn-sm btn-error"
+            @click="confirmDeleteChat()"
+            x-text="t('common.delete')"
+          ></button>
         </div>
       </div>
     </dialog>
@@ -2568,10 +2626,10 @@
       <div class="modal-box confirm-box">
         <div class="dialog-head">
           <div>
-            <div class="eyebrow">Delete agent</div>
-            <h2>Remove <span x-text="confirmTarget?.name"></span>?</h2>
+            <div class="eyebrow" x-text="t('dialogs.deleteAgent')"></div>
+            <h2><span x-text="t('common.remove')"></span> <span x-text="confirmTarget?.name"></span>?</h2>
           </div>
-          <button class="icon-btn" @click="confirmTarget = null" aria-label="Close">
+          <button class="icon-btn" @click="confirmTarget = null" :aria-label="t('common.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
@@ -2579,8 +2637,13 @@
           This agent definition will be removed. Existing chat sessions and their Pi history will remain available.
         </p>
         <div class="dialog-actions">
-          <button type="button" class="btn btn-ghost" @click="confirmTarget = null">Cancel</button
-          ><button type="button" class="btn btn-error" @click="confirmDelete()">Delete agent</button>
+          <button type="button" class="btn btn-ghost" @click="confirmTarget = null" x-text="t('common.cancel')"></button
+          ><button
+            type="button"
+            class="btn btn-error"
+            @click="confirmDelete()"
+            x-text="t('agents.deleteAgent')"
+          ></button>
         </div>
       </div>
     </dialog>
@@ -2596,7 +2659,7 @@
           <div>
             <h2 class="text-lg font-bold agent-wizard-title" x-text="editingAgent ? 'Edit Agent' : 'New Agent'"></h2>
           </div>
-          <button class="icon-btn" @click="closeAgentDialog()" aria-label="Close agent editor">
+          <button class="icon-btn" @click="closeAgentDialog()" :aria-label="t('common.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>

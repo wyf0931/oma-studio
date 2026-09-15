@@ -2,7 +2,7 @@
   "nav": {
     "newTask": "新任务",
     "library": "资料库",
-    "autopilots": "自动驾驶",
+    "autopilots": "定时任务",
     "agents": "智能体",
     "marketplace": "市场",
     "chatHistory": "聊天记录",
@@ -10,7 +10,16 @@
     "settings": "设置",
     "users": "用户",
     "usage": "用量",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "workspace": "工作区",
+    "support": "支持",
+    "helpFeedback": "帮助与反馈",
+    "about": "关于",
+    "workspaceNavigation": "工作区导航",
+    "openProfileMenu": "打开个人菜单",
+    "closeChatHistory": "关闭聊天记录",
+    "administrator": "管理员",
+    "member": "成员"
   },
   "common": {
     "cancel": "取消",
@@ -40,7 +49,14 @@
     "username": "用户名",
     "password": "密码",
     "signIn": "登录",
-    "sessionExpired": "登录会话已过期，请重新登录。"
+    "sessionExpired": "登录会话已过期，请重新登录。",
+    "required": "需要登录",
+    "adminRequired": "需要管理员权限",
+    "invalidCredentials": "用户名或密码错误",
+    "usernameExists": "用户名已存在",
+    "userNotFound": "用户不存在",
+    "adminCannotDisable": "不能禁用管理员账号",
+    "adminCannotDelete": "不能删除管理员账号"
   },
   "settings": {
     "title": "设置",
@@ -56,11 +72,13 @@
     "themeHelp": "选择 OMA studio 如何跟随你的显示偏好。",
     "light": "浅色",
     "dark": "深色",
-    "system": "跟随系统"
+    "system": "跟随系统",
+    "invalidTimezone": "时区必须是有效的 IANA 时区"
   },
   "chat": {
     "emptyHistory": "你的对话会显示在这里。",
     "whatExplore": "你想探索什么？",
+    "whatShouldWeDo": "我们接下来做什么？",
     "startChat": "开始聊天",
     "attachFiles": "添加文件",
     "loadingMessages": "正在加载消息…",
@@ -68,6 +86,8 @@
     "titleEmpty": "聊天标题不能为空",
     "attachLimit": "一条消息最多添加 5 个文件",
     "fileIncomplete": "文件引用不完整",
+    "notFound": "找不到聊天",
+    "uploadNotFound": "找不到上传文件",
     "deleteChat": "删除聊天",
     "deleteConversation": "移除对话？"
   },
@@ -79,11 +99,14 @@
     "noFilesFound": "未找到生成的文件。",
     "noMatchingChats": "没有匹配的聊天"
   },
+  "files": {
+    "notFound": "文件不存在，或不是由此聊天生成的文件"
+  },
   "autopilots": {
-    "title": "自动驾驶",
+    "title": "定时任务",
     "subtitle": "按计划运行智能体指令。",
     "new": "新建",
-    "noAutopilots": "还没有自动驾驶任务",
+    "noAutopilots": "还没有定时任务",
     "runHistory": "运行记录",
     "noRuns": "还没有运行记录",
     "schedule": "计划",
@@ -100,6 +123,7 @@
     "title": "智能体",
     "subtitle": "定义可用于对话的智能体。",
     "new": "新建",
+    "edit": "编辑智能体",
     "tryAsking": "试着这样问我",
     "builtInSkills": "内置技能",
     "noSkills": "没有配置额外技能。",
@@ -116,6 +140,10 @@
     "profileOptimized": "智能体资料已优化",
     "updated": "智能体已更新",
     "created": "智能体已创建",
+    "notFound": "智能体不存在",
+    "nameExists": "智能体名称已存在",
+    "protected": "智能体不存在或受到保护",
+    "avatarNotFound": "找不到智能体头像",
     "reserved": "{{name}} 为下一版本预留。"
   },
   "marketplace": {
@@ -139,7 +167,17 @@
     "installAgent": "安装智能体",
     "deleteMarketplaceAgent": "删除市场智能体",
     "mcpServer": "MCP 服务",
-    "installedCount": "{{count}} 次安装"
+    "installedCount": "{{count}} 次安装",
+    "installSkill": "安装技能",
+    "installExtension": "安装扩展",
+    "reviewSkill": "安装前请先查看技能。已安装的技能会以智能体权限运行。",
+    "reviewExtension": "安装前请先查看软件包。扩展会以智能体权限运行。",
+    "addMcpServer": "添加 MCP 服务",
+    "mcpHelp": "粘贴 mcpServers JSON 配置，系统会自动识别服务名称。",
+    "searchRequired": "搜索内容不能为空",
+    "skillExists": "技能 {{skill}} 已经安装",
+    "extensionExists": "扩展 {{name}} 已经安装",
+    "mcpExists": "MCP 服务 {{name}} 已经存在"
   },
   "usage": {
     "title": "用量统计",
@@ -157,7 +195,8 @@
     "byUser": "按用户统计",
     "byAgent": "按智能体统计",
     "workspaceGroupedUser": "按账号汇总工作区活动。",
-    "workspaceGroupedAgent": "按智能体汇总工作区活动。"
+    "workspaceGroupedAgent": "按智能体汇总工作区活动。",
+    "invalidRange": "用量范围不能超过 90 天"
   },
   "share": {
     "create": "创建分享链接",
@@ -165,12 +204,62 @@
     "created": "已创建",
     "createCopy": "创建并复制",
     "copy": "复制链接",
-    "copied": "已复制"
+    "copied": "已复制",
+    "anyoneWithLink": "任何拥有链接的人都可以查看此对话，无需密码或登录。分享前请确认内容中没有敏感或私密信息。",
+    "shareLink": "分享链接"
+  },
+  "dialogs": {
+    "closeSettings": "关闭设置",
+    "close": "关闭",
+    "searchChats": "搜索聊天",
+    "searchBySession": "按会话名称搜索",
+    "searchSessions": "搜索会话",
+    "filterChats": "按智能体筛选聊天",
+    "administration": "管理",
+    "addUser": "添加用户",
+    "optional": "可选",
+    "defaultPassword": "默认密码：",
+    "deleteUser": "删除用户",
+    "userCannotSignIn": "此用户将无法继续登录。",
+    "session": "会话",
+    "logoutQuestion": "退出登录？",
+    "signInAgain": "你需要重新登录才能访问工作区。",
+    "deleteChat": "删除聊天",
+    "removeConversation": "移除对话？",
+    "deleteAgent": "删除智能体",
+    "remove": "移除",
+    "uninstallResource": "卸载资源",
+    "publish": "发布",
+    "installAgent": "安装智能体",
+    "version": "版本",
+    "cronBuilder": "Cron 构建器",
+    "advanced": "高级设置",
+    "schedule": "计划",
+    "closeWebResults": "关闭网页结果",
+    "deleteAutopilot": "删除定时任务"
   },
   "errors": {
     "loadUsage": "无法加载用量统计。",
+    "invalidTimezone": "时区必须是有效的 IANA 时区",
+    "invalidRange": "用量范围不能超过 90 天",
+    "requestInvalid": "请求无法处理",
+    "serverError": "服务器无法完成请求",
+    "notFound": "文件不存在，或不是由此聊天生成的文件",
     "enterNpm": "请输入 npm 包 ID",
     "avatarImage": "头像必须是图片文件",
     "avatarSize": "头像不能超过 5 MB"
+  },
+  "toasts": {
+    "timezoneUpdated": "系统时区已更新",
+    "agentOptimized": "智能体资料已优化",
+    "userAdded": "用户 {{username}} 已添加",
+    "userStatus": "用户 {{username}} 已{{status}}",
+    "userDeleted": "用户 {{username}} 已删除",
+    "skillInstalled": "技能 {{skill}} 已安装",
+    "extensionInstalled": "扩展 {{name}} 已安装",
+    "mcpDeleted": "MCP 服务 {{name}} 已删除",
+    "resourceUninstalled": "{{kind}} {{name}} 已卸载",
+    "agentRemoved": "智能体 {{name}} 已从市场移除",
+    "agentDeleted": "智能体 {{name}} 已删除"
   }
 }

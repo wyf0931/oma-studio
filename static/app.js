@@ -321,7 +321,7 @@ function platform() {
       return lookup(this.i18nMessages[this.language]) ?? lookup(this.i18nMessages.en) ?? fallback;
     },
     localizedMessage(message) {
-      const key = {
+      const exactKey = {
         "Your login session has expired. Please sign in again.": "auth.sessionExpired",
         "Unable to load usage statistics.": "errors.loadUsage",
         "Enter an npm package id": "errors.enterNpm",
@@ -329,8 +329,34 @@ function platform() {
         "Avatar must be 5 MB or smaller": "errors.avatarSize",
         "Chat title cannot be empty": "chat.titleEmpty",
         "File reference is incomplete": "chat.fileIncomplete",
+        "System timezone updated": "toasts.timezoneUpdated",
+        "Agent profile optimized": "toasts.agentOptimized",
+        "Agent updated": "agents.updated",
+        "Agent created": "agents.created",
       }[message];
-      return key ? this.t(key, { defaultValue: message }) : message;
+      if (exactKey) return this.t(exactKey, { defaultValue: message });
+      const dynamic = [
+        [/^User (.+) added$/, "toasts.userAdded", ["username"]],
+        [/^User (.+) (enabled|disabled)$/, "toasts.userStatus", ["username", "status"]],
+        [/^User (.+) deleted$/, "toasts.userDeleted", ["username"]],
+        [/^Skill (.+) installed$/, "toasts.skillInstalled", ["skill"]],
+        [/^Extension (.+) installed$/, "toasts.extensionInstalled", ["name"]],
+        [/^MCP server (.+) deleted$/, "toasts.mcpDeleted", ["name"]],
+        [/^(Extension|Skill) (.+) uninstalled$/, "toasts.resourceUninstalled", ["kind", "name"]],
+        [/^Agent (.+) removed from Marketplace$/, "toasts.agentRemoved", ["name"]],
+        [/^Agent (.+) deleted$/, "toasts.agentDeleted", ["name"]],
+      ];
+      for (const [pattern, key, names] of dynamic) {
+        const match = pattern.exec(message);
+        if (match) {
+          const values = Object.fromEntries(names.map((name, index) => [name, match[index + 1]]));
+          if (key === "toasts.userStatus" && this.language === "zh-CN") {
+            values.status = values.status === "enabled" ? "启用" : "停用";
+          }
+          return this.t(key, values);
+        }
+      }
+      return message;
     },
     locale() {
       return this.language === "zh-CN" ? "zh-CN" : "en-US";
@@ -431,7 +457,7 @@ function platform() {
         this.authUser = data.user;
       } catch (error) {
         this.authUser = null;
-        this.loginError = error.message;
+        this.loginError = error.uiMessage || error.message;
       } finally {
         this.authChecked = true;
       }
@@ -482,7 +508,7 @@ function platform() {
       return this.initials(this.authUser?.username || "User");
     },
     profileRoleLabel() {
-      return this.authUser?.role === "admin" ? "Administrator" : "Member";
+      return this.authUser?.role === "admin" ? this.t("nav.administrator") : this.t("nav.member");
     },
     openProfileSettings() {
       this.profileMenuOpen = false;
@@ -503,9 +529,14 @@ function platform() {
     },
     errorFromResponse(response, requestId, data = null) {
       const detail = data?.detail || `Server returned ${response.status}`;
-      const error = new Error(`${detail} (request_id: ${requestId})`);
+      const params = data?.params || {};
+      const message = data?.code ? this.t(data.code, { ...params, defaultValue: detail }) : detail;
+      const error = new Error(`${message} (request_id: ${requestId})`);
+      error.uiMessage = message;
       error.requestId = requestId;
       error.status = response.status;
+      error.code = data?.code || "";
+      error.params = params;
       return error;
     },
     handleUnauthorizedResponse(response, path, error) {
@@ -3427,7 +3458,7 @@ function platform() {
     showError(error) {
       if (error?.sessionExpired) return;
       this.toastMessage = "";
-      this.error = this.localizedMessage(error.message || String(error));
+      this.error = error.uiMessage || this.localizedMessage(error.message || String(error));
       this.runError = this.error;
       const current = this.messages[this.messages.length - 1];
       if (current?.role === "assistant") {

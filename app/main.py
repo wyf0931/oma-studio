@@ -30,6 +30,7 @@ from .api.routers.system_settings import create_router as create_system_settings
 from .api.routers.usage import create_router as create_usage_router
 from .autopilots import AutopilotScheduler
 from .core.application import create_app, create_context
+from .errors import error_payload
 from .files import read_session_messages, resolve_chat_file
 from .og import load_template, render_social_metadata
 
@@ -41,6 +42,16 @@ runtime = context.runtime
 app = create_app(context)
 logger = logging.getLogger(__name__)
 SESSION_COOKIE = "oma_session"
+
+
+@app.exception_handler(HTTPException)
+async def handle_http_exception(request: Request, exc: HTTPException):
+    del request
+    return JSONResponse(
+        error_payload(exc.detail, exc.status_code),
+        status_code=exc.status_code,
+        headers=exc.headers,
+    )
 
 
 def _request_user(request: Request) -> dict | None:
@@ -90,7 +101,9 @@ async def require_login(request: Request, call_next):
     user = _request_user(request)
     request.state.user = user
     if not user and not _is_auth_exempt(request.url.path):
-        return JSONResponse({"detail": "Authentication required"}, status_code=401)
+        return JSONResponse(
+            error_payload("Authentication required", 401), status_code=401
+        )
     return await call_next(request)
 
 
