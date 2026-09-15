@@ -583,6 +583,7 @@ def test_frontend_i18n_resources_and_language_switch_contract():
     assert 'value="zh-CN"' in html
     assert english["nav"]["newTask"] == "New Task"
     assert chinese["nav"]["newTask"] == "新任务"
+    assert chinese["common"]["all"] == "全部"
     assert english["marketplace"]["skills"] != chinese["marketplace"]["skills"]
 
 
