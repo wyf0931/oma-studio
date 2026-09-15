@@ -85,7 +85,7 @@
     "english": "English",
     "simplifiedChinese": "简体中文",
     "timezone": "系统时区",
-    "timezoneHelp": "本部署中的所有自动驾驶计划和运行提示都会使用此时区。",
+    "timezoneHelp": "选择系统使用的时区。",
     "theme": "主题",
     "themeHelp": "选择 OMA studio 如何跟随你的显示偏好。",
     "light": "浅色",

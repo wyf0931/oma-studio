@@ -4003,7 +4003,7 @@ pre,
 .autopilot-filters {
  display: flex;
  gap: 12px;
- margin: 0 0 24px;
+ margin: 0 0 18px;
 }
 .autopilot-filters .library-search {
  flex: 1;

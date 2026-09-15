@@ -85,7 +85,7 @@
     "english": "English",
     "simplifiedChinese": "简体中文",
     "timezone": "System timezone",
-    "timezoneHelp": "Used by all Autopilot schedules and run prompts in this deployment.",
+    "timezoneHelp": "Choose the system timezone.",
     "theme": "Theme",
     "themeHelp": "Choose how OMA studio follows your display preference.",
     "light": "Light",
