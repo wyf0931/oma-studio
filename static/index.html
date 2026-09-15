@@ -188,7 +188,6 @@
           </nav>
           <div class="history-area">
             <div class="sidebar-section-heading">
-              <span x-text="t('nav.chatHistory')"></span>
               <div class="history-actions">
                 <button
                   type="button"
@@ -625,7 +624,7 @@
                 ></span>
                 <span
                   class="filter-agent-picker-label"
-                  x-text="libraryAgentFilter ? agentName(libraryAgentFilter) : 'All agents'"
+                  x-text="libraryAgentFilter ? agentName(libraryAgentFilter) : t('common.all')"
                 ></span>
                 <i class="picker-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
               </button>
@@ -637,7 +636,7 @@
               >
                 <button type="button" class="agent-picker-option" @click="selectLibraryAgent('')">
                   <span class="agent-avatar" x-text="initials('All')"></span>
-                  <span><b>All agents</b></span>
+                  <span><b x-text="t('common.all')"></b></span>
                 </button>
                 <template x-for="agent in agents" :key="agent.id">
                   <button type="button" class="agent-picker-option" @click="selectLibraryAgent(agent.id)">
@@ -1497,7 +1496,7 @@
                 @click="autopilotAgentPickerOpen = !autopilotAgentPickerOpen"
                 :aria-expanded="autopilotAgentPickerOpen"
                 aria-haspopup="listbox"
-                aria-label="Filter Autopilots by agent"
+                :aria-label="t('autopilots.filterByAgent')"
               >
                 <span
                   class="agent-avatar"
@@ -1505,7 +1504,7 @@
                 ></span>
                 <span
                   class="filter-agent-picker-label"
-                  x-text="autopilotAgentFilter ? agentName(autopilotAgentFilter) : 'All agents'"
+                  x-text="autopilotAgentFilter ? agentName(autopilotAgentFilter) : t('common.all')"
                 ></span>
                 <i class="picker-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
               </button>
@@ -1517,7 +1516,7 @@
               >
                 <button type="button" class="agent-picker-option" @click="selectAutopilotAgent('')">
                   <span class="agent-avatar" x-text="initials('All')"></span>
-                  <span><b>All agents</b></span>
+                  <span><b x-text="t('common.all')"></b></span>
                 </button>
                 <template x-for="agent in agents" :key="agent.id">
                   <button type="button" class="agent-picker-option" @click="selectAutopilotAgent(agent.id)">
@@ -1528,7 +1527,7 @@
               </div>
             </div>
             <button class="btn btn-soft btn-primary autopilot-new" @click="newAutopilot()">
-              <i data-lucide="plus" aria-hidden="true"></i> New
+              <i data-lucide="plus" aria-hidden="true"></i><span x-text="t('autopilots.new')"></span>
             </button>
           </div>
           <div class="autopilot-table-wrap">
@@ -1568,7 +1567,7 @@
                       <span
                         class="badge badge-soft"
                         :class="item.enabled ? 'badge-success' : 'badge-ghost'"
-                        x-text="item.status"
+                        x-text="statusLabel(item.status)"
                       ></span>
                     </td>
                     <td>
@@ -1603,8 +1602,8 @@
                         ><button
                           class="btn btn-sm btn-ghost"
                           @click="loadAutopilotRuns(item)"
-                          title="Run history"
-                          aria-label="Run history"
+                          :title="t('autopilots.runHistory')"
+                          :aria-label="t('autopilots.runHistory')"
                         >
                           <i data-lucide="rotate-ccw-clock" aria-hidden="true"></i>
                         </button>
@@ -1682,47 +1681,70 @@
       <div class="modal-box autopilot-dialog">
         <div class="dialog-head">
           <div>
-            <div class="eyebrow">Automation</div>
-            <h2 x-text="autopilotEditing ? 'Edit Autopilot' : 'New Autopilot'"></h2>
+            <div class="eyebrow" x-text="t('autopilots.automation')"></div>
+            <h2 x-text="autopilotEditing ? t('autopilots.edit') : t('autopilots.newTitle')"></h2>
           </div>
-          <button class="icon-btn" @click="autopilotDialog = false" aria-label="Close">
+          <button class="icon-btn" @click="autopilotDialog = false" :aria-label="t('common.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
         <form @submit.prevent="saveAutopilot">
           <div class="form-field">
-            <label for="autopilot-name">Name</label
+            <label for="autopilot-name" x-text="t('common.name')"></label
             ><input
               id="autopilot-name"
               class="input input-bordered"
               x-model="autopilotName"
               required
               maxlength="80"
-              placeholder="e.g. Daily research brief"
+              :placeholder="t('autopilots.namePlaceholder')"
             />
           </div>
           <div class="form-field">
-            <label for="autopilot-instruction">Instruction</label
+            <label for="autopilot-instruction" x-text="t('agents.instruction')"></label
             ><textarea
               id="autopilot-instruction"
               class="textarea textarea-bordered"
               x-model="autopilotInstruction"
               required
               maxlength="10000"
-              placeholder="Tell the agent what to do…"
+              :placeholder="t('autopilots.instructionPlaceholder')"
             ></textarea>
           </div>
           <div class="autopilot-form-grid">
             <div class="form-field">
-              <label for="autopilot-agent">Agent</label
-              ><select id="autopilot-agent" class="select select-bordered" x-model="autopilotAgentId" required>
-                <template x-for="agent in agents" :key="agent.id"
-                  ><option :value="agent.id" x-text="agent.name"></option
-                ></template>
-              </select>
+              <label for="autopilot-agent" x-text="t('common.agent')"></label>
+              <div class="agent-picker" @click.outside="autopilotEditAgentPickerOpen = false">
+                <button
+                  type="button"
+                  class="agent-picker-button"
+                  @click="autopilotEditAgentPickerOpen = !autopilotEditAgentPickerOpen"
+                  :aria-expanded="autopilotEditAgentPickerOpen"
+                  aria-haspopup="listbox"
+                  :aria-label="t('autopilots.selectAgent')"
+                >
+                  <span class="agent-avatar" x-text="initials(agentName(autopilotAgentId))"></span>
+                  <span class="filter-agent-picker-label" x-text="agentName(autopilotAgentId)"></span>
+                  <i class="picker-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+                </button>
+                <div class="agent-picker-menu" x-show="autopilotEditAgentPickerOpen" x-cloak role="listbox">
+                  <template x-for="agent in agents" :key="agent.id">
+                    <button
+                      type="button"
+                      class="agent-picker-option"
+                      @click="selectAutopilotEditAgent(agent.id)"
+                      role="option"
+                      :aria-selected="autopilotAgentId === agent.id"
+                    >
+                      <span class="agent-avatar" x-text="initials(agent.name)"></span>
+                      <span><b x-text="agent.name"></b></span>
+                    </button>
+                  </template>
+                </div>
+              </div>
             </div>
             <div class="form-field">
-              <label for="autopilot-cron">Cron</label
+              <label for="autopilot-cron" x-text="t('autopilots.cron')"></label
               ><input
                 id="autopilot-cron"
                 class="input input-bordered mono"
@@ -1731,15 +1753,15 @@
                 @focus="openCronBuilder()"
                 @click="openCronBuilder()"
                 required
-                aria-label="Cron schedule"
+                :aria-label="t('autopilots.cronSchedule')"
               />
             </div>
           </div>
           <details class="collapse collapse-arrow autopilot-advanced">
-            <summary class="collapse-title">Advanced</summary>
+            <summary class="collapse-title" x-text="t('autopilots.advanced')"></summary>
             <div class="collapse-content">
               <div class="form-field">
-                <label for="autopilot-starts">Effective from</label
+                <label for="autopilot-starts" x-text="t('autopilots.effectiveFrom')"></label
                 ><input
                   id="autopilot-starts"
                   type="datetime-local"
@@ -1748,7 +1770,7 @@
                 />
               </div>
               <div class="form-field">
-                <label for="autopilot-ends">Effective until</label
+                <label for="autopilot-ends" x-text="t('autopilots.effectiveUntil')"></label
                 ><input
                   id="autopilot-ends"
                   type="datetime-local"
@@ -1759,12 +1781,17 @@
             </div>
           </details>
           <div class="dialog-actions">
-            <button type="button" class="btn btn-sm btn-ghost" @click="autopilotDialog = false">Cancel</button
+            <button
+              type="button"
+              class="btn btn-sm btn-ghost"
+              @click="autopilotDialog = false"
+              x-text="t('common.cancel')"
+            ></button
             ><button
               type="submit"
               class="btn btn-sm btn-primary"
               :disabled="autopilotSaving"
-              x-text="autopilotEditing ? 'Save' : 'Create'"
+              x-text="autopilotEditing ? t('common.save') : t('autopilots.create')"
             ></button>
           </div>
         </form>
@@ -1780,7 +1807,7 @@
       <div class="modal-box autopilot-runs-dialog">
         <div class="dialog-head">
           <div>
-            <div class="eyebrow">Run history</div>
+            <div class="eyebrow" x-text="t('autopilots.runHistory')"></div>
             <h2 x-text="autopilotRunsItem?.name || 'Autopilot'"></h2>
           </div>
           <div class="dialog-head-actions">
@@ -1791,18 +1818,20 @@
         </div>
         <div class="autopilot-runs-toolbar">
           <button class="btn btn-sm btn-primary" @click="runAutopilot(autopilotRunsItem)">
-            <i data-lucide="play" aria-hidden="true"></i> Run
+            <i data-lucide="play" aria-hidden="true"></i><span x-text="t('autopilots.run')"></span>
           </button>
         </div>
         <div class="autopilot-runs-table">
-          <template x-if="!autopilotRuns.length"><div class="files-empty">No runs yet</div></template>
+          <template x-if="!autopilotRuns.length"
+            ><div class="files-empty" x-text="t('autopilots.noRuns')"></div
+          ></template>
           <table class="table" x-show="autopilotRuns.length">
             <thead>
               <tr>
-                <th>Started</th>
-                <th>Duration</th>
-                <th>Status</th>
-                <th>Session</th>
+                <th x-text="t('autopilots.started')"></th>
+                <th x-text="t('autopilots.duration')"></th>
+                <th x-text="t('common.status')"></th>
+                <th x-text="t('autopilots.session')"></th>
               </tr>
             </thead>
             <tbody>
@@ -1814,15 +1843,15 @@
                     <span
                       class="badge badge-soft"
                       :class="run.status === 'success' ? 'badge-success' : run.status === 'error' ? 'badge-error' : 'badge-ghost'"
-                      x-text="run.status"
+                      x-text="statusLabel(run.status)"
                     ></span>
                   </td>
                   <td>
                     <a
                       class="btn btn-sm btn-ghost"
                       :href="'/chat/' + run.chat_id"
-                      title="Open session"
-                      aria-label="Open session"
+                      :title="t('autopilots.openSession')"
+                      :aria-label="t('autopilots.openSession')"
                       ><i data-lucide="square-arrow-out-up-right" aria-hidden="true"></i
                     ></a>
                   </td></tr
@@ -1886,9 +1915,9 @@
             ><input
               class="input"
               x-model="chatSearchQuery"
-              :placeholder="t('dialogs.searchBySession')"
+              :placeholder="t('dialogs.searchByTask')"
               autofocus
-              :aria-label="t('dialogs.searchSessions')"
+              :aria-label="t('dialogs.searchTasks')"
           /></label>
           <div
             class="agent-picker filter-agent-picker chat-search-agent-picker"
@@ -1908,7 +1937,7 @@
               ></span>
               <span
                 class="filter-agent-picker-label"
-                x-text="chatSearchAgentFilter ? agentName(chatSearchAgentFilter) : 'All agents'"
+                x-text="chatSearchAgentFilter ? agentName(chatSearchAgentFilter) : t('common.all')"
               ></span>
               <i class="picker-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
             </button>
@@ -1920,7 +1949,7 @@
             >
               <button type="button" class="agent-picker-option" @click="selectChatSearchAgent('')">
                 <span class="agent-avatar" x-text="initials('All')"></span>
-                <span><b x-text="t('library.allAgents')"></b></span>
+                <span><b x-text="t('common.all')"></b></span>
               </button>
               <template x-for="agent in agents" :key="agent.id">
                 <button type="button" class="agent-picker-option" @click="selectChatSearchAgent(agent.id)">
@@ -2200,7 +2229,7 @@
                       <span
                         class="badge badge-soft"
                         :class="user.status === 'active' ? 'badge-success' : 'badge-ghost'"
-                        x-text="user.status"
+                        x-text="statusLabel(user.status)"
                       ></span>
                     </td>
                     <td x-text="formatDateTime(user.created_at)"></td>

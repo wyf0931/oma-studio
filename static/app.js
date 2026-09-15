@@ -32,6 +32,7 @@ function platform() {
     autopilotSearch: "",
     autopilotAgentFilter: "",
     autopilotAgentPickerOpen: false,
+    autopilotEditAgentPickerOpen: false,
     autopilotDialog: null,
     autopilotRuns: [],
     autopilotRunsOpen: false,
@@ -1017,6 +1018,22 @@ function platform() {
       this.autopilotAgentFilter = agentId;
       this.autopilotAgentPickerOpen = false;
       this.loadAutopilots();
+    },
+    selectAutopilotEditAgent(agentId) {
+      this.autopilotAgentId = agentId;
+      this.autopilotEditAgentPickerOpen = false;
+    },
+    statusLabel(status) {
+      const key = {
+        active: "status.active",
+        disabled: "status.disabled",
+        enabled: "status.enabled",
+        running: "status.running",
+        paused: "status.paused",
+        success: "status.success",
+        error: "status.error",
+      }[String(status || "").toLowerCase()];
+      return key ? this.t(key) : status;
     },
     openFile(file) {
       if (!this.activeChat) return;
