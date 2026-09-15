@@ -19,7 +19,8 @@
     "openProfileMenu": "打开个人菜单",
     "closeChatHistory": "关闭聊天记录",
     "administrator": "管理员",
-    "member": "成员"
+    "member": "成员",
+    "user": "用户"
   },
   "common": {
     "cancel": "取消",

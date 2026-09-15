@@ -19,7 +19,8 @@
     "openProfileMenu": "Open profile menu",
     "closeChatHistory": "Close chat history",
     "administrator": "Administrator",
-    "member": "Member"
+    "member": "Member",
+    "user": "User"
   },
   "common": {
     "cancel": "Cancel",
