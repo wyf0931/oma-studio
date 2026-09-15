@@ -25,20 +25,25 @@ def test_usage_statistics_has_a_single_sidebar_entry_and_dialog():
     assert "`¥${(Number(usage.cost) || 0).toFixed(2)}`" in script
     assert "resourceCountLabel(linkDrawerItems.length)" in html
     assert "fileCountLabel(files.length)" in html
-    assert 'chat.searchResults' in script
-    assert 'chat.searchFound' in script
-    assert '"resourceCount": "{{count}} rows"' in Path("static/locales/en.json").read_text(encoding="utf-8")
-    assert '"resourceCount": "{{count}} 条"' in Path("static/locales/zh-CN.json").read_text(encoding="utf-8")
+    assert "chat.searchResults" in script
+    assert "chat.searchFound" in script
+    assert '"resourceCount": "{{count}} rows"' in Path(
+        "static/locales/en.json"
+    ).read_text(encoding="utf-8")
+    assert '"resourceCount": "{{count}} 条"' in Path(
+        "static/locales/zh-CN.json"
+    ).read_text(encoding="utf-8")
     assert "x-show=\"authUser?.role === 'admin'\"" in html
     assert "usageTab === 'users' && authUser?.role === 'admin'" in html
     assert "usageTab === 'agents' && authUser?.role === 'admin'" in html
     assert "badge-warning" in html
-    assert '"network": "Network request failed. Check your connection and try again."' in Path(
-        "static/locales/en.json"
-    ).read_text(encoding="utf-8")
-    assert '"network": "网络请求失败，请检查网络连接后重试。"' in Path("static/locales/zh-CN.json").read_text(
-        encoding="utf-8"
+    assert (
+        '"network": "Network request failed. Check your connection and try again."'
+        in Path("static/locales/en.json").read_text(encoding="utf-8")
     )
+    assert '"network": "网络请求失败，请检查网络连接后重试。"' in Path(
+        "static/locales/zh-CN.json"
+    ).read_text(encoding="utf-8")
     assert ".autopilot-runs-table" in styles
     assert "border: 1px solid var(--line)" in styles
     usage_markup = html.split('class="modal modal-middle usage-dialog"', 1)[1].split(
