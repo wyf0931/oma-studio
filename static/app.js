@@ -15,7 +15,9 @@ function platform() {
       users: [],
       agents: [],
     },
-    language: localStorage.getItem("oma-language") || "en",
+    language: ["en", "zh-CN"].includes(localStorage.getItem("oma-language"))
+      ? localStorage.getItem("oma-language")
+      : "en",
     systemTimezone: "",
     themePreference: "system",
     runError: "",
@@ -243,6 +245,7 @@ function platform() {
         new URLSearchParams(location.search).has("share");
       if (this.sharedMode) this.authChecked = true;
       this.initializeThemePreference();
+      await this.initI18n();
       if (!this.sharedMode) {
         await this.loadSession();
         if (!this.authUser) {
@@ -276,6 +279,61 @@ function platform() {
     },
     renderIconsSoon() {
       this.$nextTick(() => requestAnimationFrame(() => this.renderIcons()));
+    },
+    async initI18n() {
+      try {
+        const resources = await Promise.all(
+          ["en", "zh-CN"].map(async (locale) => {
+            const response = await fetch(`/static/locales/${locale}.json`, { cache: "no-store" });
+            if (!response.ok) throw new Error(`Unable to load ${locale} translations`);
+            return [locale, await response.json()];
+          }),
+        );
+        const resourceMap = Object.fromEntries(
+          resources.map(([locale, messages]) => [locale, { translation: messages }]),
+        );
+        if (window.i18next) {
+          await window.i18next.init({
+            lng: this.language,
+            fallbackLng: "en",
+            resources: resourceMap,
+            interpolation: { escapeValue: false },
+            returnNull: false,
+          });
+        }
+      } catch (error) {
+        console.warn("OMA i18n initialization failed; using English fallback", error);
+      }
+      this.syncDocumentLanguage();
+    },
+    t(key, options = {}) {
+      const fallback = options.defaultValue || key;
+      return window.i18next?.isInitialized ? window.i18next.t(key, { ...options, defaultValue: fallback }) : fallback;
+    },
+    localizedMessage(message) {
+      const key = {
+        "Your login session has expired. Please sign in again.": "auth.sessionExpired",
+        "Unable to load usage statistics.": "errors.loadUsage",
+        "Enter an npm package id": "errors.enterNpm",
+        "Avatar must be an image file": "errors.avatarImage",
+        "Avatar must be 5 MB or smaller": "errors.avatarSize",
+        "Chat title cannot be empty": "chat.titleEmpty",
+        "File reference is incomplete": "chat.fileIncomplete",
+      }[message];
+      return key ? this.t(key, { defaultValue: message }) : message;
+    },
+    locale() {
+      return this.language === "zh-CN" ? "zh-CN" : "en-US";
+    },
+    syncDocumentLanguage() {
+      document.documentElement.lang = this.language;
+    },
+    async setLanguage(value) {
+      const locale = ["en", "zh-CN"].includes(value) ? value : "en";
+      this.language = locale;
+      localStorage.setItem("oma-language", locale);
+      this.syncDocumentLanguage();
+      if (window.i18next?.isInitialized) await window.i18next.changeLanguage(locale);
     },
     observeIcons() {
       if (!window.MutationObserver) return;
@@ -847,7 +905,7 @@ function platform() {
     },
     showToast(message, kind = "success") {
       this.error = "";
-      this.toastMessage = message;
+      this.toastMessage = this.localizedMessage(message);
       this.toastKind = kind;
       setTimeout(() => {
         this.toastMessage = "";
@@ -1544,7 +1602,7 @@ function platform() {
       const date = new Date(value);
       return Number.isNaN(date.getTime())
         ? String(value)
-        : date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        : date.toLocaleDateString(this.locale(), { month: "short", day: "numeric" });
     },
     usageCost(value) {
       return `$${this.usageNumber(value).toFixed(4)}`;
@@ -1552,9 +1610,8 @@ function platform() {
     async openSettingsTab(tab) {
       this.settingsTab = tab;
     },
-    saveLanguage() {
-      if (this.language !== "en") this.language = "en";
-      localStorage.setItem("oma-language", this.language);
+    async saveLanguage() {
+      await this.setLanguage(this.language);
     },
     async loadSystemSettings() {
       try {
@@ -2668,7 +2725,7 @@ function platform() {
       const diff = Date.now() - Date.parse(value);
       if (diff < 3600000) return `${Math.max(1, Math.floor(diff / 60000))}m`;
       if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
-      return new Date(value).toLocaleDateString(undefined, {
+      return new Date(value).toLocaleDateString(this.locale(), {
         month: "short",
         day: "numeric",
       });
@@ -3360,7 +3417,7 @@ function platform() {
     showError(error) {
       if (error?.sessionExpired) return;
       this.toastMessage = "";
-      this.error = error.message || String(error);
+      this.error = this.localizedMessage(error.message || String(error));
       this.runError = this.error;
       const current = this.messages[this.messages.length - 1];
       if (current?.role === "assistant") {

@@ -405,7 +405,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260915-agent-ui-polish" in Path("static/index.html").read_text(
+    assert "app.js?v=20260915-i18n" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -546,7 +546,7 @@ def test_agent_profile_detail_contract_is_user_facing():
     html = Path("static/index.html").read_text(encoding="utf-8")
     script = Path("static/app.js").read_text(encoding="utf-8")
     styles = Path("static/styles.css").read_text(encoding="utf-8")
-    assert html.count("New Task") == 4
+    assert html.count("New Task") == 3
     assert "agentAvatarMarkup(agent, 'large')" in html
     assert "agentAvatarMarkup(dialog, 'large')" in html
     assert "agentTagsMarkup(agent.tags)" in html
@@ -568,6 +568,22 @@ def test_agent_profile_detail_contract_is_user_facing():
     assert '<label for="new-agent-description">description' in html
     assert 'for="new-agent-tags">tags' in html
     assert 'for="new-agent-quickstarts">shortcuts' in html
+
+
+def test_frontend_i18n_resources_and_language_switch_contract():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+    english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
+    chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
+
+    assert "i18next@26.4.2/dist/umd/i18next.min.js" in html
+    assert "static/locales/${locale}.json" in script
+    assert 'fallbackLng: "en"' in script
+    assert "document.documentElement.lang = this.language" in script
+    assert 'value="zh-CN"' in html
+    assert english["nav"]["newTask"] == "New Task"
+    assert chinese["nav"]["newTask"] == "新任务"
+    assert english["marketplace"]["skills"] != chinese["marketplace"]["skills"]
 
 
 def test_agent_profile_textareas_auto_resize_from_one_row():
@@ -661,7 +677,7 @@ def test_theme_preference_defaults_to_system_and_is_managed_in_settings():
     assert 'systemThemeQuery?.addEventListener("change"' in script
     assert "pi-theme" not in script
     assert 'title="Toggle theme"' not in html
-    assert "Follow system" in html
+    assert "t('settings.system')" in html
 
 
 def test_request_id_is_propagated_and_generated(client):
