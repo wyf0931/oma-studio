@@ -2119,37 +2119,39 @@
               <h3 x-text="t('settings.general')"></h3>
               <p x-text="t('settings.customize')"></p>
             </div>
-            <div class="settings-section">
-              <label for="settings-language" x-text="t('settings.language')"></label>
-              <p x-text="t('settings.languageHelp')"></p>
-              <select
-                id="settings-language"
-                class="select select-bordered settings-select"
-                x-model="language"
-                @change="saveLanguage()"
-              >
-                <option value="en" x-text="t('settings.english')"></option>
-                <option value="zh-CN" x-text="t('settings.simplifiedChinese')"></option>
-              </select>
-            </div>
-            <div class="settings-section" x-show="authUser?.role === 'admin'" x-cloak>
-              <label for="settings-timezone" x-text="t('settings.timezone')"></label>
-              <p x-text="t('settings.timezoneHelp')"></p>
-              <select
-                id="settings-timezone"
-                class="select select-bordered settings-select"
-                x-model="systemTimezone"
-                @change="saveSystemTimezone()"
-              >
-                <option value="Asia/Shanghai">Shanghai (UTC+08:00)</option>
-                <option value="Asia/Tokyo">Tokyo (UTC+09:00)</option>
-                <option value="Asia/Singapore">Singapore (UTC+08:00)</option>
-                <option value="Europe/London">London (UTC+00:00)</option>
-                <option value="America/New_York">New York (UTC-05:00)</option>
-                <option value="America/Chicago">Chicago (UTC-06:00)</option>
-                <option value="America/Los_Angeles">Los Angeles (UTC-08:00)</option>
-                <option value="Asia/Ho_Chi_Minh">Vietnam (UTC+07:00)</option>
-              </select>
+            <div class="settings-preference-grid">
+              <div class="settings-section">
+                <label for="settings-language" x-text="t('settings.language')"></label>
+                <p x-text="t('settings.languageHelp')"></p>
+                <select
+                  id="settings-language"
+                  class="select select-bordered settings-select"
+                  x-model="language"
+                  @change="saveLanguage()"
+                >
+                  <option value="en" x-text="t('settings.english')"></option>
+                  <option value="zh-CN" x-text="t('settings.simplifiedChinese')"></option>
+                </select>
+              </div>
+              <div class="settings-section" x-show="authUser?.role === 'admin'" x-cloak>
+                <label for="settings-timezone" x-text="t('settings.timezone')"></label>
+                <p x-text="t('settings.timezoneHelp')"></p>
+                <select
+                  id="settings-timezone"
+                  class="select select-bordered settings-select"
+                  x-model="systemTimezone"
+                  @change="saveSystemTimezone()"
+                >
+                  <option value="Asia/Shanghai">Shanghai (UTC+08:00)</option>
+                  <option value="Asia/Tokyo">Tokyo (UTC+09:00)</option>
+                  <option value="Asia/Singapore">Singapore (UTC+08:00)</option>
+                  <option value="Europe/London">London (UTC+00:00)</option>
+                  <option value="America/New_York">New York (UTC-05:00)</option>
+                  <option value="America/Chicago">Chicago (UTC-06:00)</option>
+                  <option value="America/Los_Angeles">Los Angeles (UTC-08:00)</option>
+                  <option value="Asia/Ho_Chi_Minh">Vietnam (UTC+07:00)</option>
+                </select>
+              </div>
             </div>
             <div class="settings-section">
               <label x-text="t('settings.theme')"></label>
