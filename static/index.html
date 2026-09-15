@@ -77,7 +77,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260915-agent-ui-polish" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260915-market-actions" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -188,6 +188,7 @@
           </nav>
           <div class="history-area">
             <div class="sidebar-section-heading">
+              <span x-text="t('nav.chatHistory')"></span>
               <div class="history-actions">
                 <button
                   type="button"
@@ -302,13 +303,24 @@
         ></button>
 
         <section class="content-panel" x-ref="chatContent" x-show="page === 'chat'" x-cloak>
-          <aside class="files-drawer link-drawer" x-show="linkDrawerOpen" x-cloak x-transition aria-label="Web results">
+          <aside
+            class="files-drawer link-drawer"
+            x-show="linkDrawerOpen"
+            x-cloak
+            x-transition
+            :aria-label="t('dialogs.webResults')"
+          >
             <div class="files-drawer-header">
               <div>
                 <h2 x-text="linkDrawerTitle"></h2>
-                <p x-text="linkDrawerItems.length + ' page' + (linkDrawerItems.length === 1 ? '' : 's')"></p>
+                <p x-text="resourceCountLabel(linkDrawerItems.length)"></p>
               </div>
-              <button type="button" class="icon-btn" @click="linkDrawerOpen = false" aria-label="Close web results">
+              <button
+                type="button"
+                class="icon-btn"
+                @click="linkDrawerOpen = false"
+                :aria-label="t('dialogs.closeWebResults')"
+              >
                 <i data-lucide="x" aria-hidden="true"></i>
               </button>
             </div>
@@ -897,7 +909,7 @@
               x-cloak
               @click="openMarketInstall()"
             >
-              <i data-lucide="plus" aria-hidden="true"></i> Install
+              <i data-lucide="plus" aria-hidden="true"></i><span x-text="t('common.install')"></span>
             </button>
             <button
               type="button"
@@ -906,7 +918,7 @@
               x-cloak
               @click="openMarketMcpAdd()"
             >
-              <i data-lucide="plus" aria-hidden="true"></i> Add
+              <i data-lucide="plus" aria-hidden="true"></i><span x-text="t('common.add')"></span>
             </button>
           </div>
           <div class="market-content" x-show="marketTab === 'skills'">
@@ -1049,25 +1061,27 @@
                         <span class="market-card-separator"></span>
                         <span x-text="item.install_count + ' installed'"></span>
                       </div>
-                      <button
-                        type="button"
-                        class="btn btn-ghost btn-sm btn-square market-agent-install-action"
-                        @click.stop="installMarketAgent(item)"
-                        :aria-label="'Install ' + item.name"
-                        title="Install agent"
-                      >
-                        <i data-lucide="plus" aria-hidden="true"></i>
-                      </button>
-                      <button
-                        type="button"
-                        class="trash-btn market-agent-delete-action"
-                        x-show="authUser?.role === 'admin'"
-                        @click.stop="deleteMarketAgent(item)"
-                        :aria-label="'Delete ' + item.name + ' from Marketplace'"
-                        title="Delete published Agent"
-                      >
-                        <i data-lucide="trash-2" aria-hidden="true"></i>
-                      </button>
+                      <div class="market-agent-actions">
+                        <button
+                          type="button"
+                          class="trash-btn market-agent-install-action"
+                          @click.stop="installMarketAgent(item)"
+                          :aria-label="t('common.install') + ' ' + item.name"
+                          :title="t('common.install')"
+                        >
+                          <i data-lucide="plus" aria-hidden="true"></i>
+                        </button>
+                        <button
+                          type="button"
+                          class="trash-btn market-agent-delete-action"
+                          x-show="authUser?.role === 'admin'"
+                          @click.stop="deleteMarketAgent(item)"
+                          :aria-label="t('common.delete') + ' ' + item.name"
+                          :title="t('common.delete')"
+                        >
+                          <i data-lucide="trash-2" aria-hidden="true"></i>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </article>
@@ -1615,11 +1629,11 @@
           </div>
         </section>
       </main>
-      <aside class="files-drawer" x-show="filesOpen" x-cloak x-transition aria-label="Files">
+      <aside class="files-drawer" x-show="filesOpen" x-cloak x-transition :aria-label="t('chat.files')">
         <div class="files-drawer-header">
           <div>
-            <h2>Files</h2>
-            <p x-text="files.length + ' file' + (files.length === 1 ? '' : 's')"></p>
+            <h2 x-text="t('chat.files')"></h2>
+            <p x-text="fileCountLabel(files.length)"></p>
           </div>
           <button type="button" class="icon-btn" @click="filesOpen = false" aria-label="Close files">
             <i data-lucide="x" aria-hidden="true"></i>
@@ -1630,7 +1644,7 @@
             ><div class="files-empty">
               <span class="loading loading-dots loading-sm"></span></div></template
           ><template x-if="!filesLoading && files.length === 0"
-            ><div class="files-empty">No generated files</div></template
+            ><div class="files-empty" x-text="t('chat.noGeneratedFiles')"></div></template
           ><template x-for="file in files" :key="file.id"
             ><div
               class="file-card"
@@ -3142,13 +3156,24 @@
         </div>
       </div>
     </dialog>
-    <aside class="files-drawer link-drawer" x-show="linkDrawerOpen" x-cloak x-transition aria-label="Web results">
+    <aside
+      class="files-drawer link-drawer"
+      x-show="linkDrawerOpen"
+      x-cloak
+      x-transition
+      :aria-label="t('dialogs.webResults')"
+    >
       <div class="files-drawer-header">
         <div>
           <h2 x-text="linkDrawerTitle"></h2>
-          <p x-text="linkDrawerItems.length + ' page' + (linkDrawerItems.length === 1 ? '' : 's')"></p>
+          <p x-text="resourceCountLabel(linkDrawerItems.length)"></p>
         </div>
-        <button type="button" class="icon-btn" @click="linkDrawerOpen = false" aria-label="Close web results">
+        <button
+          type="button"
+          class="icon-btn"
+          @click="linkDrawerOpen = false"
+          :aria-label="t('dialogs.closeWebResults')"
+        >
           <i data-lucide="x" aria-hidden="true"></i>
         </button>
       </div>
@@ -3208,6 +3233,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260915-currency-all"></script>
+    <script src="/static/app.js?v=20260915-market-actions"></script>
   </body>
 </html>

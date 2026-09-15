@@ -94,6 +94,15 @@
     "invalidTimezone": "Timezone must be a valid IANA timezone"
   },
   "chat": {
+    "files": "Files",
+    "fileCount": "{{count}} files",
+    "noGeneratedFiles": "No generated files",
+    "resourceCount": "{{count}} rows",
+    "searchFound": "Search found {{count}} rows",
+    "searchResults": "Search results",
+    "readPages": "Read {{count}} rows",
+    "readPagesTitle": "Read pages",
+    "viewAll": "View all",
     "emptyHistory": "Your conversations will appear here.",
     "whatExplore": "What would you like to explore?",
     "whatShouldWeDo": "What should we do?",
@@ -301,6 +310,7 @@
     "advanced": "Advanced",
     "schedule": "Schedule",
     "closeWebResults": "Close web results",
+    "webResults": "Web results",
     "deleteAutopilot": "Delete autopilot"
   },
   "errors": {

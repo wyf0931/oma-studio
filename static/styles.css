@@ -3709,13 +3709,23 @@ pre,
  background: var(--line);
  flex: 0 0 auto;
 }
+.market-agent-actions {
+ display: flex;
+ align-items: center;
+ gap: 6px;
+ margin-left: auto;
+}
 .market-agent-install-action {
- opacity: 0;
- transition: opacity 0.15s, background 0.15s;
+ margin-left: 0;
+ color: var(--color-primary);
 }
 .market-card:hover .market-agent-install-action,
 .market-agent-install-action:focus-visible {
  opacity: 1;
+}
+.market-agent-install-action:hover {
+ background: var(--color-primary);
+ color: var(--color-primary-content);
 }
 .market-agent-delete-action {
  margin-left: 0;

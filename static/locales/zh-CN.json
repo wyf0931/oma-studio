@@ -94,6 +94,15 @@
     "invalidTimezone": "时区必须是有效的 IANA 时区"
   },
   "chat": {
+    "files": "文件",
+    "fileCount": "{{count}} 个文件",
+    "noGeneratedFiles": "暂无生成的文件",
+    "resourceCount": "{{count}} 条",
+    "searchFound": "搜索到 {{count}} 条结果",
+    "searchResults": "搜索结果",
+    "readPages": "读取 {{count}} 条结果",
+    "readPagesTitle": "读取结果",
+    "viewAll": "查看全部",
     "emptyHistory": "你的对话会显示在这里。",
     "whatExplore": "你想探索什么？",
     "whatShouldWeDo": "我们接下来做什么？",
@@ -301,6 +310,7 @@
     "advanced": "高级设置",
     "schedule": "计划",
     "closeWebResults": "关闭网页结果",
+    "webResults": "网页结果",
     "deleteAutopilot": "删除定时任务"
   },
   "errors": {

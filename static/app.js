@@ -3303,8 +3303,12 @@ function platform() {
       window.omaPlatform = this;
       const key = crypto.randomUUID();
       this.webActivities[key] = { kind: name, items };
-      const label = name === "web_search" ? `Search found ${items.length} pages` : `Read ${items.length} pages`;
-      const viewAll = items.length > 5 ? '<span class="web-activity-more">View all</span>' : "";
+      const label =
+        name === "web_search"
+          ? this.t("chat.searchFound", { count: items.length })
+          : this.t("chat.readPages", { count: items.length });
+      const viewAll =
+        items.length > 5 ? `<span class="web-activity-more">${this.escape(this.t("chat.viewAll"))}</span>` : "";
       const pages =
         name === "web_fetch"
           ? `<span class="web-activity-pages">${items
@@ -3391,10 +3395,16 @@ function platform() {
     openWebActivity(button) {
       const activity = this.webActivities[button.dataset.webActivityId];
       if (!activity) return;
-      this.linkDrawerTitle = activity.kind === "web_search" ? "Search results" : "Read pages";
+      this.linkDrawerTitle = this.t(activity.kind === "web_search" ? "chat.searchResults" : "chat.readPagesTitle");
       this.linkDrawerItems = activity.items || [];
       this.filesOpen = false;
       this.linkDrawerOpen = true;
+    },
+    resourceCountLabel(count) {
+      return this.t("chat.resourceCount", { count });
+    },
+    fileCountLabel(count) {
+      return this.t("chat.fileCount", { count });
     },
     closeDrawersOutside(event) {
       if (!this.filesOpen && !this.linkDrawerOpen && !this.profileMenuOpen) return;

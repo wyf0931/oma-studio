@@ -23,6 +23,12 @@ def test_usage_statistics_has_a_single_sidebar_entry_and_dialog():
     assert "usageData.agents" in html
     assert "return `¥${this.usageNumber(value).toFixed(4)}`" in script
     assert "`¥${(Number(usage.cost) || 0).toFixed(2)}`" in script
+    assert "resourceCountLabel(linkDrawerItems.length)" in html
+    assert "fileCountLabel(files.length)" in html
+    assert 'chat.searchResults' in script
+    assert 'chat.searchFound' in script
+    assert '"resourceCount": "{{count}} rows"' in Path("static/locales/en.json").read_text(encoding="utf-8")
+    assert '"resourceCount": "{{count}} 条"' in Path("static/locales/zh-CN.json").read_text(encoding="utf-8")
     assert "x-show=\"authUser?.role === 'admin'\"" in html
     assert "usageTab === 'users' && authUser?.role === 'admin'" in html
     assert "usageTab === 'agents' && authUser?.role === 'admin'" in html
