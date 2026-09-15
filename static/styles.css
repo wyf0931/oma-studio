@@ -337,6 +337,7 @@ body {
  gap: 10px;
  min-height: 36px;
  color: var(--ink);
+ font-size: 14px;
 }
 .sidebar-profile-menu li > button .lucide {
  width: 17px;
@@ -1552,7 +1553,7 @@ body {
  padding-right: clamp(28px, 4vw, 64px);
 }
 .agents-page .page-heading {
- margin-bottom: 28px;
+ margin-bottom: 24px;
 }
 .agents-page .agent-grid {
  grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3431,6 +3432,9 @@ pre,
 .market-page {
  padding-top: 28px;
 }
+.market-page .page-heading {
+ margin-bottom: 24px;
+}
 .agents-page .page-heading,
 .autopilots-page .page-heading,
 .library-page .page-heading,
@@ -3445,7 +3449,7 @@ pre,
  margin-top: 0;
 }
 .market-tabs {
- margin-bottom: 24px;
+ margin-bottom: 16px;
  gap: 4px;
  overflow-x: auto;
 }
@@ -3454,7 +3458,7 @@ pre,
  grid-template-columns: repeat(3, minmax(0, 1fr));
  align-items: center;
  gap: 12px;
- margin: -8px 0 16px;
+ margin: 0 0 16px;
 }
 .market-catalog-toolbar > .btn {
  grid-column: 3;
@@ -3463,7 +3467,7 @@ pre,
 .agent-catalog-toolbar {
  display: flex;
  justify-content: flex-end;
- margin: -12px 0 16px;
+ margin: 0 0 16px;
 }
 .agent-catalog-toolbar .send-btn,
 .autopilot-new {
@@ -3708,13 +3712,23 @@ pre,
  background: var(--line);
  flex: 0 0 auto;
 }
+.market-agent-actions {
+ display: flex;
+ align-items: center;
+ gap: 6px;
+ margin-left: auto;
+}
 .market-agent-install-action {
- opacity: 0;
- transition: opacity 0.15s, background 0.15s;
+ margin-left: 0;
+ color: var(--color-primary);
 }
 .market-card:hover .market-agent-install-action,
 .market-agent-install-action:focus-visible {
  opacity: 1;
+}
+.market-agent-install-action:hover {
+ background: var(--color-primary);
+ color: var(--color-primary-content);
 }
 .market-agent-delete-action {
  margin-left: 0;
@@ -3983,10 +3997,13 @@ pre,
 .autopilots-page {
  padding-top: 28px;
 }
+.autopilots-page .page-heading {
+ margin-bottom: 24px;
+}
 .autopilot-filters {
  display: flex;
  gap: 12px;
- margin: -10px 0 24px;
+ margin: 0 0 18px;
 }
 .autopilot-filters .library-search {
  flex: 1;
@@ -4090,8 +4107,12 @@ pre,
 .autopilot-runs-table {
  margin-top: 24px;
  overflow: auto;
+ border: 1px solid var(--line);
+ border-radius: var(--radius-box);
+ background: var(--color-base-100);
 }
 .autopilot-runs-table .table {
+ width: 100%;
  min-width: 560px;
 }
 @media (max-width: 700px) {
@@ -4288,6 +4309,17 @@ pre,
  padding: 26px 0;
  border-bottom: 1px solid var(--line);
 }
+.settings-preference-grid {
+ display: grid;
+ grid-template-columns: repeat(2, minmax(0, 1fr));
+ gap: 24px;
+}
+.settings-preference-grid .settings-section {
+ min-width: 0;
+}
+.settings-preference-grid .settings-select {
+ width: 100%;
+}
 .settings-section > label {
  display: block;
  margin-bottom: 6px;
@@ -4360,6 +4392,9 @@ pre,
   padding: 24px 20px;
  }
  .theme-options {
+  grid-template-columns: 1fr;
+ }
+ .settings-preference-grid {
   grid-template-columns: 1fr;
  }
 }

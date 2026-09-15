@@ -32,6 +32,7 @@ function platform() {
     autopilotSearch: "",
     autopilotAgentFilter: "",
     autopilotAgentPickerOpen: false,
+    autopilotEditAgentPickerOpen: false,
     autopilotDialog: null,
     autopilotRuns: [],
     autopilotRunsOpen: false,
@@ -313,12 +314,15 @@ function platform() {
     t(key, options = {}) {
       this.i18nReady;
       const fallback = options.defaultValue || key;
-      if (window.i18next?.isInitialized) return window.i18next.t(key, { ...options, defaultValue: fallback });
       const lookup = (messages) =>
         String(key)
           .split(".")
           .reduce((value, part) => value?.[part], messages);
-      return lookup(this.i18nMessages[this.language]) ?? lookup(this.i18nMessages.en) ?? fallback;
+      const localMessage = lookup(this.i18nMessages[this.language]) ?? lookup(this.i18nMessages.en);
+      if (typeof localMessage === "string") {
+        return localMessage.replace(/{{\s*(\w+)\s*}}/g, (_, name) => String(options[name] ?? ""));
+      }
+      return window.i18next?.isInitialized ? window.i18next.t(key, { ...options, defaultValue: fallback }) : fallback;
     },
     localizedMessage(message) {
       const exactKey = {
@@ -331,6 +335,8 @@ function platform() {
         "File reference is incomplete": "chat.fileIncomplete",
         "System timezone updated": "toasts.timezoneUpdated",
         "Agent profile optimized": "toasts.agentOptimized",
+        "Failed to fetch": "errors.network",
+        "NetworkError when attempting to fetch resource.": "errors.network",
         "Agent updated": "agents.updated",
         "Agent created": "agents.created",
       }[message];
@@ -902,6 +908,16 @@ function platform() {
       const sourceAuthor = kind === "skills" && item?.source ? item.source.split("/", 1)[0].trim() : "";
       return (author || sourceAuthor || "admin").slice(0, 10);
     },
+    marketSearchPlaceholder() {
+      const key = {
+        skills: "marketplace.searchSkills",
+        extensions: "marketplace.searchExtensions",
+        mcp_servers: "marketplace.searchMcpServers",
+        agents: "marketplace.searchAgents",
+        agent_teams: "marketplace.searchAgentTeams",
+      }[this.marketTab];
+      return this.t(key || "marketplace.searchResources");
+    },
     openMarketUninstall(kind, item) {
       if (!this.marketResourceSource(kind, item)) return;
       this.marketUninstallTarget = { kind, item };
@@ -1014,6 +1030,27 @@ function platform() {
       this.autopilotAgentFilter = agentId;
       this.autopilotAgentPickerOpen = false;
       this.loadAutopilots();
+    },
+    selectAutopilotEditAgent(agentId) {
+      this.autopilotAgentId = agentId;
+      this.autopilotEditAgentPickerOpen = false;
+    },
+    statusLabel(status) {
+      const key = {
+        active: "status.active",
+        disabled: "status.disabled",
+        enabled: "status.enabled",
+        running: "status.running",
+        paused: "status.paused",
+        success: "status.success",
+        error: "status.error",
+        cancelled: "status.cancelled",
+      }[
+        String(status || "")
+          .trim()
+          .toLowerCase()
+      ];
+      return key ? this.t(key) : status;
     },
     openFile(file) {
       if (!this.activeChat) return;
@@ -1643,10 +1680,10 @@ function platform() {
       const date = new Date(value);
       return Number.isNaN(date.getTime())
         ? String(value)
-        : date.toLocaleDateString(this.locale(), { month: "short", day: "numeric" });
+        : date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     },
     usageCost(value) {
-      return `$${this.usageNumber(value).toFixed(4)}`;
+      return `¥${this.usageNumber(value).toFixed(4)}`;
     },
     async openSettingsTab(tab) {
       this.settingsTab = tab;
@@ -3268,8 +3305,12 @@ function platform() {
       window.omaPlatform = this;
       const key = crypto.randomUUID();
       this.webActivities[key] = { kind: name, items };
-      const label = name === "web_search" ? `Search found ${items.length} pages` : `Read ${items.length} pages`;
-      const viewAll = items.length > 5 ? '<span class="web-activity-more">View all</span>' : "";
+      const label =
+        name === "web_search"
+          ? this.t("chat.searchFound", { count: items.length })
+          : this.t("chat.readPages", { count: items.length });
+      const viewAll =
+        items.length > 5 ? `<span class="web-activity-more">${this.escape(this.t("chat.viewAll"))}</span>` : "";
       const pages =
         name === "web_fetch"
           ? `<span class="web-activity-pages">${items
@@ -3343,7 +3384,7 @@ function platform() {
         usage.search || usage.fetch
           ? `<span class="usage-stat usage-tools" title="Web tool calls"><i data-lucide="globe" aria-hidden="true"></i><span>search ${usage.search || 0} · fetch ${usage.fetch || 0}</span></span>`
           : "",
-        stat("coins", "Estimated cost", `$${(Number(usage.cost) || 0).toFixed(2)}`),
+        stat("coins", "Estimated cost", `¥${(Number(usage.cost) || 0).toFixed(2)}`),
       ].join("");
     },
     faviconFor(url) {
@@ -3356,10 +3397,16 @@ function platform() {
     openWebActivity(button) {
       const activity = this.webActivities[button.dataset.webActivityId];
       if (!activity) return;
-      this.linkDrawerTitle = activity.kind === "web_search" ? "Search results" : "Read pages";
+      this.linkDrawerTitle = this.t(activity.kind === "web_search" ? "chat.searchResults" : "chat.readPagesTitle");
       this.linkDrawerItems = activity.items || [];
       this.filesOpen = false;
       this.linkDrawerOpen = true;
+    },
+    resourceCountLabel(count) {
+      return this.t("chat.resourceCount", { count });
+    },
+    fileCountLabel(count) {
+      return this.t("chat.fileCount", { count });
     },
     closeDrawersOutside(event) {
       if (!this.filesOpen && !this.linkDrawerOpen && !this.profileMenuOpen) return;

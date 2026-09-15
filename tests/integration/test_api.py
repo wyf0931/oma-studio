@@ -405,7 +405,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260915-i18n-menus-errors" in Path("static/index.html").read_text(
+    assert "app.js?v=20260915-error-copy" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -583,6 +583,7 @@ def test_frontend_i18n_resources_and_language_switch_contract():
     assert 'value="zh-CN"' in html
     assert english["nav"]["newTask"] == "New Task"
     assert chinese["nav"]["newTask"] == "新任务"
+    assert chinese["common"]["all"] == "全部"
     assert english["marketplace"]["skills"] != chinese["marketplace"]["skills"]
 
 
@@ -1251,6 +1252,7 @@ def test_sidebar_footer_uses_a_grouped_profile_menu_with_existing_actions():
         and "t('nav.usage')" in html
         and "t('nav.users')" in html
     )
+    assert "t('nav.workspace')" not in html
     assert "t('nav.helpFeedback')" in html and "t('nav.about')" in html
     assert 'data-lucide="log-out"' in html
     assert "profileMenuOpen" in script

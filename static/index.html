@@ -77,7 +77,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260915-agent-ui-polish" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260915-page-spacing-v3" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -258,7 +258,6 @@
                 x-cloak
                 @click.stop
               >
-                <li class="menu-title"><span x-text="t('nav.workspace')"></span></li>
                 <li>
                   <button type="button" @click="openProfileSettings()">
                     <i data-lucide="settings" aria-hidden="true"></i><span x-text="t('nav.settings')"></span>
@@ -304,13 +303,24 @@
         ></button>
 
         <section class="content-panel" x-ref="chatContent" x-show="page === 'chat'" x-cloak>
-          <aside class="files-drawer link-drawer" x-show="linkDrawerOpen" x-cloak x-transition aria-label="Web results">
+          <aside
+            class="files-drawer link-drawer"
+            x-show="linkDrawerOpen"
+            x-cloak
+            x-transition
+            :aria-label="t('dialogs.webResults')"
+          >
             <div class="files-drawer-header">
               <div>
                 <h2 x-text="linkDrawerTitle"></h2>
-                <p x-text="linkDrawerItems.length + ' page' + (linkDrawerItems.length === 1 ? '' : 's')"></p>
+                <p x-text="resourceCountLabel(linkDrawerItems.length)"></p>
               </div>
-              <button type="button" class="icon-btn" @click="linkDrawerOpen = false" aria-label="Close web results">
+              <button
+                type="button"
+                class="icon-btn"
+                @click="linkDrawerOpen = false"
+                :aria-label="t('dialogs.closeWebResults')"
+              >
                 <i data-lucide="x" aria-hidden="true"></i>
               </button>
             </div>
@@ -626,7 +636,7 @@
                 ></span>
                 <span
                   class="filter-agent-picker-label"
-                  x-text="libraryAgentFilter ? agentName(libraryAgentFilter) : 'All agents'"
+                  x-text="libraryAgentFilter ? agentName(libraryAgentFilter) : t('common.all')"
                 ></span>
                 <i class="picker-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
               </button>
@@ -638,7 +648,7 @@
               >
                 <button type="button" class="agent-picker-option" @click="selectLibraryAgent('')">
                   <span class="agent-avatar" x-text="initials('All')"></span>
-                  <span><b>All agents</b></span>
+                  <span><b x-text="t('common.all')"></b></span>
                 </button>
                 <template x-for="agent in agents" :key="agent.id">
                   <button type="button" class="agent-picker-option" @click="selectLibraryAgent(agent.id)">
@@ -654,8 +664,8 @@
                 class="input"
                 x-model="librarySearch"
                 @input.debounce.300ms="loadLibrary(1)"
-                placeholder="Search files"
-                aria-label="Search files"
+                :placeholder="t('library.searchFiles')"
+                :aria-label="t('library.searchFiles')"
             /></label>
           </div>
           <div class="library-table-wrap">
@@ -668,11 +678,11 @@
             <table class="table library-table" x-show="!libraryLoading && libraryFiles.length">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Agent</th>
-                  <th>Size</th>
-                  <th>Created</th>
-                  <th>Actions</th>
+                  <th x-text="t('common.name')"></th>
+                  <th x-text="t('common.agent')"></th>
+                  <th x-text="t('common.size')"></th>
+                  <th x-text="t('common.created')"></th>
+                  <th x-text="t('common.actions')"></th>
                 </tr>
               </thead>
               <tbody>
@@ -889,8 +899,8 @@
               <input
                 class="input"
                 x-model="marketCatalogSearch"
-                :placeholder="t('marketplace.searchResources')"
-                aria-label="Search market resources"
+                :placeholder="marketSearchPlaceholder()"
+                :aria-label="marketSearchPlaceholder()"
               />
             </label>
             <button
@@ -899,7 +909,7 @@
               x-cloak
               @click="openMarketInstall()"
             >
-              <i data-lucide="plus" aria-hidden="true"></i> Install
+              <i data-lucide="plus" aria-hidden="true"></i><span x-text="t('common.install')"></span>
             </button>
             <button
               type="button"
@@ -908,7 +918,7 @@
               x-cloak
               @click="openMarketMcpAdd()"
             >
-              <i data-lucide="plus" aria-hidden="true"></i> Add
+              <i data-lucide="plus" aria-hidden="true"></i><span x-text="t('marketplace.add')"></span>
             </button>
           </div>
           <div class="market-content" x-show="marketTab === 'skills'">
@@ -993,7 +1003,6 @@
                     <div class="market-card-top">
                       <span class="agent-avatar-slot" x-html="agentAvatarMarkup(item)"></span>
                       <h2 class="card-title" x-text="item.name"></h2>
-                      <span class="badge badge-soft badge-info badge-sm">Available</span>
                     </div>
                     <p class="market-description" x-text="item.description || 'MCP server'"></p>
                     <div class="card-actions market-card-footer">
@@ -1051,25 +1060,27 @@
                         <span class="market-card-separator"></span>
                         <span x-text="item.install_count + ' installed'"></span>
                       </div>
-                      <button
-                        type="button"
-                        class="btn btn-ghost btn-sm btn-square market-agent-install-action"
-                        @click.stop="installMarketAgent(item)"
-                        :aria-label="'Install ' + item.name"
-                        title="Install agent"
-                      >
-                        <i data-lucide="plus" aria-hidden="true"></i>
-                      </button>
-                      <button
-                        type="button"
-                        class="trash-btn market-agent-delete-action"
-                        x-show="authUser?.role === 'admin'"
-                        @click.stop="deleteMarketAgent(item)"
-                        :aria-label="'Delete ' + item.name + ' from Marketplace'"
-                        title="Delete published Agent"
-                      >
-                        <i data-lucide="trash-2" aria-hidden="true"></i>
-                      </button>
+                      <div class="market-agent-actions">
+                        <button
+                          type="button"
+                          class="trash-btn market-agent-install-action"
+                          @click.stop="installMarketAgent(item)"
+                          :aria-label="t('common.install') + ' ' + item.name"
+                          :title="t('common.install')"
+                        >
+                          <i data-lucide="plus" aria-hidden="true"></i>
+                        </button>
+                        <button
+                          type="button"
+                          class="trash-btn market-agent-delete-action"
+                          x-show="authUser?.role === 'admin'"
+                          @click.stop="deleteMarketAgent(item)"
+                          :aria-label="t('common.delete') + ' ' + item.name"
+                          :title="t('common.delete')"
+                        >
+                          <i data-lucide="trash-2" aria-hidden="true"></i>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </article>
@@ -1488,8 +1499,8 @@
                 class="input"
                 x-model="autopilotSearch"
                 @input.debounce.300ms="loadAutopilots()"
-                placeholder="Search autopilots"
-                aria-label="Search autopilots"
+                :placeholder="t('autopilots.search')"
+                :aria-label="t('autopilots.search')"
             /></label>
             <div class="agent-picker filter-agent-picker" @click.outside="autopilotAgentPickerOpen = false">
               <button
@@ -1498,7 +1509,7 @@
                 @click="autopilotAgentPickerOpen = !autopilotAgentPickerOpen"
                 :aria-expanded="autopilotAgentPickerOpen"
                 aria-haspopup="listbox"
-                aria-label="Filter Autopilots by agent"
+                :aria-label="t('autopilots.filterByAgent')"
               >
                 <span
                   class="agent-avatar"
@@ -1506,7 +1517,7 @@
                 ></span>
                 <span
                   class="filter-agent-picker-label"
-                  x-text="autopilotAgentFilter ? agentName(autopilotAgentFilter) : 'All agents'"
+                  x-text="autopilotAgentFilter ? agentName(autopilotAgentFilter) : t('common.all')"
                 ></span>
                 <i class="picker-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
               </button>
@@ -1518,7 +1529,7 @@
               >
                 <button type="button" class="agent-picker-option" @click="selectAutopilotAgent('')">
                   <span class="agent-avatar" x-text="initials('All')"></span>
-                  <span><b>All agents</b></span>
+                  <span><b x-text="t('common.all')"></b></span>
                 </button>
                 <template x-for="agent in agents" :key="agent.id">
                   <button type="button" class="agent-picker-option" @click="selectAutopilotAgent(agent.id)">
@@ -1529,7 +1540,7 @@
               </div>
             </div>
             <button class="btn btn-soft btn-primary autopilot-new" @click="newAutopilot()">
-              <i data-lucide="plus" aria-hidden="true"></i> New
+              <i data-lucide="plus" aria-hidden="true"></i><span x-text="t('autopilots.new')"></span>
             </button>
           </div>
           <div class="autopilot-table-wrap">
@@ -1542,11 +1553,11 @@
             <table class="table autopilot-table" x-show="!autopilotLoading && autopilots.length">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Agent</th>
-                  <th>Schedule</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th x-text="t('common.name')"></th>
+                  <th x-text="t('common.agent')"></th>
+                  <th x-text="t('autopilots.schedule')"></th>
+                  <th x-text="t('common.status')"></th>
+                  <th x-text="t('common.actions')"></th>
                 </tr>
               </thead>
               <tbody>
@@ -1569,7 +1580,7 @@
                       <span
                         class="badge badge-soft"
                         :class="item.enabled ? 'badge-success' : 'badge-ghost'"
-                        x-text="item.status"
+                        x-text="statusLabel(item.status)"
                       ></span>
                     </td>
                     <td>
@@ -1604,8 +1615,8 @@
                         ><button
                           class="btn btn-sm btn-ghost"
                           @click="loadAutopilotRuns(item)"
-                          title="Run history"
-                          aria-label="Run history"
+                          :title="t('autopilots.runHistory')"
+                          :aria-label="t('autopilots.runHistory')"
                         >
                           <i data-lucide="rotate-ccw-clock" aria-hidden="true"></i>
                         </button>
@@ -1617,11 +1628,11 @@
           </div>
         </section>
       </main>
-      <aside class="files-drawer" x-show="filesOpen" x-cloak x-transition aria-label="Files">
+      <aside class="files-drawer" x-show="filesOpen" x-cloak x-transition :aria-label="t('chat.files')">
         <div class="files-drawer-header">
           <div>
-            <h2>Files</h2>
-            <p x-text="files.length + ' file' + (files.length === 1 ? '' : 's')"></p>
+            <h2 x-text="t('chat.files')"></h2>
+            <p x-text="fileCountLabel(files.length)"></p>
           </div>
           <button type="button" class="icon-btn" @click="filesOpen = false" aria-label="Close files">
             <i data-lucide="x" aria-hidden="true"></i>
@@ -1632,7 +1643,7 @@
             ><div class="files-empty">
               <span class="loading loading-dots loading-sm"></span></div></template
           ><template x-if="!filesLoading && files.length === 0"
-            ><div class="files-empty">No generated files</div></template
+            ><div class="files-empty" x-text="t('chat.noGeneratedFiles')"></div></template
           ><template x-for="file in files" :key="file.id"
             ><div
               class="file-card"
@@ -1683,47 +1694,70 @@
       <div class="modal-box autopilot-dialog">
         <div class="dialog-head">
           <div>
-            <div class="eyebrow">Automation</div>
-            <h2 x-text="autopilotEditing ? 'Edit Autopilot' : 'New Autopilot'"></h2>
+            <div class="eyebrow" x-text="t('autopilots.automation')"></div>
+            <h2 x-text="autopilotEditing ? t('autopilots.edit') : t('autopilots.newTitle')"></h2>
           </div>
-          <button class="icon-btn" @click="autopilotDialog = false" aria-label="Close">
+          <button class="icon-btn" @click="autopilotDialog = false" :aria-label="t('common.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
         <form @submit.prevent="saveAutopilot">
           <div class="form-field">
-            <label for="autopilot-name">Name</label
+            <label for="autopilot-name" x-text="t('common.name')"></label
             ><input
               id="autopilot-name"
               class="input input-bordered"
               x-model="autopilotName"
               required
               maxlength="80"
-              placeholder="e.g. Daily research brief"
+              :placeholder="t('autopilots.namePlaceholder')"
             />
           </div>
           <div class="form-field">
-            <label for="autopilot-instruction">Instruction</label
+            <label for="autopilot-instruction" x-text="t('agents.instruction')"></label
             ><textarea
               id="autopilot-instruction"
               class="textarea textarea-bordered"
               x-model="autopilotInstruction"
               required
               maxlength="10000"
-              placeholder="Tell the agent what to do…"
+              :placeholder="t('autopilots.instructionPlaceholder')"
             ></textarea>
           </div>
           <div class="autopilot-form-grid">
             <div class="form-field">
-              <label for="autopilot-agent">Agent</label
-              ><select id="autopilot-agent" class="select select-bordered" x-model="autopilotAgentId" required>
-                <template x-for="agent in agents" :key="agent.id"
-                  ><option :value="agent.id" x-text="agent.name"></option
-                ></template>
-              </select>
+              <label for="autopilot-agent" x-text="t('common.agent')"></label>
+              <div class="agent-picker" @click.outside="autopilotEditAgentPickerOpen = false">
+                <button
+                  type="button"
+                  class="agent-picker-button"
+                  @click="autopilotEditAgentPickerOpen = !autopilotEditAgentPickerOpen"
+                  :aria-expanded="autopilotEditAgentPickerOpen"
+                  aria-haspopup="listbox"
+                  :aria-label="t('autopilots.selectAgent')"
+                >
+                  <span class="agent-avatar" x-text="initials(agentName(autopilotAgentId))"></span>
+                  <span class="filter-agent-picker-label" x-text="agentName(autopilotAgentId)"></span>
+                  <i class="picker-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+                </button>
+                <div class="agent-picker-menu" x-show="autopilotEditAgentPickerOpen" x-cloak role="listbox">
+                  <template x-for="agent in agents" :key="agent.id">
+                    <button
+                      type="button"
+                      class="agent-picker-option"
+                      @click="selectAutopilotEditAgent(agent.id)"
+                      role="option"
+                      :aria-selected="autopilotAgentId === agent.id"
+                    >
+                      <span class="agent-avatar" x-text="initials(agent.name)"></span>
+                      <span><b x-text="agent.name"></b></span>
+                    </button>
+                  </template>
+                </div>
+              </div>
             </div>
             <div class="form-field">
-              <label for="autopilot-cron">Cron</label
+              <label for="autopilot-cron" x-text="t('autopilots.cron')"></label
               ><input
                 id="autopilot-cron"
                 class="input input-bordered mono"
@@ -1732,15 +1766,15 @@
                 @focus="openCronBuilder()"
                 @click="openCronBuilder()"
                 required
-                aria-label="Cron schedule"
+                :aria-label="t('autopilots.cronSchedule')"
               />
             </div>
           </div>
           <details class="collapse collapse-arrow autopilot-advanced">
-            <summary class="collapse-title">Advanced</summary>
+            <summary class="collapse-title" x-text="t('autopilots.advanced')"></summary>
             <div class="collapse-content">
               <div class="form-field">
-                <label for="autopilot-starts">Effective from</label
+                <label for="autopilot-starts" x-text="t('autopilots.effectiveFrom')"></label
                 ><input
                   id="autopilot-starts"
                   type="datetime-local"
@@ -1749,7 +1783,7 @@
                 />
               </div>
               <div class="form-field">
-                <label for="autopilot-ends">Effective until</label
+                <label for="autopilot-ends" x-text="t('autopilots.effectiveUntil')"></label
                 ><input
                   id="autopilot-ends"
                   type="datetime-local"
@@ -1760,12 +1794,17 @@
             </div>
           </details>
           <div class="dialog-actions">
-            <button type="button" class="btn btn-sm btn-ghost" @click="autopilotDialog = false">Cancel</button
+            <button
+              type="button"
+              class="btn btn-sm btn-ghost"
+              @click="autopilotDialog = false"
+              x-text="t('common.cancel')"
+            ></button
             ><button
               type="submit"
               class="btn btn-sm btn-primary"
               :disabled="autopilotSaving"
-              x-text="autopilotEditing ? 'Save' : 'Create'"
+              x-text="autopilotEditing ? t('common.save') : t('autopilots.create')"
             ></button>
           </div>
         </form>
@@ -1781,29 +1820,31 @@
       <div class="modal-box autopilot-runs-dialog">
         <div class="dialog-head">
           <div>
-            <div class="eyebrow">Run history</div>
+            <div class="eyebrow" x-text="t('autopilots.runHistory')"></div>
             <h2 x-text="autopilotRunsItem?.name || 'Autopilot'"></h2>
           </div>
           <div class="dialog-head-actions">
-            <button class="icon-btn" @click="autopilotRunsOpen = false" aria-label="Close">
+            <button class="icon-btn" @click="autopilotRunsOpen = false" :aria-label="t('common.close')">
               <i data-lucide="x" aria-hidden="true"></i>
             </button>
           </div>
         </div>
         <div class="autopilot-runs-toolbar">
           <button class="btn btn-sm btn-primary" @click="runAutopilot(autopilotRunsItem)">
-            <i data-lucide="play" aria-hidden="true"></i> Run
+            <i data-lucide="play" aria-hidden="true"></i><span x-text="t('autopilots.run')"></span>
           </button>
         </div>
         <div class="autopilot-runs-table">
-          <template x-if="!autopilotRuns.length"><div class="files-empty">No runs yet</div></template>
+          <template x-if="!autopilotRuns.length"
+            ><div class="files-empty" x-text="t('autopilots.noRuns')"></div
+          ></template>
           <table class="table" x-show="autopilotRuns.length">
             <thead>
               <tr>
-                <th>Started</th>
-                <th>Duration</th>
-                <th>Status</th>
-                <th>Session</th>
+                <th x-text="t('autopilots.started')"></th>
+                <th x-text="t('autopilots.duration')"></th>
+                <th x-text="t('common.status')"></th>
+                <th x-text="t('autopilots.session')"></th>
               </tr>
             </thead>
             <tbody>
@@ -1814,16 +1855,24 @@
                   <td>
                     <span
                       class="badge badge-soft"
-                      :class="run.status === 'success' ? 'badge-success' : run.status === 'error' ? 'badge-error' : 'badge-ghost'"
-                      x-text="run.status"
+                      :class="
+                        run.status === 'success'
+                          ? 'badge-success'
+                          : run.status === 'error'
+                            ? 'badge-error'
+                            : run.status === 'cancelled'
+                              ? 'badge-warning'
+                              : 'badge-ghost'
+                      "
+                      x-text="statusLabel(run.status)"
                     ></span>
                   </td>
                   <td>
                     <a
                       class="btn btn-sm btn-ghost"
                       :href="'/chat/' + run.chat_id"
-                      title="Open session"
-                      aria-label="Open session"
+                      :title="t('autopilots.openSession')"
+                      :aria-label="t('autopilots.openSession')"
                       ><i data-lucide="square-arrow-out-up-right" aria-hidden="true"></i
                     ></a>
                   </td></tr
@@ -1887,9 +1936,9 @@
             ><input
               class="input"
               x-model="chatSearchQuery"
-              :placeholder="t('dialogs.searchBySession')"
+              :placeholder="t('dialogs.searchByTask')"
               autofocus
-              :aria-label="t('dialogs.searchSessions')"
+              :aria-label="t('dialogs.searchTasks')"
           /></label>
           <div
             class="agent-picker filter-agent-picker chat-search-agent-picker"
@@ -1909,7 +1958,7 @@
               ></span>
               <span
                 class="filter-agent-picker-label"
-                x-text="chatSearchAgentFilter ? agentName(chatSearchAgentFilter) : 'All agents'"
+                x-text="chatSearchAgentFilter ? agentName(chatSearchAgentFilter) : t('common.all')"
               ></span>
               <i class="picker-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
             </button>
@@ -1921,7 +1970,7 @@
             >
               <button type="button" class="agent-picker-option" @click="selectChatSearchAgent('')">
                 <span class="agent-avatar" x-text="initials('All')"></span>
-                <span><b x-text="t('library.allAgents')"></b></span>
+                <span><b x-text="t('common.all')"></b></span>
               </button>
               <template x-for="agent in agents" :key="agent.id">
                 <button type="button" class="agent-picker-option" @click="selectChatSearchAgent(agent.id)">
@@ -2083,37 +2132,39 @@
               <h3 x-text="t('settings.general')"></h3>
               <p x-text="t('settings.customize')"></p>
             </div>
-            <div class="settings-section">
-              <label for="settings-language" x-text="t('settings.language')"></label>
-              <p x-text="t('settings.languageHelp')"></p>
-              <select
-                id="settings-language"
-                class="select select-bordered settings-select"
-                x-model="language"
-                @change="saveLanguage()"
-              >
-                <option value="en" x-text="t('settings.english')"></option>
-                <option value="zh-CN" x-text="t('settings.simplifiedChinese')"></option>
-              </select>
-            </div>
-            <div class="settings-section" x-show="authUser?.role === 'admin'" x-cloak>
-              <label for="settings-timezone" x-text="t('settings.timezone')"></label>
-              <p x-text="t('settings.timezoneHelp')"></p>
-              <select
-                id="settings-timezone"
-                class="select select-bordered settings-select"
-                x-model="systemTimezone"
-                @change="saveSystemTimezone()"
-              >
-                <option value="Asia/Shanghai">Shanghai (UTC+08:00)</option>
-                <option value="Asia/Tokyo">Tokyo (UTC+09:00)</option>
-                <option value="Asia/Singapore">Singapore (UTC+08:00)</option>
-                <option value="Europe/London">London (UTC+00:00)</option>
-                <option value="America/New_York">New York (UTC-05:00)</option>
-                <option value="America/Chicago">Chicago (UTC-06:00)</option>
-                <option value="America/Los_Angeles">Los Angeles (UTC-08:00)</option>
-                <option value="Asia/Ho_Chi_Minh">Vietnam (UTC+07:00)</option>
-              </select>
+            <div class="settings-preference-grid">
+              <div class="settings-section">
+                <label for="settings-language" x-text="t('settings.language')"></label>
+                <p x-text="t('settings.languageHelp')"></p>
+                <select
+                  id="settings-language"
+                  class="select select-bordered settings-select"
+                  x-model="language"
+                  @change="saveLanguage()"
+                >
+                  <option value="en" x-text="t('settings.english')"></option>
+                  <option value="zh-CN" x-text="t('settings.simplifiedChinese')"></option>
+                </select>
+              </div>
+              <div class="settings-section" x-show="authUser?.role === 'admin'" x-cloak>
+                <label for="settings-timezone" x-text="t('settings.timezone')"></label>
+                <p x-text="t('settings.timezoneHelp')"></p>
+                <select
+                  id="settings-timezone"
+                  class="select select-bordered settings-select"
+                  x-model="systemTimezone"
+                  @change="saveSystemTimezone()"
+                >
+                  <option value="Asia/Shanghai">Shanghai (UTC+08:00)</option>
+                  <option value="Asia/Tokyo">Tokyo (UTC+09:00)</option>
+                  <option value="Asia/Singapore">Singapore (UTC+08:00)</option>
+                  <option value="Europe/London">London (UTC+00:00)</option>
+                  <option value="America/New_York">New York (UTC-05:00)</option>
+                  <option value="America/Chicago">Chicago (UTC-06:00)</option>
+                  <option value="America/Los_Angeles">Los Angeles (UTC-08:00)</option>
+                  <option value="Asia/Ho_Chi_Minh">Vietnam (UTC+07:00)</option>
+                </select>
+              </div>
             </div>
             <div class="settings-section">
               <label x-text="t('settings.theme')"></label>
@@ -2201,7 +2252,7 @@
                       <span
                         class="badge badge-soft"
                         :class="user.status === 'active' ? 'badge-success' : 'badge-ghost'"
-                        x-text="user.status"
+                        x-text="statusLabel(user.status)"
                       ></span>
                     </td>
                     <td x-text="formatDateTime(user.created_at)"></td>
@@ -2246,23 +2297,23 @@
       <div class="modal-box usage-modal-box">
         <div class="usage-header">
           <div>
-            <div class="eyebrow">Workspace analytics</div>
+            <div class="eyebrow" x-text="t('usage.eyebrow')"></div>
             <h2 x-text="t('usage.title')"></h2>
             <p x-text="t('usage.subtitle')"></p>
           </div>
-          <button type="button" class="icon-btn" @click="usageOpen = false" aria-label="Close usage statistics">
+          <button type="button" class="icon-btn" @click="usageOpen = false" :aria-label="t('common.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
         <div class="usage-toolbar">
-          <div class="join usage-range-tabs" role="tablist" aria-label="Usage date range">
+          <div class="join usage-range-tabs" role="tablist" :aria-label="t('usage.dateRange')">
             <button
               type="button"
               class="join-item btn btn-sm"
               :class="usageRange === '1' ? 'btn-primary' : 'btn-ghost'"
               @click="setUsageRange('1')"
             >
-              Today
+              <span x-text="t('usage.today')"></span>
             </button>
             <button
               type="button"
@@ -2270,7 +2321,7 @@
               :class="usageRange === '7' ? 'btn-primary' : 'btn-ghost'"
               @click="setUsageRange('7')"
             >
-              Last 7 days
+              <span x-text="t('usage.last7Days')"></span>
             </button>
             <button
               type="button"
@@ -2278,22 +2329,18 @@
               :class="usageRange === '30' ? 'btn-primary' : 'btn-ghost'"
               @click="setUsageRange('30')"
             >
-              Last 30 days
+              <span x-text="t('usage.last30Days')"></span>
             </button>
           </div>
-          <span
-            class="usage-scope"
-            x-text="authUser?.role === 'admin' ? 'All workspace activity' : 'Your activity'"
-          ></span>
         </div>
-        <div class="tabs tabs-boxed usage-tabs" role="tablist" aria-label="Usage sections">
+        <div class="tabs tabs-boxed usage-tabs" role="tablist" :aria-label="t('usage.sections')">
           <button
             type="button"
             class="tab"
             :class="{ 'tab-active': usageTab === 'overview' }"
             @click="usageTab = 'overview'"
           >
-            Overview
+            <span x-text="t('usage.overview')"></span>
           </button>
           <button
             type="button"
@@ -2301,7 +2348,7 @@
             :class="{ 'tab-active': usageTab === 'sessions' }"
             @click="usageTab = 'sessions'"
           >
-            Sessions
+            <span x-text="t('usage.sessions')"></span>
           </button>
           <button
             type="button"
@@ -2311,7 +2358,7 @@
             :class="{ 'tab-active': usageTab === 'users' }"
             @click="usageTab = 'users'"
           >
-            Users
+            <span x-text="t('nav.users')"></span>
           </button>
           <button
             type="button"
@@ -2321,51 +2368,51 @@
             :class="{ 'tab-active': usageTab === 'agents' }"
             @click="usageTab = 'agents'"
           >
-            Agents
+            <span x-text="t('nav.agents')"></span>
           </button>
         </div>
         <div class="usage-body">
           <div class="usage-loading" x-show="usageLoading" x-cloak role="status" aria-live="polite">
             <span class="loading loading-spinner loading-sm"></span>
-            <span>Loading usage data…</span>
+            <span x-text="t('usage.loadingData')"></span>
           </div>
           <div class="alert alert-error usage-error" x-show="usageError" x-text="usageError" x-cloak></div>
           <section class="usage-panel" x-show="usageTab === 'overview' && !usageLoading" x-cloak>
             <div class="usage-summary-grid">
               <div class="stat usage-stat-card">
-                <div class="stat-title">Sessions</div>
+                <div class="stat-title" x-text="t('usage.sessions')"></div>
                 <div class="stat-value" x-text="usageData.summary.sessions"></div>
-                <div class="stat-desc">Chat conversations</div>
+                <div class="stat-desc" x-text="t('usage.chatConversations')"></div>
               </div>
               <div class="stat usage-stat-card">
-                <div class="stat-title">Input tokens</div>
+                <div class="stat-title" x-text="t('usage.inputTokens')"></div>
                 <div class="stat-value" x-text="formatCompactNumber(usageData.summary.input)"></div>
-                <div class="stat-desc">Prompt context</div>
+                <div class="stat-desc" x-text="t('usage.promptContext')"></div>
               </div>
               <div class="stat usage-stat-card">
-                <div class="stat-title">Output tokens</div>
+                <div class="stat-title" x-text="t('usage.outputTokens')"></div>
                 <div class="stat-value" x-text="formatCompactNumber(usageData.summary.output)"></div>
-                <div class="stat-desc">Generated responses</div>
+                <div class="stat-desc" x-text="t('usage.generatedResponses')"></div>
               </div>
               <div class="stat usage-stat-card">
-                <div class="stat-title">Cached tokens</div>
+                <div class="stat-title" x-text="t('usage.cachedTokens')"></div>
                 <div class="stat-value" x-text="formatCompactNumber(usageData.summary.cacheRead)"></div>
-                <div class="stat-desc">Cache reads</div>
+                <div class="stat-desc" x-text="t('usage.cacheReads')"></div>
               </div>
               <div class="stat usage-stat-card usage-cost-card">
-                <div class="stat-title">Estimated cost</div>
+                <div class="stat-title" x-text="t('usage.estimatedCost')"></div>
                 <div class="stat-value" x-text="usageCost(usageData.summary.cost)"></div>
                 <div
                   class="stat-desc"
-                  x-text="(usageData.summary.tools || usageData.summary.search + usageData.summary.fetch) + ' tool calls'"
+                  x-text="t('usage.toolCalls', {count: usageData.summary.tools || usageData.summary.search + usageData.summary.fetch})"
                 ></div>
               </div>
             </div>
             <div class="usage-chart-card card">
               <div class="usage-chart-heading">
                 <div>
-                  <h3>Usage trend</h3>
-                  <p>Daily estimated cost over the selected period.</p>
+                  <h3 x-text="t('usage.trend')"></h3>
+                  <p x-text="t('usage.trendHelp')"></p>
                 </div>
                 <span class="usage-chart-total" x-text="usageCost(usageData.summary.cost)"></span>
               </div>
@@ -2385,7 +2432,7 @@
                 </svg>
               </div>
               <div class="usage-chart-labels">
-                <span x-show="!usageData.daily.length">No usage recorded for this period.</span>
+                <span x-show="!usageData.daily.length" x-text="t('usage.noUsage')"></span>
                 <template x-for="label in usageChartLabels()" :key="label.id">
                   <span x-text="label.label"></span>
                 </template>
@@ -2395,22 +2442,22 @@
           <section class="usage-panel" x-show="usageTab === 'sessions' && !usageLoading" x-cloak>
             <div class="usage-section-heading">
               <div>
-                <h3>Session details</h3>
-                <p>Usage attributed to each chat session by creation date.</p>
+                <h3 x-text="t('usage.sessionDetails')"></h3>
+                <p x-text="t('usage.sessionDetailsHelp')"></p>
               </div>
-              <span class="usage-count" x-text="usageData.sessions.length + ' sessions'"></span>
+              <span class="usage-count" x-text="t('usage.sessionCount', {count: usageData.sessions.length})"></span>
             </div>
             <div class="usage-table-wrap overflow-x-auto">
               <table class="table usage-table">
                 <thead>
                   <tr>
-                    <th class="usage-session-column">Session</th>
-                    <th>Agent</th>
-                    <th>Created</th>
-                    <th>Input</th>
-                    <th>Output</th>
-                    <th>Cached</th>
-                    <th>Cost</th>
+                    <th class="usage-session-column" x-text="t('usage.session')"></th>
+                    <th x-text="t('common.agent')"></th>
+                    <th x-text="t('common.created')"></th>
+                    <th x-text="t('usage.input')"></th>
+                    <th x-text="t('usage.output')"></th>
+                    <th x-text="t('usage.cached')"></th>
+                    <th x-text="t('usage.cost')"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2430,7 +2477,7 @@
                   </template>
                 </tbody>
               </table>
-              <div class="usage-empty" x-show="!usageData.sessions.length">No sessions in this period.</div>
+              <div class="usage-empty" x-show="!usageData.sessions.length" x-text="t('usage.noSessions')"></div>
             </div>
           </section>
           <section
@@ -2448,12 +2495,12 @@
               <table class="table usage-table usage-aggregation-table">
                 <thead>
                   <tr>
-                    <th>User</th>
-                    <th>Sessions</th>
-                    <th>Input</th>
-                    <th>Output</th>
-                    <th>Cached</th>
-                    <th>Cost</th>
+                    <th x-text="t('nav.user')"></th>
+                    <th x-text="t('usage.sessions')"></th>
+                    <th x-text="t('usage.input')"></th>
+                    <th x-text="t('usage.output')"></th>
+                    <th x-text="t('usage.cached')"></th>
+                    <th x-text="t('usage.cost')"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2468,7 +2515,7 @@
                   ></template>
                 </tbody>
               </table>
-              <div class="usage-empty" x-show="!usageData.users.length">No user usage in this period.</div>
+              <div class="usage-empty" x-show="!usageData.users.length" x-text="t('usage.noUserUsage')"></div>
             </div>
           </section>
           <section
@@ -2486,12 +2533,12 @@
               <table class="table usage-table usage-aggregation-table">
                 <thead>
                   <tr>
-                    <th>Agent</th>
-                    <th>Sessions</th>
-                    <th>Input</th>
-                    <th>Output</th>
-                    <th>Cached</th>
-                    <th>Cost</th>
+                    <th x-text="t('common.agent')"></th>
+                    <th x-text="t('usage.sessions')"></th>
+                    <th x-text="t('usage.input')"></th>
+                    <th x-text="t('usage.output')"></th>
+                    <th x-text="t('usage.cached')"></th>
+                    <th x-text="t('usage.cost')"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2506,7 +2553,7 @@
                   ></template>
                 </tbody>
               </table>
-              <div class="usage-empty" x-show="!usageData.agents.length">No agent usage in this period.</div>
+              <div class="usage-empty" x-show="!usageData.agents.length" x-text="t('usage.noAgentUsage')"></div>
             </div>
           </section>
         </div>
@@ -3108,13 +3155,24 @@
         </div>
       </div>
     </dialog>
-    <aside class="files-drawer link-drawer" x-show="linkDrawerOpen" x-cloak x-transition aria-label="Web results">
+    <aside
+      class="files-drawer link-drawer"
+      x-show="linkDrawerOpen"
+      x-cloak
+      x-transition
+      :aria-label="t('dialogs.webResults')"
+    >
       <div class="files-drawer-header">
         <div>
           <h2 x-text="linkDrawerTitle"></h2>
-          <p x-text="linkDrawerItems.length + ' page' + (linkDrawerItems.length === 1 ? '' : 's')"></p>
+          <p x-text="resourceCountLabel(linkDrawerItems.length)"></p>
         </div>
-        <button type="button" class="icon-btn" @click="linkDrawerOpen = false" aria-label="Close web results">
+        <button
+          type="button"
+          class="icon-btn"
+          @click="linkDrawerOpen = false"
+          :aria-label="t('dialogs.closeWebResults')"
+        >
           <i data-lucide="x" aria-hidden="true"></i>
         </button>
       </div>
@@ -3174,6 +3232,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260915-i18n-menus-errors"></script>
+    <script src="/static/app.js?v=20260915-error-copy"></script>
   </body>
 </html>
