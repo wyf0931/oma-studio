@@ -79,7 +79,9 @@ def test_users_are_managed_in_a_dedicated_dialog_not_settings_tab():
     )[0]
     assert "usage-count" not in users_markup
     assert 'class="btn btn-soft btn-primary" @click="openAddUser()"' in users_markup
-    assert "New" in users_markup
+    assert "t('users.new')" in users_markup
+    assert "t('users.title')" in users_markup
+    assert "t('users.lastLogin')" in users_markup
     assert ".user-add-dialog" in styles
     assert "z-index: 70;" in styles
     assert ".usage-toolbar.users-toolbar" in styles
