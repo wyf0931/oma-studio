@@ -138,7 +138,7 @@
             <i data-lucide="menu" aria-hidden="true"></i></button
           ><a class="mobile-brand" href="#" @click.prevent="newChat()"
             ><img src="/static/oma-logo-transparent.png" alt="OMA studio" /><span>OMA studio</span></a
-          ><button type="button" class="btn btn-ghost btn-circle" @click="newChat()" aria-label="New Task">
+          ><button type="button" class="btn btn-ghost btn-circle" @click="newChat()" :aria-label="t('nav.newTask')">
             <i data-lucide="plus" aria-hidden="true"></i>
           </button>
         </div>
@@ -198,7 +198,7 @@
                   :aria-label="t('nav.searchChats')"
                 >
                   <i data-lucide="search" aria-hidden="true"></i></button
-                ><button class="icon-btn" @click="newChat()" title="New Task" aria-label="New Task">
+                ><button class="icon-btn" @click="newChat()" :title="t('nav.newTask')" :aria-label="t('nav.newTask')">
                   <i data-lucide="plus" aria-hidden="true"></i>
                 </button>
               </div>
@@ -248,7 +248,7 @@
                   <div><span x-text="profileAvatarInitials()"></span></div>
                 </div>
                 <span class="sidebar-profile-identity"
-                  ><b x-text="authUser?.username || 'User'"></b><small x-text="profileRoleLabel()"></small
+                  ><b x-text="authUser?.username || t('nav.user')"></b><small x-text="profileRoleLabel()"></small
                 ></span>
                 <i class="sidebar-profile-chevron" data-lucide="chevron-up" aria-hidden="true"></i>
               </button>
@@ -3174,6 +3174,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260915-i18n-fallback-fix"></script>
+    <script src="/static/app.js?v=20260915-i18n-menus-errors"></script>
   </body>
 </html>

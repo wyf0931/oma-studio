@@ -405,7 +405,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260915-i18n-fallback-fix" in Path("static/index.html").read_text(
+    assert "app.js?v=20260915-i18n-menus-errors" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -546,7 +546,7 @@ def test_agent_profile_detail_contract_is_user_facing():
     html = Path("static/index.html").read_text(encoding="utf-8")
     script = Path("static/app.js").read_text(encoding="utf-8")
     styles = Path("static/styles.css").read_text(encoding="utf-8")
-    assert html.count("New Task") == 3
+    assert html.count("t('nav.newTask')") >= 3
     assert "agentAvatarMarkup(agent, 'large')" in html
     assert "agentAvatarMarkup(dialog, 'large')" in html
     assert "agentTagsMarkup(agent.tags)" in html
@@ -1286,7 +1286,10 @@ def test_opening_a_chat_refreshes_its_running_state_without_leaking_prior_loadin
 
 def test_auth_rejects_unauthenticated_requests(client):
     client.post("/api/auth/logout")
-    assert client.get("/api/agents").status_code == 401
+    response = client.get("/api/agents")
+    assert response.status_code == 401
+    assert response.json()["code"] == "auth.required"
+    assert response.json()["detail"] == "Authentication required"
 
 
 def test_system_timezone_is_admin_managed(client):
