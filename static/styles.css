@@ -1048,6 +1048,28 @@ body {
  letter-spacing: 0.12em;
  margin-bottom: 14px;
 }
+.detail-group > summary.detail-heading {
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ margin-bottom: 0;
+ cursor: pointer;
+ list-style: none;
+}
+.detail-group > summary.detail-heading::-webkit-details-marker {
+ display: none;
+}
+.detail-group > summary.detail-heading svg {
+ width: 15px;
+ height: 15px;
+ transition: transform 0.15s ease;
+}
+.detail-group[open] > summary.detail-heading {
+ margin-bottom: 14px;
+}
+.detail-group[open] > summary.detail-heading svg {
+ transform: rotate(180deg);
+}
 .detail-row {
  display: grid;
  grid-template-columns: 110px 1fr;

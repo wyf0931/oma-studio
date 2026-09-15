@@ -77,7 +77,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260915-page-spacing-v3" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260915-dialog-i18n" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -776,7 +776,7 @@
           </div>
           <div class="agent-catalog-toolbar">
             <button class="btn btn-soft btn-primary" @click="newAgent()">
-              <i data-lucide="plus" aria-hidden="true"></i> New
+              <i data-lucide="plus" aria-hidden="true"></i><span x-text="t('agents.new')"></span>
             </button>
           </div>
           <div class="agent-grid">
@@ -2214,17 +2214,17 @@
       <div class="modal-box usage-modal-box users-modal-box">
         <div class="usage-header">
           <div>
-            <div class="eyebrow">Workspace administration</div>
-            <h2>Users</h2>
-            <p>Manage workspace accounts and access status.</p>
+            <div class="eyebrow" x-text="t('users.eyebrow')"></div>
+            <h2 x-text="t('users.title')"></h2>
+            <p x-text="t('users.subtitle')"></p>
           </div>
-          <button type="button" class="icon-btn" @click="usersOpen = false" aria-label="Close users">
+          <button type="button" class="icon-btn" @click="usersOpen = false" :aria-label="t('users.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
         <div class="usage-toolbar users-toolbar">
           <button type="button" class="btn btn-soft btn-primary" @click="openAddUser()">
-            <i data-lucide="plus" aria-hidden="true"></i> New
+            <i data-lucide="plus" aria-hidden="true"></i><span x-text="t('users.new')"></span>
           </button>
         </div>
         <div class="usage-body users-body">
@@ -2233,13 +2233,13 @@
             <table class="table" x-show="!usersLoading">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Username</th>
-                  <th>Email</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th>Last login</th>
-                  <th>Actions</th>
+                  <th x-text="t('users.name')"></th>
+                  <th x-text="t('users.username')"></th>
+                  <th x-text="t('users.email')"></th>
+                  <th x-text="t('users.status')"></th>
+                  <th x-text="t('users.created')"></th>
+                  <th x-text="t('users.lastLogin')"></th>
+                  <th x-text="t('users.actions')"></th>
                 </tr>
               </thead>
               <tbody>
@@ -2256,7 +2256,7 @@
                       ></span>
                     </td>
                     <td x-text="formatDateTime(user.created_at)"></td>
-                    <td x-text="user.last_login_at ? formatDateTime(user.last_login_at) : 'Never'"></td>
+                    <td x-text="user.last_login_at ? formatDateTime(user.last_login_at) : t('users.never')"></td>
                     <td>
                       <div class="users-actions">
                         <input
@@ -2265,15 +2265,15 @@
                           :checked="user.status === 'active'"
                           :disabled="user.role === 'admin'"
                           @change="toggleManagedUser(user)"
-                          :aria-label="'Enable ' + user.username"
+                          :aria-label="(user.status === 'active' ? t('users.disable') : t('users.enable')) + ' ' + user.username"
                         />
                         <button
                           type="button"
                           class="btn btn-ghost btn-error btn-sm btn-square"
                           x-show="user.role !== 'admin'"
                           @click="requestDeleteUser(user)"
-                          :aria-label="'Delete ' + user.username"
-                          title="Delete user"
+                          :aria-label="t('users.delete') + ' ' + user.username"
+                          :title="t('users.delete')"
                         >
                           <i data-lucide="trash-2" aria-hidden="true"></i>
                         </button>
@@ -2588,7 +2588,7 @@
             </div>
           </div>
           <div class="detail-group">
-            <div class="detail-heading">Try asking me</div>
+            <div class="detail-heading" x-text="t('agents.tryAsking')"></div>
             <div class="agent-quickstarts" x-show="dialog.quickstarts?.length">
               <template x-for="prompt in dialog.quickstarts" :key="prompt">
                 <button type="button" class="agent-quickstart" @click="startQuickstart(dialog, prompt)">
@@ -2596,12 +2596,10 @@
                 </button>
               </template>
             </div>
-            <p class="agent-detail-empty" x-show="!dialog.quickstarts?.length">
-              Start a new chat and describe what you want to accomplish.
-            </p>
+            <p class="agent-detail-empty" x-show="!dialog.quickstarts?.length" x-text="t('agents.startNewChat')"></p>
           </div>
           <div class="detail-group">
-            <div class="detail-heading">Built-in skills</div>
+            <div class="detail-heading" x-text="t('agents.builtInSkills')"></div>
             <div class="agent-skill-list" x-show="agentSkills(dialog).length">
               <template x-for="skill in agentSkills(dialog)" :key="skill.path">
                 <div class="agent-skill-row">
@@ -2609,24 +2607,39 @@
                     <b x-text="skill.name"></b
                     ><small
                       class="agent-skill-description"
-                      :title="skill.description || 'Ready to use in chat'"
-                      x-text="skill.description || 'Ready to use in chat'"
+                      :title="skill.description || t('agents.readyToUse')"
+                      x-text="skill.description || t('agents.readyToUse')"
                     ></small>
                   </div>
                 </div>
               </template>
             </div>
-            <p class="agent-detail-empty" x-show="!agentSkills(dialog).length">No additional skills configured.</p>
+            <p class="agent-detail-empty" x-show="!agentSkills(dialog).length" x-text="t('agents.noSkills')"></p>
           </div>
-          <div class="detail-group" x-show="authUser?.role === 'admin'">
-            <div class="detail-heading">Admin configuration</div>
+          <details class="detail-group" x-show="authUser?.role === 'admin'">
+            <summary class="detail-heading">
+              <span x-text="t('agents.adminConfig')"></span>
+              <i data-lucide="chevron-down" aria-hidden="true"></i>
+            </summary>
             <div class="reserved-grid">
-              <div><span>Provider</span><b x-text="providerName(dialog.provider) || 'Pi default'"></b></div>
-              <div><span>Model</span><b x-text="modelName(dialog.provider, dialog.model) || 'Pi default'"></b></div>
-              <div><span>Extensions</span><b x-text="resourceNames(dialog.extensions, 'extensions')"></b></div>
-              <div><span>Tools</span><b x-text="dialog.tools?.length ? dialog.tools.join(', ') : 'Disabled'"></b></div>
+              <div>
+                <span x-text="t('agents.provider')"></span
+                ><b x-text="providerName(dialog.provider) || 'Pi default'"></b>
+              </div>
+              <div>
+                <span x-text="t('agents.model')"></span
+                ><b x-text="modelName(dialog.provider, dialog.model) || 'Pi default'"></b>
+              </div>
+              <div>
+                <span x-text="t('agents.extensions')"></span
+                ><b x-text="resourceNames(dialog.extensions, 'extensions')"></b>
+              </div>
+              <div>
+                <span x-text="t('agents.tools')"></span
+                ><b x-text="dialog.tools?.length ? dialog.tools.join(', ') : t('common.disabled')"></b>
+              </div>
             </div>
-          </div>
+          </details>
           <div class="dialog-actions">
             <button class="btn btn-sm btn-ghost" @click="dialog = null">Close</button>
           </div>

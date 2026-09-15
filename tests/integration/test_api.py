@@ -473,7 +473,8 @@ def test_agent_tools_use_product_capability_groups_with_safe_defaults():
     assert 'group.id !== "run_scripts"' in script
     assert ".tool-group-grid" in styles
     assert "authUser?.role === 'admin'" in html
-    assert "Admin configuration" in html
+    assert "t('agents.adminConfig')" in html
+    assert '<details class="detail-group"' in html
     assert "Choose what this Agent can access." not in html
     assert "align-items: center" in styles
     assert ".form-field .tool-group" in styles
@@ -558,8 +559,9 @@ def test_agent_profile_detail_contract_is_user_facing():
     assert "aspect-ratio: 1" in styles
     assert 'class="agent-card-tags"' in html
     assert 'class="badge badge-ghost"' in html
-    assert "Try asking me" in html
-    assert "Built-in skills" in html
+    assert "t('agents.tryAsking')" in html
+    assert "t('agents.builtInSkills')" in html
+    assert "t('agents.startNewChat')" in html
     assert "agent-quickstart" in html
     assert "agent-skill-row" in html
     assert "startQuickstart(agent, prompt)" in script
