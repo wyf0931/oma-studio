@@ -846,14 +846,15 @@ body {
  align-items: center;
 }
 .agent-card h3 {
- font-size: 19px;
+ font-size: 15px;
+ font-weight: 700;
  letter-spacing: -0.04em;
  margin: 20px 0 8px;
 }
 .agent-card p {
- font-size: 12px;
+ font-size: 13px;
  color: var(--muted);
- line-height: 1.55;
+ line-height: 1.5;
  height: 43px;
  min-height: 43px;
 }
@@ -2488,7 +2489,7 @@ body {
  font-size: 12px;
 }
 .agent-card p {
- font-size: 14px;
+ font-size: 13px;
 }
 .add-card small {
  font-size: 13px;

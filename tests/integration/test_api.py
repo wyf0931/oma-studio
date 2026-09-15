@@ -390,6 +390,17 @@ def test_library_file_name_does_not_add_hover_underline():
     assert ".library-file-name:hover b" not in styles
 
 
+def test_agent_card_typography_matches_marketplace_cards():
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+
+    assert ".agent-card h3" in styles
+    assert "font-size: 15px;" in styles
+    assert ".agent-card p" in styles
+    assert "line-height: 1.5;" in styles
+    assert ".market-card .card-title" in styles
+    assert ".market-description" in styles
+
+
 def test_thought_blocks_open_by_default_and_label_streaming_state():
     script = Path("static/app.js").read_text(encoding="utf-8")
 
