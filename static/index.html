@@ -2365,31 +2365,31 @@
           <section class="usage-panel" x-show="usageTab === 'overview' && !usageLoading" x-cloak>
             <div class="usage-summary-grid">
               <div class="stat usage-stat-card">
-                <div class="stat-title">Sessions</div>
+                <div class="stat-title" x-text="t('usage.sessions')"></div>
                 <div class="stat-value" x-text="usageData.summary.sessions"></div>
-                <div class="stat-desc">Chat conversations</div>
+                <div class="stat-desc" x-text="t('usage.chatConversations')"></div>
               </div>
               <div class="stat usage-stat-card">
-                <div class="stat-title">Input tokens</div>
+                <div class="stat-title" x-text="t('usage.inputTokens')"></div>
                 <div class="stat-value" x-text="formatCompactNumber(usageData.summary.input)"></div>
-                <div class="stat-desc">Prompt context</div>
+                <div class="stat-desc" x-text="t('usage.promptContext')"></div>
               </div>
               <div class="stat usage-stat-card">
-                <div class="stat-title">Output tokens</div>
+                <div class="stat-title" x-text="t('usage.outputTokens')"></div>
                 <div class="stat-value" x-text="formatCompactNumber(usageData.summary.output)"></div>
-                <div class="stat-desc">Generated responses</div>
+                <div class="stat-desc" x-text="t('usage.generatedResponses')"></div>
               </div>
               <div class="stat usage-stat-card">
-                <div class="stat-title">Cached tokens</div>
+                <div class="stat-title" x-text="t('usage.cachedTokens')"></div>
                 <div class="stat-value" x-text="formatCompactNumber(usageData.summary.cacheRead)"></div>
-                <div class="stat-desc">Cache reads</div>
+                <div class="stat-desc" x-text="t('usage.cacheReads')"></div>
               </div>
               <div class="stat usage-stat-card usage-cost-card">
-                <div class="stat-title">Estimated cost</div>
+                <div class="stat-title" x-text="t('usage.estimatedCost')"></div>
                 <div class="stat-value" x-text="usageCost(usageData.summary.cost)"></div>
                 <div
                   class="stat-desc"
-                  x-text="(usageData.summary.tools || usageData.summary.search + usageData.summary.fetch) + ' tool calls'"
+                  x-text="t('usage.toolCalls', {count: usageData.summary.tools || usageData.summary.search + usageData.summary.fetch})"
                 ></div>
               </div>
             </div>
@@ -2430,7 +2430,7 @@
                 <h3 x-text="t('usage.sessionDetails')"></h3>
                 <p x-text="t('usage.sessionDetailsHelp')"></p>
               </div>
-              <span class="usage-count" x-text="usageData.sessions.length + ' sessions'"></span>
+              <span class="usage-count" x-text="t('usage.sessionCount', {count: usageData.sessions.length})"></span>
             </div>
             <div class="usage-table-wrap overflow-x-auto">
               <table class="table usage-table">
@@ -2462,7 +2462,7 @@
                   </template>
                 </tbody>
               </table>
-              <div class="usage-empty" x-show="!usageData.sessions.length">No sessions in this period.</div>
+              <div class="usage-empty" x-show="!usageData.sessions.length" x-text="t('usage.noSessions')"></div>
             </div>
           </section>
           <section
@@ -2500,7 +2500,7 @@
                   ></template>
                 </tbody>
               </table>
-              <div class="usage-empty" x-show="!usageData.users.length">No user usage in this period.</div>
+              <div class="usage-empty" x-show="!usageData.users.length" x-text="t('usage.noUserUsage')"></div>
             </div>
           </section>
           <section
@@ -2538,7 +2538,7 @@
                   ></template>
                 </tbody>
               </table>
-              <div class="usage-empty" x-show="!usageData.agents.length">No agent usage in this period.</div>
+              <div class="usage-empty" x-show="!usageData.agents.length" x-text="t('usage.noAgentUsage')"></div>
             </div>
           </section>
         </div>
