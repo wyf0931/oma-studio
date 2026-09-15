@@ -906,6 +906,16 @@ function platform() {
       const sourceAuthor = kind === "skills" && item?.source ? item.source.split("/", 1)[0].trim() : "";
       return (author || sourceAuthor || "admin").slice(0, 10);
     },
+    marketSearchPlaceholder() {
+      const key = {
+        skills: "marketplace.searchSkills",
+        extensions: "marketplace.searchExtensions",
+        mcp_servers: "marketplace.searchMcpServers",
+        agents: "marketplace.searchAgents",
+        agent_teams: "marketplace.searchAgentTeams",
+      }[this.marketTab];
+      return this.t(key || "marketplace.searchResources");
+    },
     openMarketUninstall(kind, item) {
       if (!this.marketResourceSource(kind, item)) return;
       this.marketUninstallTarget = { kind, item };

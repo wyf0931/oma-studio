@@ -887,8 +887,8 @@
               <input
                 class="input"
                 x-model="marketCatalogSearch"
-                :placeholder="t('marketplace.searchResources')"
-                aria-label="Search market resources"
+                :placeholder="marketSearchPlaceholder()"
+                :aria-label="marketSearchPlaceholder()"
               />
             </label>
             <button
@@ -2436,13 +2436,13 @@
               <table class="table usage-table">
                 <thead>
                   <tr>
-                    <th class="usage-session-column">Session</th>
-                    <th>Agent</th>
-                    <th>Created</th>
-                    <th>Input</th>
-                    <th>Output</th>
-                    <th>Cached</th>
-                    <th>Cost</th>
+                    <th class="usage-session-column" x-text="t('usage.session')"></th>
+                    <th x-text="t('common.agent')"></th>
+                    <th x-text="t('common.created')"></th>
+                    <th x-text="t('usage.input')"></th>
+                    <th x-text="t('usage.output')"></th>
+                    <th x-text="t('usage.cached')"></th>
+                    <th x-text="t('usage.cost')"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2480,12 +2480,12 @@
               <table class="table usage-table usage-aggregation-table">
                 <thead>
                   <tr>
-                    <th>User</th>
-                    <th>Sessions</th>
-                    <th>Input</th>
-                    <th>Output</th>
-                    <th>Cached</th>
-                    <th>Cost</th>
+                    <th x-text="t('nav.user')"></th>
+                    <th x-text="t('usage.sessions')"></th>
+                    <th x-text="t('usage.input')"></th>
+                    <th x-text="t('usage.output')"></th>
+                    <th x-text="t('usage.cached')"></th>
+                    <th x-text="t('usage.cost')"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2518,12 +2518,12 @@
               <table class="table usage-table usage-aggregation-table">
                 <thead>
                   <tr>
-                    <th>Agent</th>
-                    <th>Sessions</th>
-                    <th>Input</th>
-                    <th>Output</th>
-                    <th>Cached</th>
-                    <th>Cost</th>
+                    <th x-text="t('common.agent')"></th>
+                    <th x-text="t('usage.sessions')"></th>
+                    <th x-text="t('usage.input')"></th>
+                    <th x-text="t('usage.output')"></th>
+                    <th x-text="t('usage.cached')"></th>
+                    <th x-text="t('usage.cost')"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3206,6 +3206,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260915-i18n-run-history-final"></script>
+    <script src="/static/app.js?v=20260915-i18n-market-search"></script>
   </body>
 </html>
