@@ -108,6 +108,7 @@ function platform() {
     libraryPage: 1,
     libraryPages: 1,
     libraryTotal: 0,
+    agentSearch: "",
     marketTab: "skills",
     marketAgents: [],
     marketAgentsLoading: false,
@@ -581,6 +582,13 @@ function platform() {
       this.agents = data.agents || [];
       return this.agents;
     },
+    agentItems() {
+      const query = this.agentSearch.trim().toLowerCase();
+      if (!query) return this.agents;
+      return this.agents.filter((item) =>
+        `${item.name || ""} ${item.description || ""} ${(item.tags || []).join(" ")}`.toLowerCase().includes(query),
+      );
+    },
     async loadUsers() {
       this.usersLoading = true;
       try {
@@ -749,7 +757,9 @@ function platform() {
       const query = this.marketCatalogSearch.trim().toLowerCase();
       if (!query) return this.marketAgents;
       return this.marketAgents.filter((item) =>
-        `${item.name || ""} ${item.instruction || ""} ${item.author || ""}`.toLowerCase().includes(query),
+        `${item.name || ""} ${item.description || ""} ${item.instruction || ""} ${item.author || ""} ${(item.tags || []).join(" ")}`
+          .toLowerCase()
+          .includes(query),
       );
     },
     marketCatalogItems(kind) {

@@ -405,7 +405,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260915-new-chat-i18n" in Path("static/index.html").read_text(
+    assert "app.js?v=20260915-agent-search" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -587,6 +587,22 @@ def test_frontend_i18n_resources_and_language_switch_contract():
     assert chinese["nav"]["newTask"] == "新任务"
     assert chinese["common"]["all"] == "全部"
     assert english["marketplace"]["skills"] != chinese["marketplace"]["skills"]
+
+
+def test_agent_catalog_search_covers_installed_and_marketplace_agents():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+    english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
+    chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
+
+    assert 'x-model="agentSearch"' in html
+    assert 'x-for="agent in agentItems()"' in html
+    assert 'item.description || ""' in script
+    assert '(item.tags || []).join(" ")' in script
+    assert english["agents"]["search"] == "Search installed agents"
+    assert chinese["agents"]["search"] == "搜索已安装的智能体"
+    assert english["marketplace"]["noMatchingAgents"] == "No matching shared agents."
+    assert chinese["marketplace"]["noMatchingAgents"] == "没有匹配的共享智能体。"
 
 
 def test_agent_profile_textareas_auto_resize_from_one_row():

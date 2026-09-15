@@ -77,7 +77,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260915-dialog-i18n" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260915-agent-search" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -775,12 +775,21 @@
             </div>
           </div>
           <div class="agent-catalog-toolbar">
+            <label class="library-search agent-catalog-search">
+              <i data-lucide="search" aria-hidden="true"></i>
+              <input
+                class="input"
+                x-model="agentSearch"
+                :placeholder="t('agents.search')"
+                :aria-label="t('agents.search')"
+              />
+            </label>
             <button class="btn btn-soft btn-primary" @click="newAgent()">
               <i data-lucide="plus" aria-hidden="true"></i><span x-text="t('agents.new')"></span>
             </button>
           </div>
-          <div class="agent-grid">
-            <template x-for="agent in agents" :key="agent.id"
+          <div class="agent-grid" x-show="agentItems().length">
+            <template x-for="agent in agentItems()" :key="agent.id"
               ><div
                 class="agent-card"
                 role="button"
@@ -832,6 +841,9 @@
                   </div>
                 </div></div
             ></template>
+          </div>
+          <div class="market-empty" x-show="agents.length && !agentItems().length">
+            <span x-text="t('agents.noMatching')"></span>
           </div>
         </section>
         <section class="content-panel market-page" x-show="page === 'market'" x-cloak>
@@ -1089,9 +1101,18 @@
             <div class="files-empty" x-show="marketAgentsLoading">
               <span class="loading loading-dots loading-sm"></span>
             </div>
-            <div class="market-empty" x-show="!marketAgentsLoading && !marketAgentItems().length">
+            <div
+              class="market-empty"
+              x-show="!marketAgentsLoading && !marketCatalogSearch.trim() && !marketAgentItems().length"
+            >
               <h2 x-text="t('marketplace.noSharedAgents')"></h2>
               <p x-text="t('marketplace.shareAgentHint')"></p>
+            </div>
+            <div
+              class="market-empty"
+              x-show="!marketAgentsLoading && marketCatalogSearch.trim() && !marketAgentItems().length"
+            >
+              <span x-text="t('marketplace.noMatchingAgents')"></span>
             </div>
           </div>
         </section>
@@ -3245,6 +3266,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260915-new-chat-i18n"></script>
+    <script src="/static/app.js?v=20260915-agent-search"></script>
   </body>
 </html>
