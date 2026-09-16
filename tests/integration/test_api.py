@@ -1527,6 +1527,20 @@ def test_long_user_messages_wrap_inside_the_chat_bubble():
     ) in styles
 
 
+def test_error_toast_stays_above_fixed_chat_composer():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+
+    assert 'class="toast"' in html
+    assert ".toast {\n position: fixed;\n z-index: 1000;" in styles
+
+
+def test_successful_upload_removes_file_from_local_selection_before_send():
+    script = Path("static/app.js").read_text(encoding="utf-8")
+
+    assert "removeUploadSelection(file, true)" in script
+
+
 def test_client_uploads_chat_files_and_limits_at_mentions_to_published_artifacts():
     html = Path("static/index.html").read_text(encoding="utf-8")
     script = Path("static/app.js").read_text(encoding="utf-8")

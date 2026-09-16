@@ -1218,8 +1218,10 @@ function platform() {
     uploadSelectionTotalBytes() {
       return this.uploadSelection.reduce((total, file) => total + (Number(file.size) || 0), 0);
     },
-    removeUploadSelection(file) {
-      if (!this.uploadingFiles) this.uploadSelection = this.uploadSelection.filter((item) => item !== file);
+    removeUploadSelection(file, force = false) {
+      if (force || !this.uploadingFiles) {
+        this.uploadSelection = this.uploadSelection.filter((item) => item !== file);
+      }
     },
     formatFileSize(bytes) {
       const size = Number(bytes) || 0;
@@ -1246,7 +1248,7 @@ function platform() {
           const { data } = await this.responseData(response, requestId, requestPath);
           this.pendingUploads.push(data);
           uploaded.push(data);
-          this.removeUploadSelection(file);
+          this.removeUploadSelection(file, true);
         }
         return uploaded;
       } catch (error) {
