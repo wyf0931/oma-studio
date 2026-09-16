@@ -97,7 +97,11 @@
   "chat": {
     "files": "Files",
     "fileCount": "{{count}} files",
+    "fileTabs": "Chat files",
+    "outputs": "Outputs",
+    "inputs": "Inputs",
     "noGeneratedFiles": "No generated files",
+    "noInputFiles": "No input files",
     "resourceCount": "{{count}} rows",
     "searchFound": "Search found {{count}} rows",
     "searchResults": "Search results",

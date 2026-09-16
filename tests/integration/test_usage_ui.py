@@ -24,7 +24,7 @@ def test_usage_statistics_has_a_single_sidebar_entry_and_dialog():
     assert "return `¥${this.usageNumber(value).toFixed(4)}`" in script
     assert "`¥${(Number(usage.cost) || 0).toFixed(2)}`" in script
     assert "resourceCountLabel(linkDrawerItems.length)" in html
-    assert "fileCountLabel(files.length)" in html
+    assert "fileCountLabel(displayedFiles().length)" in html
     assert "chat.searchResults" in script
     assert "chat.searchFound" in script
     assert '"resourceCount": "{{count}} rows"' in Path(

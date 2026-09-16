@@ -421,6 +421,58 @@ def create_router(
         visible_or_404(store.get_chat(chat_id), request, "Chat")
         return {"uploads": store.list_uploads(chat_id)}
 
+    def chat_input_file(chat: dict, upload: dict, request: Request) -> dict | None:
+        if upload.get("chat_id") != chat["id"]:
+            return None
+        owner_id = chat.get("user_id") or user_id(request)
+        if upload.get("user_id") not in {None, owner_id}:
+            return None
+        path = upload.get("path")
+        if not isinstance(path, str):
+            return None
+        return {
+            "id": upload["id"],
+            "chat_id": chat["id"],
+            "name": upload.get("filename") or Path(path).name,
+            "path": path,
+            "media_type": upload.get("media_type") or "application/octet-stream",
+            "size": int(upload.get("size", 0) or 0),
+            "extension": Path(path).suffix.lower().lstrip("."),
+            "created_at": upload.get("created_at"),
+            "generated_at": upload.get("created_at"),
+            "kind": "input",
+        }
+
+    def resolve_chat_input(chat: dict, path: str, request: Request) -> Path | None:
+        candidate = (settings.pi_cwd / path).resolve()
+        upload = next(
+            (
+                item
+                for item in store.list_uploads(chat["id"])
+                if item.get("path") == path
+                and chat_input_file(chat, item, request) is not None
+            ),
+            None,
+        )
+        upload_root = (settings.pi_cwd / "uploads" / chat["id"]).resolve()
+        try:
+            candidate.relative_to(upload_root)
+        except ValueError:
+            return None
+        if not upload or not candidate.is_file():
+            return None
+        return candidate
+
+    @router.get("/chats/{chat_id}/inputs")
+    async def list_chat_inputs(chat_id: str, request: Request):
+        chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
+        files = [
+            file
+            for upload in store.list_uploads(chat_id)
+            if (file := chat_input_file(chat, upload, request)) is not None
+        ]
+        return {"files": files}
+
     @router.delete("/chats/{chat_id}/uploads/{upload_id}")
     async def delete_chat_upload(chat_id: str, upload_id: str, request: Request):
         visible_or_404(store.get_chat(chat_id), request, "Chat")
@@ -577,6 +629,45 @@ def create_router(
             content_disposition_type="inline",
             headers=native_browser_headers(media_type),
         )
+
+    @router.get("/chats/{chat_id}/inputs/download")
+    async def download_chat_input(chat_id: str, path: str, request: Request):
+        chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
+        file_path = resolve_chat_input(chat, path, request)
+        if not file_path:
+            raise HTTPException(404, "Input file not found")
+        return FileResponse(
+            file_path, filename=file_path.name, media_type="application/octet-stream"
+        )
+
+    @router.get("/chats/{chat_id}/inputs/view")
+    async def view_chat_input(chat_id: str, path: str, request: Request):
+        chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
+        file_path = resolve_chat_input(chat, path, request)
+        if not file_path:
+            raise HTTPException(404, "Input file not found")
+        media_type = native_browser_media_type(file_path)
+        if not media_type:
+            raise HTTPException(415, "File type is not supported for browser view")
+        return FileResponse(
+            file_path,
+            filename=file_path.name,
+            media_type=media_type,
+            content_disposition_type="inline",
+            headers=native_browser_headers(media_type),
+        )
+
+    @router.get("/chats/{chat_id}/inputs/content")
+    async def get_chat_input(chat_id: str, path: str, request: Request):
+        chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
+        file_path = resolve_chat_input(chat, path, request)
+        if not file_path:
+            raise HTTPException(404, "Input file not found")
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise HTTPException(415, "File is not a readable UTF-8 text file") from exc
+        return {"content": content}
 
     @router.post("/chats/{chat_id}/messages")
     async def send_message(

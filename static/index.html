@@ -77,7 +77,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260916-market-agent-update" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260916-chat-inputs-overflow" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -1731,19 +1731,42 @@
         <div class="files-drawer-header">
           <div>
             <h2 x-text="t('chat.files')"></h2>
-            <p x-text="fileCountLabel(files.length)"></p>
+            <p x-text="fileCountLabel(displayedFiles().length)"></p>
           </div>
           <button type="button" class="icon-btn" @click="filesOpen = false" aria-label="Close files">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
+        <div role="tablist" class="tabs tabs-box files-tabs" :aria-label="t('chat.fileTabs')">
+          <button
+            type="button"
+            role="tab"
+            class="tab"
+            :class="{'tab-active': filesTab === 'outputs'}"
+            :aria-selected="filesTab === 'outputs'"
+            @click="filesTab = 'outputs'"
+            x-text="t('chat.outputs')"
+          ></button>
+          <button
+            type="button"
+            role="tab"
+            class="tab"
+            :class="{'tab-active': filesTab === 'inputs'}"
+            :aria-selected="filesTab === 'inputs'"
+            @click="filesTab = 'inputs'"
+            x-text="t('chat.inputs')"
+          ></button>
+        </div>
         <div class="files-drawer-body">
           <template x-if="filesLoading"
             ><div class="files-empty">
               <span class="loading loading-dots loading-sm"></span></div></template
-          ><template x-if="!filesLoading && files.length === 0"
-            ><div class="files-empty" x-text="t('chat.noGeneratedFiles')"></div></template
-          ><template x-for="file in files" :key="file.id"
+          ><template x-if="!filesLoading && displayedFiles().length === 0"
+            ><div
+              class="files-empty"
+              x-text="filesTab === 'inputs' ? t('chat.noInputFiles') : t('chat.noGeneratedFiles')"
+            ></div></template
+          ><template x-for="file in displayedFiles()" :key="file.id"
             ><div
               class="file-card"
               role="button"
@@ -3434,6 +3457,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260915-upload-dialog-cleanup"></script>
+    <script src="/static/app.js?v=20260916-chat-inputs-overflow"></script>
   </body>
 </html>

@@ -95,6 +95,8 @@ function platform() {
     filesOpen: false,
     filesLoading: false,
     files: [],
+    inputFiles: [],
+    filesTab: "outputs",
     pendingUploads: [],
     pendingArtifacts: [],
     uploadDraftChat: null,
@@ -1003,6 +1005,7 @@ function platform() {
       this.filesLoading = true;
       try {
         this.files = (await this.api(`/api/share/${this.sharedToken}/files`)).files;
+        this.inputFiles = [];
       } catch (e) {
         this.showError(e);
       } finally {
@@ -1012,7 +1015,12 @@ function platform() {
     async loadChatFiles() {
       this.filesLoading = true;
       try {
-        this.files = (await this.api(`/api/chats/${this.activeChat.id}/files`)).files;
+        const [outputs, inputs] = await Promise.all([
+          this.api(`/api/chats/${this.activeChat.id}/files`),
+          this.api(`/api/chats/${this.activeChat.id}/inputs`),
+        ]);
+        this.files = outputs.files;
+        this.inputFiles = inputs.files;
       } catch (e) {
         this.showError(e);
       } finally {
@@ -1072,17 +1080,28 @@ function platform() {
     },
     openFile(file) {
       if (!this.activeChat) return;
+      const input = file.kind === "input";
       if (this.opensInNativeBrowser(file)) {
         const url = this.sharedMode
           ? `/api/share/${encodeURIComponent(this.sharedToken)}/files/view?path=${encodeURIComponent(file.path)}`
-          : this.browserViewUrl(this.activeChat.id, file.path);
+          : input
+            ? this.inputBrowserViewUrl(this.activeChat.id, file.path)
+            : this.browserViewUrl(this.activeChat.id, file.path);
         this.openInternalTab(url);
         return;
       }
       const query = this.sharedMode
         ? new URLSearchParams({ share: this.sharedToken, path: file.path, from: "chat" })
-        : new URLSearchParams({ chat_id: this.activeChat.id, path: file.path, from: "chat" });
+        : new URLSearchParams({
+            chat_id: this.activeChat.id,
+            path: file.path,
+            from: "chat",
+            ...(input ? { kind: "input" } : {}),
+          });
       this.openInternalTab(`/file-view?${query.toString()}`);
+    },
+    displayedFiles() {
+      return this.filesTab === "inputs" ? this.inputFiles : this.files;
     },
     pendingAttachments() {
       return [...this.pendingUploads, ...this.pendingArtifacts];
@@ -1258,6 +1277,9 @@ function platform() {
     browserViewUrl(chatId, path) {
       return `/api/chats/${encodeURIComponent(chatId)}/files/view?path=${encodeURIComponent(path)}`;
     },
+    inputBrowserViewUrl(chatId, path) {
+      return `/api/chats/${encodeURIComponent(chatId)}/inputs/view?path=${encodeURIComponent(path)}`;
+    },
     leaveFileViewer() {
       const params = new URLSearchParams(location.search);
       if (document.referrer.startsWith(location.origin) && history.length > 1) {
@@ -1269,7 +1291,8 @@ function platform() {
       }
     },
     downloadUrl(file) {
-      return `/api/chats/${encodeURIComponent(file.chat_id)}/files/download?path=${encodeURIComponent(file.path)}`;
+      const resource = file.kind === "input" ? "inputs" : "files";
+      return `/api/chats/${encodeURIComponent(file.chat_id)}/${resource}/download?path=${encodeURIComponent(file.path)}`;
     },
     async loadFileViewer() {
       const params = new URLSearchParams(location.search);
@@ -1283,7 +1306,9 @@ function platform() {
       try {
         const data = share
           ? await this.api(`/api/share/${encodeURIComponent(share)}/files/content?path=${encodeURIComponent(path)}`)
-          : await this.api(`/api/chats/${encodeURIComponent(chatId)}/files/content?path=${encodeURIComponent(path)}`);
+          : await this.api(
+              `/api/chats/${encodeURIComponent(chatId)}/${params.get("kind") === "input" ? "inputs" : "files"}/content?path=${encodeURIComponent(path)}`,
+            );
         this.fileViewer = {
           chatId: chatId || `share:${share}`,
           path,
@@ -1788,7 +1813,9 @@ function platform() {
       this.activeChat = null;
       this.messages = [];
       this.files = [];
+      this.inputFiles = [];
       this.filesOpen = false;
+      this.filesTab = "outputs";
       this.pendingUploads = [];
       this.uploadSelection = [];
       this.pendingArtifacts = [];
@@ -1811,7 +1838,9 @@ function platform() {
       this.activeChat = chat;
       this.loading = false;
       this.files = [];
+      this.inputFiles = [];
       this.filesOpen = false;
+      this.filesTab = "outputs";
       this.pendingUploads = [];
       this.pendingArtifacts = [];
       this.uploadDraftChat = null;
@@ -2621,7 +2650,13 @@ function platform() {
       try {
         const doc = new DOMParser().parseFromString(DOMPurify.sanitize(marked.parse(source)), "text/html");
         const root = doc.body;
-        root.querySelectorAll("table").forEach((el) => (el.className = "table table-zebra"));
+        root.querySelectorAll("table").forEach((el) => {
+          el.className = "table table-zebra";
+          const wrapper = doc.createElement("div");
+          wrapper.className = "markdown-table-wrap";
+          el.replaceWith(wrapper);
+          wrapper.appendChild(el);
+        });
         root.querySelectorAll("ul").forEach((el) => (el.className = "list-disc pl-6 space-y-1"));
         root.querySelectorAll("ol").forEach((el) => (el.className = "list-decimal pl-6 space-y-1"));
         root

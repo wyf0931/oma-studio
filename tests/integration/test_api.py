@@ -443,7 +443,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260915-upload-dialog-cleanup" in Path(
+    assert "app.js?v=20260916-chat-inputs-overflow" in Path(
         "static/index.html"
     ).read_text(encoding="utf-8")
 
@@ -1315,6 +1315,70 @@ def test_chat_uploads_are_staged_before_the_first_pi_session(client, temporary_a
     assert path.is_file()
     assert client.delete(f"/api/chats/{chat['id']}").status_code == 200
     assert not path.exists()
+
+
+def test_chat_inputs_are_listed_and_served_only_for_their_chat(client, temporary_agent):
+    import app.main as main_module
+
+    agent_id = temporary_agent({"name": "input-files", "instruction": "x"}).json()["id"]
+    chat = client.post("/api/chats", json={"agent_id": agent_id}).json()
+    other_chat = client.post("/api/chats", json={"agent_id": agent_id}).json()
+    uploaded = client.post(
+        f"/api/chats/{chat['id']}/uploads",
+        content=b"# Input notes\n",
+        headers={"X-Upload-Filename": "notes.md", "content-type": "text/markdown"},
+    )
+    assert uploaded.status_code == 201
+    path = uploaded.json()["path"]
+
+    listed = client.get(f"/api/chats/{chat['id']}/inputs")
+    assert listed.status_code == 200
+    assert listed.json()["files"] == [
+        {
+            "id": uploaded.json()["id"],
+            "chat_id": chat["id"],
+            "name": "notes.md",
+            "path": path,
+            "media_type": "text/markdown",
+            "size": 14,
+            "extension": "md",
+            "created_at": listed.json()["files"][0]["created_at"],
+            "generated_at": listed.json()["files"][0]["generated_at"],
+            "kind": "input",
+        }
+    ]
+    assert client.get(f"/api/chats/{chat['id']}/inputs/content?path={path}").json() == {
+        "content": "# Input notes\n"
+    }
+    assert (
+        client.get(f"/api/chats/{chat['id']}/inputs/download?path={path}").content
+        == b"# Input notes\n"
+    )
+    assert client.get(f"/api/chats/{other_chat['id']}/inputs?path={path}").json() == {
+        "files": []
+    }
+    assert (
+        client.get(
+            f"/api/chats/{other_chat['id']}/inputs/content?path={path}"
+        ).status_code
+        == 404
+    )
+    assert (main_module.settings.pi_cwd / path).is_file()
+
+
+def test_chat_detail_files_tabs_and_mobile_markdown_boundaries_are_explicit():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+
+    assert 'class="tabs tabs-box files-tabs"' in html
+    assert "filesTab === 'outputs'" in html
+    assert "filesTab === 'inputs'" in html
+    assert "this.api(`/api/chats/${this.activeChat.id}/inputs`)" in script
+    assert 'wrapper.className = "markdown-table-wrap"' in script
+    assert ".file-markdown .markdown-table-wrap" in styles
+    assert ".file-view-page," in styles
+    assert "overflow-x: hidden;" in styles
 
 
 def test_image_uploads_are_forwarded_as_pi_vision_attachments(
