@@ -119,6 +119,8 @@ function platform() {
     marketDeletingAgent: false,
     marketInstallAgentTarget: null,
     marketInstallingAgent: false,
+    marketUpdateAgentTarget: null,
+    marketUpdatingAgent: false,
     marketCatalogSearch: "",
     marketInstallOpen: false,
     marketMcpAddOpen: false,
@@ -3163,6 +3165,16 @@ function platform() {
     installMarketAgent(agent) {
       this.marketInstallAgentTarget = agent;
     },
+    requestMarketplaceAgentUpdate(agent) {
+      if (!agent?.marketplace_update_available) return;
+      this.marketUpdateAgentTarget = agent;
+    },
+    requestMarketListingUpdate(item) {
+      const agent = this.agents.find(
+        (candidate) => candidate.marketplace_update_available && item.installed_agent_ids?.includes(candidate.id),
+      );
+      if (agent) this.requestMarketplaceAgentUpdate(agent);
+    },
     deleteMarketAgent(agent) {
       if (this.authUser?.role === "admin") this.marketDeleteAgentTarget = agent;
     },
@@ -3197,6 +3209,23 @@ function platform() {
         this.showError(error);
       } finally {
         this.marketInstallingAgent = false;
+      }
+    },
+    async confirmMarketplaceAgentUpdate() {
+      const agent = this.marketUpdateAgentTarget;
+      if (!agent || this.marketUpdatingAgent) return;
+      this.marketUpdatingAgent = true;
+      try {
+        const updated = await this.api(`/api/agents/${agent.id}/market-update`, {
+          method: "POST",
+        });
+        await Promise.all([this.refreshAgents(), this.loadMarketAgents()]);
+        this.marketUpdateAgentTarget = null;
+        this.showToast(`Agent ${updated.name} updated`);
+      } catch (error) {
+        this.showError(error);
+      } finally {
+        this.marketUpdatingAgent = false;
       }
     },
     deleteChat(chat) {

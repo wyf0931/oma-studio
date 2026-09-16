@@ -1494,6 +1494,30 @@ body {
 .agent-card .agent-card-identity h3 {
  margin: 0;
 }
+.agent-market-update-action {
+ display: inline-flex;
+ flex: 0 0 auto;
+ align-items: center;
+ justify-content: center;
+ width: 30px;
+ height: 30px;
+ padding: 6px;
+ border: 1px solid var(--line);
+ border-radius: 6px;
+ background: var(--color-base-100);
+ color: var(--color-primary);
+ cursor: pointer;
+}
+.agent-market-update-action:hover,
+.agent-market-update-action:focus-visible {
+ background: var(--color-primary);
+ color: var(--color-primary-content);
+}
+.agent-market-update-action svg {
+ width: 17px;
+ height: 17px;
+ stroke-width: 1.8;
+}
 .trash-btn:hover {
  background: var(--color-error);
  color: var(--color-error-content);
@@ -3774,7 +3798,16 @@ pre,
  color: var(--color-success);
 }
 .market-agent-status-update {
+ border: 0;
+ background: transparent;
  color: var(--color-primary);
+ cursor: pointer;
+}
+.market-agent-status-update:hover,
+.market-agent-status-update:focus-visible {
+ background: var(--color-primary);
+ color: var(--color-primary-content);
+ outline: none;
 }
 .market-agent-install-action {
  margin-left: 0;

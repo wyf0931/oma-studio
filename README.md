@@ -410,6 +410,7 @@ This MVP is a single FastAPI application with a static frontend. The main endpoi
 | `GET /api/agents/{id}/avatar` | Read an Agent avatar |
 | `PUT /api/agents/{id}/avatar` | Upload or replace an Agent avatar |
 | `POST /api/agents/{id}/publish` | Publish an owned Agent snapshot to the organization Marketplace |
+| `POST /api/agents/{id}/market-update` | Replace an installed Marketplace Agent with its publication's latest version |
 | `GET /api/resources` | Discover extensions, skills, MCP servers, Providers, and Models |
 | `GET /api/market/agents` | List organization Agent publications and latest versions |
 | `GET /api/market/agents/{id}/avatar` | Read a published Agent avatar |

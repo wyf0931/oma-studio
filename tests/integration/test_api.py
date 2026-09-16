@@ -413,6 +413,21 @@ def test_marketplace_agent_cards_show_server_derived_installation_states():
     assert ".market-agent-status-update" in styles
 
 
+def test_agent_marketplace_update_uses_one_confirmed_flow():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+
+    assert 'data-lucide="circle-fading-arrow-up"' in html
+    assert '@click.stop="requestMarketplaceAgentUpdate(agent)"' in html
+    assert '@click.stop="requestMarketListingUpdate(item)"' in html
+    assert "Your local changes may be overwritten." in Path(
+        "static/locales/en.json"
+    ).read_text(encoding="utf-8")
+    assert "confirmMarketplaceAgentUpdate()" in html
+    assert "requestMarketListingUpdate(item)" in script
+    assert "/market-update" in script
+
+
 def test_thought_blocks_open_by_default_and_label_streaming_state():
     script = Path("static/app.js").read_text(encoding="utf-8")
 
@@ -984,6 +999,75 @@ def test_marketplace_agent_installation_status_tracks_current_and_outdated_copie
     market = client.get("/api/market/agents").json()["agents"]
     outdated = next(item for item in market if item["id"] == listing["id"])
     assert outdated["installation_status"] == "update_available"
+
+
+def test_marketplace_agent_update_replaces_copy_in_place_and_preserves_avatar(client):
+    source = client.post(
+        "/api/agents",
+        json={"name": f"update-source-{uuid4().hex[:8]}", "instruction": "v1"},
+    ).json()
+    client.put(
+        f"/api/agents/{source['id']}/avatar",
+        content=b"\xff\xd8\xffsource-avatar",
+        headers={"Content-Type": "image/jpeg"},
+    )
+    listing = client.post(
+        f"/api/agents/{source['id']}/publish", json={"version": "v1.0.0"}
+    ).json()["agent"]
+    user = client.post(
+        "/api/users", json={"username": f"update-user-{uuid4().hex[:8]}"}
+    ).json()
+    client.post("/api/auth/logout")
+    client.post(
+        "/api/auth/login",
+        json={"username": user["username"], "password": "test-user-password"},
+    )
+    installed = client.post(
+        f"/api/market/agents/{listing['id']}/install", json={"version": "v1.0.0"}
+    ).json()["agent"]
+    avatar_path = installed["avatar_path"]
+    client.patch(f"/api/agents/{installed['id']}", json={"instruction": "local change"})
+
+    client.post(
+        "/api/auth/login", json={"username": "admin", "password": "test-admin-password"}
+    )
+    client.patch(f"/api/agents/{source['id']}", json={"instruction": "v1.1"})
+    client.post(f"/api/agents/{source['id']}/publish", json={"version": "v1.1.0"})
+
+    client.post(
+        "/api/auth/login",
+        json={"username": user["username"], "password": "test-user-password"},
+    )
+    before = next(
+        item
+        for item in client.get("/api/agents").json()["agents"]
+        if item["id"] == installed["id"]
+    )
+    assert before["marketplace_update_available"] is True
+    assert before["marketplace_latest_version"] == "v1.1.0"
+
+    updated = client.post(f"/api/agents/{installed['id']}/market-update")
+    assert updated.status_code == 200
+    copy = updated.json()
+    assert copy["id"] == installed["id"]
+    assert copy["instruction"] == "v1.1"
+    assert copy["source_version"] == "v1.1.0"
+    assert copy["avatar_path"] == avatar_path
+    assert copy["marketplace_update_available"] is False
+    assert client.get(f"/api/agents/{installed['id']}/avatar").status_code == 200
+    market = client.get("/api/market/agents").json()["agents"]
+    assert (
+        next(item for item in market if item["id"] == listing["id"])[
+            "installation_status"
+        ]
+        == "installed"
+    )
+
+    local = client.post(
+        "/api/agents",
+        json={"name": f"not-market-{uuid4().hex[:8]}", "instruction": "local"},
+    ).json()
+    assert client.post(f"/api/agents/{local['id']}/market-update").status_code == 404
 
 
 def test_deleting_installed_agent_copy_does_not_delete_source_or_publication(client):

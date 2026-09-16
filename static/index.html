@@ -77,7 +77,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260916-market-agent-install-state" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260916-market-agent-update" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -800,6 +800,16 @@
                 <div class="card-top agent-card-identity">
                   <span class="agent-avatar-slot" x-html="agentAvatarMarkup(agent, 'large')"></span>
                   <h3 x-text="agent.name"></h3>
+                  <button
+                    type="button"
+                    class="agent-market-update-action"
+                    x-show="agent.marketplace_update_available"
+                    @click.stop="requestMarketplaceAgentUpdate(agent)"
+                    :aria-label="t('marketplace.updateAgent') + ' ' + agent.name"
+                    :title="t('marketplace.updateAgent')"
+                  >
+                    <i data-lucide="circle-fading-arrow-up" aria-hidden="true"></i>
+                  </button>
                 </div>
                 <p class="agent-instruction" x-text="agent.instruction"></p>
                 <div class="agent-card-tags" x-show="agent.tags?.length">
@@ -1061,19 +1071,22 @@
                     <span
                       class="market-agent-status market-agent-status-installed"
                       x-show="item.installation_status === 'installed'"
+                      role="status"
                       :aria-label="t('marketplace.agentInstalled')"
                       :title="t('marketplace.agentInstalled')"
                     >
                       <i data-lucide="circle-check" aria-hidden="true"></i>
                     </span>
-                    <span
+                    <button
+                      type="button"
                       class="market-agent-status market-agent-status-update"
                       x-show="item.installation_status === 'update_available'"
+                      @click.stop="requestMarketListingUpdate(item)"
                       :aria-label="t('marketplace.agentUpdateAvailable')"
                       :title="t('marketplace.agentUpdateAvailable')"
                     >
                       <i data-lucide="circle-fading-arrow-up" aria-hidden="true"></i>
-                    </span>
+                    </button>
                     <div class="market-card-top">
                       <span class="agent-avatar-slot" x-html="agentAvatarMarkup(item, '', true)"></span>
                       <h2 class="card-title" x-text="item.name"></h2>
@@ -1132,6 +1145,55 @@
             </div>
           </div>
         </section>
+        <dialog
+          class="modal modal-middle"
+          :open="!!marketUpdateAgentTarget"
+          x-show="marketUpdateAgentTarget"
+          x-cloak
+          @click.self="marketUpdateAgentTarget = null"
+        >
+          <div class="modal-box confirm-box">
+            <div class="dialog-head">
+              <div>
+                <div class="eyebrow" x-text="t('marketplace.updateAgent')"></div>
+                <h2>
+                  <span x-text="t('marketplace.updateAgent')"></span>
+                  <span x-text="marketUpdateAgentTarget?.name"></span>?
+                </h2>
+              </div>
+              <button
+                type="button"
+                class="icon-btn"
+                @click="marketUpdateAgentTarget = null"
+                :aria-label="t('common.close')"
+              >
+                <i data-lucide="x" aria-hidden="true"></i>
+              </button>
+            </div>
+            <p class="confirm-copy" x-text="t('marketplace.updateAgentWarning')"></p>
+            <p class="confirm-copy">
+              <span x-text="t('marketplace.updateAgentVersion')"></span>
+              <b x-text="marketUpdateAgentTarget?.marketplace_latest_version"></b>.
+            </p>
+            <div class="dialog-actions">
+              <button
+                type="button"
+                class="btn btn-ghost"
+                @click="marketUpdateAgentTarget = null"
+                x-text="t('common.cancel')"
+              ></button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                @click="confirmMarketplaceAgentUpdate()"
+                :disabled="marketUpdatingAgent"
+              >
+                <span x-show="!marketUpdatingAgent" x-text="t('marketplace.updateAgent')"></span>
+                <span x-show="marketUpdatingAgent" class="loading loading-spinner loading-sm"></span>
+              </button>
+            </div>
+          </div>
+        </dialog>
         <dialog
           class="modal modal-middle"
           :open="marketInstallOpen"
