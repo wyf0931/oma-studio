@@ -101,6 +101,11 @@ body {
  border-radius: 50%;
  object-fit: cover;
 }
+[data-theme="dark"] .app-boot-brand img,
+[data-theme="dark"] .login-brand img,
+[data-theme="dark"] .mobile-brand img {
+ filter: invert(1);
+}
 .app-shell {
  min-height: 100vh;
  background: var(--bg);
