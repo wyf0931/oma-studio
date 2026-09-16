@@ -305,6 +305,8 @@ OMA_MAX_UPLOAD_MB=100
 
 `OMA_MAX_UPLOAD_FILES` and `OMA_MAX_UPLOAD_MB` configure the maximum number and total size of files staged for one message. They default to 10 files and 100 MiB.
 
+The bundled Docker Compose service exposes FastAPI directly and does not include NGINX. If this deployment is placed behind an external NGINX reverse proxy, set `client_max_body_size 100m;` for the OMA Studio location so it matches `OMA_MAX_UPLOAD_MB`.
+
 ### Providers and models
 
 Provider, model, and supported thinking levels are discovered from `~/.pi/agent/models.json`. Configure the global `PI_PROVIDER`, `PI_MODEL`, and `PI_THINKING_LEVEL` defaults in `.env`. An Agent can either use the linked Auto mode, which resolves all three defaults whenever a new Pi RPC session starts, or override all three values explicitly. The platform rejects partial Auto configurations and validates that an explicit model belongs to its Provider. Pi starts with `--thinking <level>`; the default level is `low`.
