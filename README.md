@@ -298,12 +298,12 @@ SENSENOVA_PROMPT_EXTEND=true
 OMA_ADMIN_PASSWORD=replace-with-a-local-admin-password
 OMA_DEFAULT_USER_PASSWORD=replace-with-a-temporary-user-password
 OMA_MAX_UPLOAD_FILES=10
-OMA_MAX_UPLOAD_MB=20
+OMA_MAX_UPLOAD_MB=100
 ```
 
 `PI_CWD` is Pi's working directory. It is **not** a filesystem security boundary: Pi can access anything available to the operating-system user when tools such as `bash` are enabled.
 
-`OMA_MAX_UPLOAD_FILES` and `OMA_MAX_UPLOAD_MB` configure the maximum number and total size of files staged for one message. They default to 10 files and 20 MiB.
+`OMA_MAX_UPLOAD_FILES` and `OMA_MAX_UPLOAD_MB` configure the maximum number and total size of files staged for one message. They default to 10 files and 100 MiB.
 
 ### Providers and models
 
