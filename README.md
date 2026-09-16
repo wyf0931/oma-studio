@@ -297,13 +297,13 @@ SENSENOVA_WATERMARK=false
 SENSENOVA_PROMPT_EXTEND=true
 OMA_ADMIN_PASSWORD=replace-with-a-local-admin-password
 OMA_DEFAULT_USER_PASSWORD=replace-with-a-temporary-user-password
-OMA_MAX_UPLOAD_FILES=10
+OMA_MAX_UPLOAD_FILES=100
 OMA_MAX_UPLOAD_MB=100
 ```
 
 `PI_CWD` is Pi's working directory. It is **not** a filesystem security boundary: Pi can access anything available to the operating-system user when tools such as `bash` are enabled.
 
-`OMA_MAX_UPLOAD_FILES` and `OMA_MAX_UPLOAD_MB` configure the maximum number and total size of files staged for one message. They default to 10 files and 100 MiB.
+`OMA_MAX_UPLOAD_FILES` and `OMA_MAX_UPLOAD_MB` configure the maximum number and total size of unique files staged for one chat/session. Re-uploading identical bytes in the same chat reuses the existing upload record and does not consume another slot. They default to 100 files and 100 MiB.
 
 The bundled Docker Compose service exposes FastAPI directly and does not include NGINX. If this deployment is placed behind an external NGINX reverse proxy, set `client_max_body_size 100m;` for the OMA Studio location so it matches `OMA_MAX_UPLOAD_MB`.
 

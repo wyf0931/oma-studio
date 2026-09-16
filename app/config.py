@@ -145,6 +145,6 @@ def get_settings() -> Settings:
         admin_password=value("OMA_ADMIN_PASSWORD"),
         default_user_password=value("OMA_DEFAULT_USER_PASSWORD"),
         system_timezone=system_timezone,
-        max_upload_files=positive_int("OMA_MAX_UPLOAD_FILES", 10),
+        max_upload_files=positive_int("OMA_MAX_UPLOAD_FILES", 100),
         max_upload_bytes=positive_int("OMA_MAX_UPLOAD_MB", 100) * 1024 * 1024,
     )
