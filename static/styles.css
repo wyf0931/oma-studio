@@ -1368,7 +1368,7 @@ body {
 }
 .attachment-command-palette {
  position: absolute;
- right: 0;
+ left: 0;
  bottom: calc(100% + 8px);
  z-index: 12;
  display: grid;
@@ -1391,6 +1391,25 @@ body {
 }
 .attachment-command-palette button:hover {
  background: var(--color-base-200);
+}
+.attachment-command-palette button.selected {
+ background: var(--color-primary-content);
+ color: var(--color-primary);
+}
+.attachment-command-copy {
+ display: grid;
+ min-width: 0;
+ gap: 2px;
+}
+.attachment-command-copy b,
+.attachment-command-copy small {
+ overflow: hidden;
+ text-overflow: ellipsis;
+ white-space: nowrap;
+}
+.attachment-command-copy small {
+ color: var(--muted);
+ font-size: 10px;
 }
 .conversation-send {
  position: absolute;

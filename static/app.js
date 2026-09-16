@@ -104,6 +104,8 @@ function platform() {
     uploadDragActive: false,
     uploadDragDepth: 0,
     uploadSelection: [],
+    attachmentCommandIndex: 0,
+    attachmentCommandDismissed: false,
     uploadLimits: { max_files: 100, max_bytes: 100 * 1024 * 1024 },
     fileViewer: null,
     libraryFiles: [],
@@ -1148,21 +1150,59 @@ function platform() {
     attachmentCommandItems() {
       const match = this.attachmentCommandMatch();
       if (!match) return [];
-      const selected = new Set(this.pendingArtifacts.map((file) => file.path));
-      return this.files
-        .filter((file) => !selected.has(file.path))
+      const selectedOutputs = new Set(this.pendingArtifacts.map((file) => file.path));
+      const selectedInputs = new Set(this.pendingUploads.map((file) => file.id));
+      const candidates = [
+        ...this.files.map((file) => ({ ...file, kind: "output" })),
+        ...this.inputFiles.map((file) => ({ ...file, kind: "input" })),
+      ];
+      return candidates
+        .filter((file) => (file.kind === "input" ? !selectedInputs.has(file.id) : !selectedOutputs.has(file.path)))
         .filter((file) => file.name.toLowerCase().includes(match.query))
         .slice(0, 8);
     },
     attachmentCommandVisible() {
-      return Boolean(this.attachmentCommandMatch()) && this.attachmentCommandItems().length > 0;
+      return (
+        Boolean(this.attachmentCommandMatch()) &&
+        !this.attachmentCommandDismissed &&
+        this.attachmentCommandItems().length > 0
+      );
     },
     updateAttachmentCommandState() {
-      if (this.attachmentCommandMatch() && !this.filesLoading && !this.files.length) void this.loadChatFiles();
+      this.attachmentCommandIndex = 0;
+      this.attachmentCommandDismissed = false;
+      if (this.attachmentCommandMatch() && !this.filesLoading && !this.files.length && !this.inputFiles.length)
+        void this.loadChatFiles();
     },
-    chooseArtifactAttachment(file) {
-      this.pendingArtifacts.push(file);
+    handleAttachmentKeydown(event) {
+      if (!this.attachmentCommandVisible()) return;
+      const items = this.attachmentCommandItems();
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        this.attachmentCommandIndex = (this.attachmentCommandIndex + 1) % items.length;
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        this.attachmentCommandIndex = (this.attachmentCommandIndex - 1 + items.length) % items.length;
+      } else if (event.key === "Tab") {
+        event.preventDefault();
+        this.chooseFileAttachment(items[this.attachmentCommandIndex]);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        this.attachmentCommandDismissed = true;
+      }
+    },
+    chooseFileAttachment(file) {
+      if (file.kind === "input") {
+        this.pendingUploads.push({
+          ...file,
+          filename: file.name,
+        });
+      } else {
+        this.pendingArtifacts.push(file);
+      }
       this.draft = this.draft.replace(/(?:^|\s)@[^\s]*$/, (value) => (value.startsWith(" ") ? " " : ""));
+      this.attachmentCommandIndex = 0;
+      this.attachmentCommandDismissed = false;
       this.$nextTick(() => document.getElementById("conversation-message")?.focus());
     },
     openUploadPicker() {
