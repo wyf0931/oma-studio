@@ -9,6 +9,7 @@
     "searchChats": "Search tasks",
     "settings": "Settings",
     "users": "Users",
+    "shareRecords": "Share records",
     "usage": "Usage",
     "logout": "Log out",
     "workspace": "Workspace",
@@ -324,7 +325,19 @@
     "copy": "Copy link",
     "copied": "Copied",
     "anyoneWithLink": "Anyone with the link can view this conversation — no password or sign-in required. Check for sensitive or private content before sharing.",
-    "shareLink": "Share link"
+    "shareLink": "Share link",
+    "recordsEyebrow": "Shared sessions",
+    "recordsTitle": "Share records",
+    "recordsSubtitle": "Manage the public links you created.",
+    "closeRecords": "Close share records",
+    "sessionTitle": "Session",
+    "link": "Link",
+    "sharedAt": "Shared at",
+    "noRecords": "No shared sessions yet.",
+    "revoke": "Revoke share",
+    "revoked": "Share link revoked",
+    "revokeTitle": "Revoke this share link?",
+    "revokeWarning": "The public link will stop working immediately. Anyone who opens it will no longer be able to view this conversation."
   },
   "dialogs": {
     "closeSettings": "Close settings",

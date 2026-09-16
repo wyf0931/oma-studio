@@ -627,8 +627,28 @@ class Store:
     def get_share(self, token: str) -> dict | None:
         return self._find("shares", lambda x: x.get("token") == token)
 
+    def get_chat_share(self, chat_id: str) -> dict | None:
+        return self._find("shares", lambda x: x.get("chat_id") == chat_id)
+
+    def list_shares(self, user_id: str) -> list[dict]:
+        return sorted(
+            [share for share in self._all("shares") if share.get("user_id") == user_id],
+            key=lambda share: share.get("created_at", ""),
+            reverse=True,
+        )
+
+    def delete_share(self, token: str, user_id: str) -> bool:
+        return bool(
+            self._remove(
+                "shares",
+                lambda share: (
+                    share.get("token") == token and share.get("user_id") == user_id
+                ),
+            )
+        )
+
     def create_share(self, chat_id: str, user_id: str | None = None) -> dict:
-        existing = self._find("shares", lambda x: x.get("chat_id") == chat_id)
+        existing = self.get_chat_share(chat_id)
         if existing:
             return existing
         share = {

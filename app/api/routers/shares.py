@@ -20,6 +20,7 @@ def create_router(
     store: Store,
     runtime: PiRuntimeManager,
     visible_or_404: Callable[[dict | None, Request, str], dict],
+    user_id: Callable[[Request], str],
     has_session_file: Callable[[dict], bool],
     visible_messages: Callable[[list[dict], str], list[dict]],
 ) -> APIRouter:
@@ -28,8 +29,43 @@ def create_router(
     @router.post("/chats/{chat_id}/share")
     async def create_chat_share(chat_id: str, request: Request):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
+        existing = store.get_chat_share(chat_id)
         share = store.create_share(chat_id, user_id=chat.get("user_id"))
+        return {
+            "token": share["token"],
+            "url": f"/share/{share['token']}",
+            "existing": bool(existing),
+        }
+
+    @router.get("/chats/{chat_id}/share")
+    async def get_chat_share(chat_id: str, request: Request):
+        visible_or_404(store.get_chat(chat_id), request, "Chat")
+        share = store.get_chat_share(chat_id)
+        if not share:
+            raise HTTPException(404, "Share not found")
         return {"token": share["token"], "url": f"/share/{share['token']}"}
+
+    @router.get("/shares")
+    async def list_shares(request: Request):
+        records = []
+        for share in store.list_shares(user_id(request)):
+            chat = store.get_chat(share["chat_id"])
+            if chat:
+                records.append(
+                    {
+                        "token": share["token"],
+                        "chat_id": chat["id"],
+                        "title": chat.get("title") or "New conversation",
+                        "created_at": share["created_at"],
+                    }
+                )
+        return {"shares": records}
+
+    @router.delete("/shares/{token}")
+    async def delete_share(token: str, request: Request):
+        if not store.delete_share(token, user_id(request)):
+            raise HTTPException(404, "Share not found")
+        return {"ok": True, "token": token}
 
     @router.get("/share/{token}")
     async def get_shared_chat(token: str):
