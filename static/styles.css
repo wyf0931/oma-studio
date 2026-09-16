@@ -1341,7 +1341,7 @@ body {
  width: 34px;
  height: 34px;
  min-height: 0;
- transform: translateY(-50%);
+ transform: none;
 }
 .composer-attachments {
  display: flex;
