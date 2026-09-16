@@ -89,3 +89,11 @@ def test_users_are_managed_in_a_dedicated_dialog_not_settings_tab():
     assert "margin: 0;" in styles
     assert ".usage-body.users-body" in styles
     assert "padding: 0 32px 32px;" in styles
+
+
+def test_share_records_dialog_uses_a_single_table_boundary():
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+
+    assert ".share-records-dialog .usage-header" in styles
+    assert "border-bottom: 0;" in styles
+    assert ".share-records-dialog .usage-body.users-body" in styles
