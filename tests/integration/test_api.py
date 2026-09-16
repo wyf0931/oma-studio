@@ -478,7 +478,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260916-page-drop-upload" in Path("static/index.html").read_text(
+    assert "app.js?v=20260916-input-at-mention" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -1563,6 +1563,22 @@ def test_client_uploads_chat_files_and_limits_at_mentions_to_published_artifacts
     assert "handleContentDragLeave($event)" in html
     assert 'class="drag-upload-overlay"' in html
     assert "this.uploadLimits" in script
+
+
+def test_chat_at_picker_includes_inputs_and_supports_keyboard_completion():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+
+    assert "this.inputFiles.map" in script
+    assert 'kind: "input"' in script
+    assert "this.pendingUploads.push" in script
+    assert "handleAttachmentKeydown($event)" in html
+    assert 'event.key === "ArrowDown"' in script
+    assert 'event.key === "ArrowUp"' in script
+    assert 'event.key === "Tab"' in script
+    assert ':class="{selected: index === attachmentCommandIndex}"' in html
+    assert "left: 0;" in styles
 
 
 def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_tokens():
