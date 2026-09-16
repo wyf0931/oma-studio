@@ -97,7 +97,11 @@
   "chat": {
     "files": "文件",
     "fileCount": "{{count}} 个文件",
+    "fileTabs": "聊天文件",
+    "outputs": "输出",
+    "inputs": "输入",
     "noGeneratedFiles": "暂无生成的文件",
+    "noInputFiles": "暂无输入文件",
     "resourceCount": "{{count}} 条",
     "searchFound": "搜索到 {{count}} 条结果",
     "searchResults": "搜索结果",
