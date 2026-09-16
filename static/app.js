@@ -99,6 +99,8 @@ function platform() {
     pendingArtifacts: [],
     uploadDraftChat: null,
     uploadingFiles: false,
+    uploadDialogOpen: false,
+    uploadDragActive: false,
     fileViewer: null,
     libraryFiles: [],
     libraryLoading: false,
@@ -1116,12 +1118,20 @@ function platform() {
       return chat;
     },
     openUploadPicker() {
-      if (!this.uploadingFiles) this.$refs.uploadInput?.click();
+      if (!this.uploadingFiles) this.uploadDialogOpen = true;
     },
     async handleUploadSelection(event) {
       const selected = [...(event.target.files || [])];
       event.target.value = "";
-      if (!selected.length) return;
+      await this.uploadFiles(selected);
+    },
+    async handleUploadDrop(event) {
+      this.uploadDragActive = false;
+      if (this.uploadingFiles) return;
+      await this.uploadFiles([...(event.dataTransfer?.files || [])]);
+    },
+    async uploadFiles(selected) {
+      if (!selected.length || this.uploadingFiles) return;
       const available = 5 - this.pendingAttachments().length;
       if (selected.length > available) {
         this.showError(new Error(`You can attach at most 5 files to one message`));
@@ -1151,10 +1161,17 @@ function platform() {
           }
           this.pendingUploads.push(data);
         }
+        this.uploadDialogOpen = false;
       } catch (error) {
         this.showError(error);
       } finally {
         this.uploadingFiles = false;
+      }
+    },
+    closeUploadDialog() {
+      if (!this.uploadingFiles) {
+        this.uploadDialogOpen = false;
+        this.uploadDragActive = false;
       }
     },
     async removePendingUpload(upload) {

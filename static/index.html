@@ -77,7 +77,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260915-agent-card-typography" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260915-new-task-upload-dialog" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -1704,7 +1704,56 @@
       </aside>
     </div>
 
-    <input x-ref="uploadInput" class="hidden" type="file" multiple @change="handleUploadSelection($event)" />
+    <dialog
+      class="modal modal-middle upload-dialog"
+      :open="uploadDialogOpen"
+      x-show="uploadDialogOpen"
+      x-cloak
+      @click.self="closeUploadDialog()"
+    >
+      <div class="modal-box">
+        <div class="dialog-head">
+          <div>
+            <div class="eyebrow" x-text="t('chat.attachFiles')"></div>
+            <h2 x-text="t('chat.uploadTitle')"></h2>
+          </div>
+          <button
+            type="button"
+            class="icon-btn"
+            @click="closeUploadDialog()"
+            :disabled="uploadingFiles"
+            :aria-label="t('common.close')"
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <button
+          type="button"
+          class="upload-dropzone"
+          :class="{'upload-dropzone-active': uploadDragActive}"
+          @click="$refs.uploadInput?.click()"
+          @dragover.prevent="uploadDragActive = true"
+          @dragleave.prevent="uploadDragActive = false"
+          @drop.prevent="handleUploadDrop($event)"
+          :disabled="uploadingFiles"
+        >
+          <i data-lucide="upload-cloud" aria-hidden="true"></i>
+          <strong x-text="t('chat.uploadDropTitle')"></strong>
+          <span x-text="t('chat.uploadDropHint')"></span>
+          <span class="btn btn-sm btn-soft" x-text="t('chat.browseFiles')"></span>
+        </button>
+        <input
+          x-ref="uploadInput"
+          class="file-input file-input-bordered upload-file-input"
+          type="file"
+          multiple
+          @change="handleUploadSelection($event)"
+          :disabled="uploadingFiles"
+          :aria-label="t('chat.browseFiles')"
+        />
+        <p class="upload-dialog-note" x-text="t('chat.uploadLimit')"></p>
+      </div>
+    </dialog>
     <dialog
       class="modal modal-middle"
       :open="autopilotDialog"
@@ -3266,6 +3315,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260915-agent-search-card-width"></script>
+    <script src="/static/app.js?v=20260915-new-task-upload-dialog"></script>
   </body>
 </html>
