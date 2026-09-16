@@ -101,6 +101,8 @@ function platform() {
     uploadingFiles: false,
     uploadDialogOpen: false,
     uploadDragActive: false,
+    uploadSelection: [],
+    uploadLimits: { max_files: 10, max_bytes: 20 * 1024 * 1024 },
     fileViewer: null,
     libraryFiles: [],
     libraryLoading: false,
@@ -730,7 +732,9 @@ function platform() {
     },
     async loadHealth() {
       try {
-        this.activeProcesses = (await this.api("/api/health")).active_processes || 0;
+        const health = await this.api("/api/health");
+        this.activeProcesses = health.active_processes || 0;
+        if (health.upload_limits) this.uploadLimits = health.upload_limits;
       } catch {}
     },
     async loadResources() {
@@ -1123,25 +1127,53 @@ function platform() {
     async handleUploadSelection(event) {
       const selected = [...(event.target.files || [])];
       event.target.value = "";
-      await this.uploadFiles(selected);
+      this.addUploadSelection(selected);
     },
     async handleUploadDrop(event) {
       this.uploadDragActive = false;
       if (this.uploadingFiles) return;
-      await this.uploadFiles([...(event.dataTransfer?.files || [])]);
+      this.addUploadSelection([...(event.dataTransfer?.files || [])]);
     },
-    async uploadFiles(selected) {
+    addUploadSelection(selected) {
       if (!selected.length || this.uploadingFiles) return;
-      const available = 5 - this.pendingAttachments().length;
-      if (selected.length > available) {
-        this.showError(new Error(`You can attach at most 5 files to one message`));
+      const maxFiles = Number(this.uploadLimits.max_files) || 10;
+      const maxBytes = Number(this.uploadLimits.max_bytes) || 20 * 1024 * 1024;
+      const currentFiles = this.pendingAttachments().length + this.uploadSelection.length;
+      const availableFiles = maxFiles - currentFiles;
+      if (selected.length > availableFiles) {
+        this.showError(new Error(`You can attach at most ${maxFiles} files to one message`));
       }
-      const files = selected.slice(0, Math.max(0, available));
-      if (!files.length) return;
+      let availableBytes =
+        maxBytes - this.pendingAttachments().reduce((total, file) => total + (Number(file.size) || 0), 0);
+      const files = [];
+      for (const file of selected.slice(0, Math.max(0, availableFiles))) {
+        if (file.size > availableBytes) {
+          this.showError(new Error(`Selected files exceed the ${Math.ceil(maxBytes / 1024 / 1024)} MiB upload limit`));
+          break;
+        }
+        files.push(file);
+        availableBytes -= file.size;
+      }
+      this.uploadSelection.push(...files);
+    },
+    uploadSelectionTotalBytes() {
+      return this.uploadSelection.reduce((total, file) => total + (Number(file.size) || 0), 0);
+    },
+    removeUploadSelection(file) {
+      if (!this.uploadingFiles) this.uploadSelection = this.uploadSelection.filter((item) => item !== file);
+    },
+    formatFileSize(bytes) {
+      const size = Number(bytes) || 0;
+      if (size < 1024) return `${size} B`;
+      if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+      return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+    },
+    async uploadFiles() {
+      if (!this.uploadSelection.length || this.uploadingFiles) return;
       this.uploadingFiles = true;
       try {
         const chat = await this.ensureUploadChat();
-        for (const file of files) {
+        for (const file of [...this.uploadSelection]) {
           const requestId = crypto.randomUUID();
           const response = await fetch(`/api/chats/${chat.id}/uploads`, {
             method: "POST",
@@ -1160,6 +1192,7 @@ function platform() {
             throw error;
           }
           this.pendingUploads.push(data);
+          this.removeUploadSelection(file);
         }
         this.uploadDialogOpen = false;
       } catch (error) {
@@ -1167,6 +1200,9 @@ function platform() {
       } finally {
         this.uploadingFiles = false;
       }
+    },
+    startUpload() {
+      void this.uploadFiles();
     },
     closeUploadDialog() {
       if (!this.uploadingFiles) {
@@ -1752,6 +1788,7 @@ function platform() {
       this.files = [];
       this.filesOpen = false;
       this.pendingUploads = [];
+      this.uploadSelection = [];
       this.pendingArtifacts = [];
       this.uploadDraftChat = null;
       this.draft = "";

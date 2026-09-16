@@ -104,6 +104,20 @@ def test_reads_agent_defaults_from_dotenv(tmp_path: Path, monkeypatch):
     assert settings.pi_default_mcp_servers == ("browser",)
 
 
+def test_reads_upload_limits_from_dotenv(tmp_path: Path, monkeypatch):
+    (tmp_path / ".env").write_text(
+        "OMA_MAX_UPLOAD_FILES=12\nOMA_MAX_UPLOAD_MB=64\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("OMA_MAX_UPLOAD_FILES", raising=False)
+    monkeypatch.delenv("OMA_MAX_UPLOAD_MB", raising=False)
+
+    settings = get_settings()
+
+    assert settings.max_upload_files == 12
+    assert settings.max_upload_bytes == 64 * 1024 * 1024
+
+
 def test_storage_paths_expand_home(tmp_path: Path, monkeypatch):
     (tmp_path / ".env").write_text(
         "PI_PLATFORM_DATA_DIR=~/.oma-studio/data\n"

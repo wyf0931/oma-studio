@@ -1468,6 +1468,75 @@ body {
  width: 100%;
  margin-top: 16px;
 }
+.upload-selection {
+ margin-top: 16px;
+ padding: 12px;
+ border: 1px solid var(--line);
+ border-radius: var(--radius-box);
+ background: var(--color-base-100);
+}
+.upload-selection-heading,
+.upload-selection-list li,
+.upload-selection-file,
+.upload-selection-meta {
+ display: flex;
+ align-items: center;
+}
+.upload-selection-heading,
+.upload-selection-list li {
+ justify-content: space-between;
+ gap: 12px;
+}
+.upload-selection-heading {
+ color: var(--ink);
+ font-size: 13px;
+}
+.upload-selection-heading > span,
+.upload-selection-meta small {
+ color: var(--muted);
+ font-size: 12px;
+}
+.upload-selection-list {
+ display: grid;
+ gap: 6px;
+ max-height: 180px;
+ margin: 10px 0 0;
+ padding: 0;
+ overflow-y: auto;
+ list-style: none;
+}
+.upload-selection-list li {
+ min-width: 0;
+ padding-top: 6px;
+ border-top: 1px solid var(--line);
+}
+.upload-selection-file {
+ min-width: 0;
+ gap: 8px;
+ color: var(--ink);
+ font-size: 13px;
+}
+.upload-selection-file > span {
+ overflow: hidden;
+ text-overflow: ellipsis;
+ white-space: nowrap;
+}
+.upload-selection-file > .lucide {
+ flex: none;
+ width: 15px;
+ height: 15px;
+ color: var(--muted);
+}
+.upload-selection-meta {
+ flex: none;
+ gap: 6px;
+}
+.upload-selection-meta .btn {
+ padding: 0;
+}
+.upload-dialog-actions {
+ margin-top: 16px;
+}
 .upload-dialog-note {
  margin: 10px 0 0;
  color: var(--muted);

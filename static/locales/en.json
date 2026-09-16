@@ -123,7 +123,9 @@
     "uploadDropTitle": "Drag and drop files here",
     "uploadDropHint": "or click to browse from your device",
     "browseFiles": "Browse files",
-    "uploadLimit": "Up to 5 files per message",
+    "uploadSelected": "{{count}} file(s) selected",
+    "startUpload": "Start upload",
+    "uploadLimit": "Up to {{maxFiles}} files · {{maxMb}} MiB total",
     "agentUnavailable": "This chat's Agent has been deleted or was not found. Please recreate the task."
   },
   "library": {

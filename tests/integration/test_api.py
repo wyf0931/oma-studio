@@ -1254,6 +1254,10 @@ def test_client_uploads_chat_files_and_limits_at_mentions_to_published_artifacts
     assert "this.uploadDraftChat = chat;" in script
     assert "this.activeChat = chat;" in script
     assert "this.uploadDraftChat = null;" in script
+    assert "uploadSelection" in script
+    assert "addUploadSelection(selected)" in script
+    assert "startUpload()" in html
+    assert "this.uploadLimits" in script
 
 
 def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_tokens():
@@ -1272,7 +1276,7 @@ def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_to
     assert 'class="upload-dropzone"' in html
     assert '@drop.prevent="handleUploadDrop($event)"' in html
     assert 'class="file-input file-input-bordered upload-file-input"' in html
-    assert "async uploadFiles(selected)" in script
+    assert "async uploadFiles()" in script
     assert "this.uploadDialogOpen = false;" in script
 
 
