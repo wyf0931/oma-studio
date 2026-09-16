@@ -4669,6 +4669,12 @@ pre,
  border-radius: var(--radius-box);
  background: var(--color-base-100);
 }
+.share-records-dialog .usage-header {
+ border-bottom: 0;
+}
+.share-records-dialog .usage-body.users-body {
+ padding: 16px 32px 32px;
+}
 .users-modal-box table {
  min-width: 760px;
 }
@@ -4954,6 +4960,9 @@ pre,
  }
  .usage-body.users-body {
   padding: 0 20px 24px;
+ }
+ .share-records-dialog .usage-body.users-body {
+  padding: 18px 20px 24px;
  }
  .usage-summary-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
