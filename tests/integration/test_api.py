@@ -1600,7 +1600,7 @@ def test_composer_actions_stay_bottom_aligned_and_send_is_idle_ghost():
     assert ':class="{idle: !draft.trim()}"' in html
     assert ':class="{abort: loading, idle: !loading && !draft.trim()}"' in html
     assert ".conversation-attach {" in styles
-    assert "bottom: 10px;" in styles
+    assert "bottom: 6px;" in styles
     assert "transform: none;" in styles
     assert ".icon-send.idle" in styles
     assert "width: 36px;" in styles
