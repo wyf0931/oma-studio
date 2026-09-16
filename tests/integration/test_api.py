@@ -428,6 +428,18 @@ def test_agent_marketplace_update_uses_one_confirmed_flow():
     assert "/market-update" in script
 
 
+def test_frontend_request_transport_keeps_json_binary_and_streaming_paths_distinct():
+    script = Path("static/app.js").read_text(encoding="utf-8")
+
+    assert "async request(path, options = {})" in script
+    assert "async responseData(response, requestId, requestPath)" in script
+    assert 'headers.set("X-Request-ID", requestId)' in script
+    assert 'if (options.body !== undefined && !headers.has("Content-Type"))' in script
+    assert '"X-Upload-Filename": encodeURIComponent(file.name)' in script
+    assert "response.body.getReader()" in script
+    assert "new EventSource(`/api/chats/${chatId}/stream`)" in script
+
+
 def test_thought_blocks_open_by_default_and_label_streaming_state():
     script = Path("static/app.js").read_text(encoding="utf-8")
 

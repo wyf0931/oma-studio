@@ -430,17 +430,18 @@ function platform() {
         true,
       );
     },
-    async api(path, options = {}) {
-      const requestPath = path.includes("/messages") && !path.includes("?") ? `${path}?mode=${this.mode}` : path;
+    async request(path, options = {}) {
       const requestId = crypto.randomUUID();
       const headers = new Headers(options.headers || {});
-      headers.set("Content-Type", "application/json");
       headers.set("X-Request-ID", requestId);
-      const response = await fetch(requestPath, {
+      const response = await fetch(path, {
         ...options,
         cache: "no-store",
         headers,
       });
+      return { response, requestId };
+    },
+    async responseData(response, requestId, requestPath) {
       const responseId = response.headers.get("X-Request-ID") || requestId;
       const contentType = response.headers.get("content-type") || "";
       let data = null;
@@ -458,6 +459,14 @@ function platform() {
         this.handleUnauthorizedResponse(response, requestPath, error);
         throw error;
       }
+      return { data, responseId };
+    },
+    async api(path, options = {}) {
+      const requestPath = path.includes("/messages") && !path.includes("?") ? `${path}?mode=${this.mode}` : path;
+      const headers = new Headers(options.headers || {});
+      if (options.body !== undefined && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+      const { response, requestId } = await this.request(requestPath, { ...options, headers });
+      const { data, responseId } = await this.responseData(response, requestId, requestPath);
       if (data === null) {
         const error = new Error(`Server returned a non-JSON response (request_id: ${responseId})`);
         error.requestId = responseId;
@@ -1209,23 +1218,16 @@ function platform() {
       const uploaded = [];
       try {
         for (const file of [...this.uploadSelection]) {
-          const requestId = crypto.randomUUID();
-          const response = await fetch(`/api/chats/${chat.id}/uploads`, {
+          const requestPath = `/api/chats/${chat.id}/uploads`;
+          const { response, requestId } = await this.request(requestPath, {
             method: "POST",
             headers: {
               "Content-Type": file.type || "application/octet-stream",
-              "X-Request-ID": requestId,
               "X-Upload-Filename": encodeURIComponent(file.name),
             },
             body: file,
           });
-          const responseId = response.headers.get("X-Request-ID") || requestId;
-          const data = await response.json().catch(() => null);
-          if (!response.ok) {
-            const error = this.errorFromResponse(response, responseId, data);
-            this.handleUnauthorizedResponse(response, `/api/chats/${chat.id}/uploads`, error);
-            throw error;
-          }
+          const { data } = await this.responseData(response, requestId, requestPath);
           this.pendingUploads.push(data);
           uploaded.push(data);
           this.removeUploadSelection(file);
@@ -2037,29 +2039,16 @@ function platform() {
         });
         const uploadIds = this.pendingUploads.map((file) => file.id);
         const artifactPaths = this.pendingArtifacts.map((file) => file.path);
-        const requestId = crypto.randomUUID();
-        const response = await fetch(`/api/chats/${chatId}/messages`, {
+        const requestPath = `/api/chats/${chatId}/messages`;
+        const { response, requestId } = await this.request(requestPath, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Request-ID": requestId,
           },
           body: JSON.stringify({ content, upload_ids: uploadIds, artifact_paths: artifactPaths }),
         });
         if (!response.ok) {
-          const responseId = response.headers.get("X-Request-ID") || requestId;
-          const contentType = response.headers.get("content-type") || "";
-          let data = null;
-          if (contentType.includes("json")) {
-            try {
-              data = await response.json();
-            } catch {}
-          } else {
-            await response.text();
-          }
-          const error = this.errorFromResponse(response, responseId, data);
-          this.handleUnauthorizedResponse(response, `/api/chats/${chatId}/messages`, error);
-          throw error;
+          await this.responseData(response, requestId, requestPath);
         }
         this.pendingUploads = [];
         this.pendingArtifacts = [];
@@ -3162,30 +3151,15 @@ function platform() {
       return agent?.id ? `/api/market/agents/${encodeURIComponent(agent.id)}/avatar` : "";
     },
     async uploadAvatarFile(agentId, file) {
-      const requestId = crypto.randomUUID();
-      const response = await fetch(`/api/agents/${encodeURIComponent(agentId)}/avatar`, {
+      const requestPath = `/api/agents/${encodeURIComponent(agentId)}/avatar`;
+      const { response, requestId } = await this.request(requestPath, {
         method: "PUT",
         headers: {
           "Content-Type": file.type,
-          "X-Request-ID": requestId,
         },
         body: file,
       });
-      const responseId = response.headers.get("X-Request-ID") || requestId;
-      const contentType = response.headers.get("content-type") || "";
-      let data = null;
-      if (contentType.includes("json")) {
-        try {
-          data = await response.json();
-        } catch {}
-      } else {
-        await response.text();
-      }
-      if (!response.ok) {
-        const error = this.errorFromResponse(response, responseId, data);
-        this.handleUnauthorizedResponse(response, `/api/agents/${encodeURIComponent(agentId)}/avatar`, error);
-        throw error;
-      }
+      const { data } = await this.responseData(response, requestId, requestPath);
       return data;
     },
     async uploadAgentAvatar(event) {
