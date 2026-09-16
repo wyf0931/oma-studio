@@ -1742,6 +1742,33 @@
           <span x-text="t('chat.uploadDropHint')"></span>
           <span class="btn btn-sm btn-soft" x-text="t('chat.browseFiles')"></span>
         </button>
+        <div class="upload-selection" x-show="uploadSelection.length" x-cloak>
+          <div class="upload-selection-heading">
+            <strong x-text="t('chat.uploadSelected', {count: uploadSelection.length})"></strong>
+            <span x-text="formatFileSize(uploadSelectionTotalBytes())"></span>
+          </div>
+          <ul class="upload-selection-list">
+            <template x-for="file in uploadSelection" :key="file.name + ':' + file.lastModified">
+              <li>
+                <span class="upload-selection-file">
+                  <i data-lucide="file" aria-hidden="true"></i>
+                  <span x-text="file.name"></span>
+                </span>
+                <span class="upload-selection-meta">
+                  <small x-text="formatFileSize(file.size)"></small>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs"
+                    @click.stop="removeUploadSelection(file)"
+                    :aria-label="t('common.remove') + ' ' + file.name"
+                  >
+                    <i data-lucide="x" aria-hidden="true"></i>
+                  </button>
+                </span>
+              </li>
+            </template>
+          </ul>
+        </div>
         <input
           x-ref="uploadInput"
           class="file-input file-input-bordered upload-file-input"
@@ -1751,7 +1778,22 @@
           :disabled="uploadingFiles"
           :aria-label="t('chat.browseFiles')"
         />
-        <p class="upload-dialog-note" x-text="t('chat.uploadLimit')"></p>
+        <p
+          class="upload-dialog-note"
+          x-text="t('chat.uploadLimit', {maxFiles: uploadLimits.max_files, maxMb: Math.ceil(uploadLimits.max_bytes / 1024 / 1024)})"
+        ></p>
+        <div class="modal-action upload-dialog-actions">
+          <button type="button" class="btn btn-ghost" @click="closeUploadDialog()" x-text="t('common.cancel')"></button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            @click="startUpload()"
+            :disabled="!uploadSelection.length || uploadingFiles"
+          >
+            <span x-show="!uploadingFiles" x-text="t('chat.startUpload')"></span>
+            <span x-show="uploadingFiles" class="loading loading-spinner loading-sm"></span>
+          </button>
+        </div>
       </div>
     </dialog>
     <dialog

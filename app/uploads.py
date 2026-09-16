@@ -8,8 +8,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 
-MAX_UPLOAD_BYTES = 20 * 1024 * 1024
-MAX_ATTACHMENTS_PER_MESSAGE = 5
+DEFAULT_MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 UPLOADS_DIRNAME = "uploads"
 _FILENAME_SAFE = re.compile(r"[^A-Za-z0-9._ -]+")
 
@@ -36,6 +35,7 @@ async def save_upload(
     filename: str | None,
     media_type: str | None,
     chunks: AsyncIterator[bytes],
+    max_bytes: int = DEFAULT_MAX_UPLOAD_BYTES,
 ) -> dict:
     directory = upload_directory(workspace, chat_id)
     directory.mkdir(parents=True, exist_ok=True)
@@ -50,8 +50,8 @@ async def save_upload(
         with destination.open("wb") as target:
             async for chunk in chunks:
                 written += len(chunk)
-                if written > MAX_UPLOAD_BYTES:
-                    raise HTTPException(413, "Each upload must be 20 MiB or smaller")
+                if written > max_bytes:
+                    raise HTTPException(413, "Upload exceeds the configured size limit")
                 target.write(chunk)
     except HTTPException:
         destination.unlink(missing_ok=True)

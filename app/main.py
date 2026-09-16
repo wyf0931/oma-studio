@@ -154,7 +154,14 @@ async def health():
         for client in runtime.clients.values()
         if client.process and client.process.returncode is None
     )
-    return {"ok": True, "active_processes": active_processes}
+    return {
+        "ok": True,
+        "active_processes": active_processes,
+        "upload_limits": {
+            "max_files": settings.max_upload_files,
+            "max_bytes": settings.max_upload_bytes,
+        },
+    }
 
 
 app.include_router(

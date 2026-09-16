@@ -123,7 +123,9 @@
     "uploadDropTitle": "将文件拖到这里",
     "uploadDropHint": "或点击从设备中选择文件",
     "browseFiles": "选择文件",
-    "uploadLimit": "每条消息最多添加 5 个文件",
+    "uploadSelected": "已选择 {{count}} 个文件",
+    "startUpload": "开始上传",
+    "uploadLimit": "最多 {{maxFiles}} 个文件 · 总计 {{maxMb}} MiB",
     "agentUnavailable": "此聊天使用的智能体已删除或不存在，请重新创建任务。"
   },
   "library": {

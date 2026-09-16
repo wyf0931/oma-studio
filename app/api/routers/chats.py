@@ -24,7 +24,6 @@ from ...files import (
 from ...pi_rpc import ActiveTurn, PiRpcError, PiRuntimeManager
 from ...store import Store, now_iso, pi_terminal_failure
 from ...uploads import (
-    MAX_ATTACHMENTS_PER_MESSAGE,
     delete_chat_uploads,
     save_upload,
 )
@@ -52,12 +51,8 @@ class ChatUpdate(BaseModel):
 
 class MessageCreate(BaseModel):
     content: str = Field(min_length=1, max_length=100000)
-    upload_ids: list[str] = Field(
-        default_factory=list, max_length=MAX_ATTACHMENTS_PER_MESSAGE
-    )
-    artifact_paths: list[str] = Field(
-        default_factory=list, max_length=MAX_ATTACHMENTS_PER_MESSAGE
-    )
+    upload_ids: list[str] = Field(default_factory=list)
+    artifact_paths: list[str] = Field(default_factory=list)
 
 
 def title_for(content: str) -> str:
@@ -393,12 +388,25 @@ def create_router(
     @router.post("/chats/{chat_id}/uploads", status_code=201)
     async def upload_chat_file(chat_id: str, request: Request):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
+        existing = store.list_uploads(chat_id)
+        if len(existing) >= settings.max_upload_files:
+            raise HTTPException(
+                422, "The configured file limit for this message has been reached"
+            )
+        used_bytes = sum(int(item.get("size", 0) or 0) for item in existing)
+        remaining_bytes = settings.max_upload_bytes - used_bytes
+        if remaining_bytes <= 0:
+            raise HTTPException(
+                413,
+                "The configured upload size limit for this message has been reached",
+            )
         saved = await save_upload(
             settings.pi_cwd,
             chat_id,
             unquote(request.headers.get("X-Upload-Filename", "")),
             request.headers.get("content-type"),
             request.stream(),
+            max_bytes=remaining_bytes,
         )
         return store.create_upload(
             {
@@ -583,11 +591,11 @@ def create_router(
             )
         if (
             len(payload.upload_ids) + len(payload.artifact_paths)
-            > MAX_ATTACHMENTS_PER_MESSAGE
+            > settings.max_upload_files
         ):
             raise HTTPException(
                 422,
-                f"A message can include at most {MAX_ATTACHMENTS_PER_MESSAGE} attachments",
+                f"A message can include at most {settings.max_upload_files} attachments",
             )
         uploads = []
         for upload_id in payload.upload_ids:

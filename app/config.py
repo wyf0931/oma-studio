@@ -53,6 +53,8 @@ class Settings:
     admin_password: str | None
     default_user_password: str | None
     system_timezone: str
+    max_upload_files: int
+    max_upload_bytes: int
 
 
 def get_settings() -> Settings:
@@ -68,6 +70,14 @@ def get_settings() -> Settings:
             if raw is None
             else raw.strip().lower() in {"1", "true", "yes", "on"}
         )
+
+    def positive_int(name: str, default: int) -> int:
+        raw = value(name)
+        try:
+            parsed = int(raw) if raw is not None else default
+        except ValueError:
+            return default
+        return parsed if parsed > 0 else default
 
     data_dir = Path(value("PI_PLATFORM_DATA_DIR", "data") or "data").expanduser()
     mode = (value("PI_MODE", "production") or "production").lower()
@@ -135,4 +145,6 @@ def get_settings() -> Settings:
         admin_password=value("OMA_ADMIN_PASSWORD"),
         default_user_password=value("OMA_DEFAULT_USER_PASSWORD"),
         system_timezone=system_timezone,
+        max_upload_files=positive_int("OMA_MAX_UPLOAD_FILES", 10),
+        max_upload_bytes=positive_int("OMA_MAX_UPLOAD_MB", 20) * 1024 * 1024,
     )
