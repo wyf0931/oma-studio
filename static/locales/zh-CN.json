@@ -9,6 +9,7 @@
     "searchChats": "搜索任务",
     "settings": "设置",
     "users": "用户管理",
+    "shareRecords": "分享记录",
     "usage": "用量统计",
     "logout": "退出登录",
     "workspace": "工作区",
@@ -324,7 +325,19 @@
     "copy": "复制链接",
     "copied": "已复制",
     "anyoneWithLink": "任何拥有链接的人都可以查看此对话，无需密码或登录。分享前请确认内容中没有敏感或私密信息。",
-    "shareLink": "分享链接"
+    "shareLink": "分享链接",
+    "recordsEyebrow": "已分享会话",
+    "recordsTitle": "分享记录",
+    "recordsSubtitle": "管理你创建的公开会话链接。",
+    "closeRecords": "关闭分享记录",
+    "sessionTitle": "会话",
+    "link": "链接",
+    "sharedAt": "分享时间",
+    "noRecords": "暂无分享记录。",
+    "revoke": "取消分享",
+    "revoked": "分享链接已取消",
+    "revokeTitle": "取消分享此会话？",
+    "revokeWarning": "公开链接将立即失效，任何打开该链接的人都无法再查看此会话。"
   },
   "dialogs": {
     "closeSettings": "关闭设置",

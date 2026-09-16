@@ -4,6 +4,11 @@ function platform() {
     settingsTab: "general",
     usageOpen: false,
     usersOpen: false,
+    shareRecordsOpen: false,
+    shareRecordsLoading: false,
+    shareRecords: [],
+    shareRevokeTarget: null,
+    shareRevoking: false,
     usageTab: "overview",
     usageRange: "7",
     usageLoading: false,
@@ -563,6 +568,11 @@ function platform() {
       this.usersOpen = true;
       await this.loadUsers();
     },
+    async openProfileShares() {
+      this.profileMenuOpen = false;
+      this.shareRecordsOpen = true;
+      await this.loadShareRecords();
+    },
     openProfileLogout() {
       this.profileMenuOpen = false;
       this.requestLogout();
@@ -631,6 +641,42 @@ function platform() {
         this.showError(error);
       } finally {
         this.usersLoading = false;
+      }
+    },
+    async loadShareRecords() {
+      this.shareRecordsLoading = true;
+      try {
+        this.shareRecords = (await this.api("/api/shares")).shares || [];
+      } catch (error) {
+        this.showError(error);
+      } finally {
+        this.shareRecordsLoading = false;
+      }
+    },
+    shareRecordTitle(share) {
+      const title = String(share.title || "");
+      return [...title].length > 20 ? `${[...title].slice(0, 20).join("")}…` : title;
+    },
+    shareRecordLink(share) {
+      return `/share/${String(share.token || "").slice(0, 8)}…`;
+    },
+    requestRevokeShare(share) {
+      this.shareRevokeTarget = share;
+    },
+    async confirmRevokeShare() {
+      const share = this.shareRevokeTarget;
+      if (!share || this.shareRevoking) return;
+      this.shareRevoking = true;
+      try {
+        await this.api(`/api/shares/${encodeURIComponent(share.token)}`, { method: "DELETE" });
+        this.shareRecords = this.shareRecords.filter((item) => item.token !== share.token);
+        if (this.shareUrl.endsWith(`/share/${share.token}`)) this.resetShare();
+        this.shareRevokeTarget = null;
+        this.showToast(this.t("share.revoked"));
+      } catch (error) {
+        this.showError(error);
+      } finally {
+        this.shareRevoking = false;
       }
     },
     openAddUser() {
@@ -2401,9 +2447,16 @@ function platform() {
         if (this.copiedKey === message._key) this.copiedKey = "";
       }, 1500);
     },
-    startShare() {
+    async startShare() {
       if (!this.activeChat || this.sharedMode) return;
-      this.shareMode = true;
+      try {
+        const data = await this.api(`/api/chats/${this.activeChat.id}/share`);
+        this.shareUrl = `${location.origin}${data.url}`;
+        this.shareStep = "created";
+      } catch (error) {
+        if (error.status === 404) this.shareMode = true;
+        else this.showError(error);
+      }
     },
     async openSharedChat(token) {
       this.sharedToken = token;

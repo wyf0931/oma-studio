@@ -170,6 +170,7 @@ app.include_router(
         store,
         runtime,
         _visible_or_404,
+        _user_id,
         _has_session_file,
         visible_messages,
     )

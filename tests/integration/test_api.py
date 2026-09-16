@@ -2212,6 +2212,65 @@ def test_share_flow_public_and_revoked(client, temporary_agent):
     assert client.get(f"/api/share/{token}").status_code == 404
 
 
+def test_share_records_are_user_scoped_and_revocable(client, temporary_agent):
+    agent_id = temporary_agent({"name": "share-records", "instruction": "x"}).json()[
+        "id"
+    ]
+    chat = client.post("/api/chats", json={"agent_id": agent_id}).json()
+    assert client.get(f"/api/chats/{chat['id']}/share").status_code == 404
+
+    created = client.post(f"/api/chats/{chat['id']}/share")
+    assert created.status_code == 200
+    assert created.json()["existing"] is False
+    token = created.json()["token"]
+    reused = client.post(f"/api/chats/{chat['id']}/share")
+    assert reused.json()["token"] == token
+    assert reused.json()["existing"] is True
+    assert client.get(f"/api/chats/{chat['id']}/share").json()["token"] == token
+
+    records = client.get("/api/shares")
+    assert records.status_code == 200
+    assert (
+        next(item for item in records.json()["shares"] if item["token"] == token)[
+            "chat_id"
+        ]
+        == chat["id"]
+    )
+
+    other = client.post(
+        "/api/users", json={"username": f"share-owner-{uuid4().hex[:8]}"}
+    ).json()
+    client.post("/api/auth/logout")
+    client.post(
+        "/api/auth/login",
+        json={"username": other["username"], "password": "test-user-password"},
+    )
+    assert client.get("/api/shares").json()["shares"] == []
+    assert client.delete(f"/api/shares/{token}").status_code == 404
+
+    client.post(
+        "/api/auth/login", json={"username": "admin", "password": "test-admin-password"}
+    )
+    revoked = client.delete(f"/api/shares/{token}")
+    assert revoked.status_code == 200
+    assert client.get(f"/api/share/{token}").status_code == 404
+    assert all(
+        item["token"] != token for item in client.get("/api/shares").json()["shares"]
+    )
+
+
+def test_share_records_profile_ui_uses_revoke_confirmation_and_existing_link_check():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+
+    assert '@click="openProfileShares()"' in html
+    assert 'data-lucide="link-2-off"' in html
+    assert 'x-show="shareRecordsOpen"' in html
+    assert 'x-show="shareRevokeTarget"' in html
+    assert 'this.api("/api/shares")' in script
+    assert "this.api(`/api/chats/${this.activeChat.id}/share`)" in script
+
+
 def test_shared_file_preview_has_dynamic_social_metadata(client, temporary_agent):
     from app import main as main_module
 
