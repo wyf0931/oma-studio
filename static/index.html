@@ -77,7 +77,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260915-new-task-upload-dialog" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260915-upload-dialog-cleanup" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -1740,7 +1740,6 @@
           <i data-lucide="upload-cloud" aria-hidden="true"></i>
           <strong x-text="t('chat.uploadDropTitle')"></strong>
           <span x-text="t('chat.uploadDropHint')"></span>
-          <span class="btn btn-sm btn-soft" x-text="t('chat.browseFiles')"></span>
         </button>
         <div class="upload-selection" x-show="uploadSelection.length" x-cloak>
           <div class="upload-selection-heading">
@@ -1771,7 +1770,7 @@
         </div>
         <input
           x-ref="uploadInput"
-          class="file-input file-input-bordered upload-file-input"
+          class="hidden"
           type="file"
           multiple
           @change="handleUploadSelection($event)"
@@ -3357,6 +3356,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260915-new-task-upload-dialog"></script>
+    <script src="/static/app.js?v=20260915-upload-dialog-cleanup"></script>
   </body>
 </html>

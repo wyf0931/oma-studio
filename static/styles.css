@@ -1464,10 +1464,6 @@ body {
  cursor: wait;
  opacity: 0.65;
 }
-.upload-file-input {
- width: 100%;
- margin-top: 16px;
-}
 .upload-selection {
  margin-top: 16px;
  padding: 12px;
