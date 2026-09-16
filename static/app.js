@@ -1692,7 +1692,13 @@ function platform() {
       this.theme = this.themePreference === "system" ? (prefersDark ? "dark" : "light") : this.themePreference;
       document.documentElement.dataset.theme = this.theme;
       this.syncHighlightTheme();
+      this.syncFavicon();
       localStorage.setItem("oma-theme-preference", this.themePreference);
+    },
+    syncFavicon() {
+      const favicon = document.getElementById("app-favicon");
+      if (favicon)
+        favicon.href = `/static/${this.theme === "dark" ? "favicon-dark-32.png" : "favicon-32.png"}?v=20260917-theme`;
     },
     syncHighlightTheme() {
       const lightTheme = document.getElementById("highlightjs-light-theme");

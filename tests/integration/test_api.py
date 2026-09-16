@@ -361,13 +361,11 @@ def test_agent_editor_keeps_nonempty_draft_open_on_backdrop_click():
 def test_favicon_assets_are_explicit_and_ico_is_not_spa_html(client):
     html = Path("static/index.html").read_text(encoding="utf-8")
 
+    assert 'id="app-favicon"' in html
     assert 'rel="icon"' in html
     assert 'sizes="32x32"' in html
-    assert 'href="/static/favicon-32.png?v=20260908"' in html
-    assert 'href="/static/favicon-dark-32.png?v=20260908"' in html
-    assert 'href="/static/favicon-16.png?v=20260908"' in html
-    assert 'href="/static/favicon-dark-16.png?v=20260908"' in html
-    assert 'href="/favicon.ico?v=20260908"' in html
+    assert 'href="/static/favicon-32.png?v=20260917-theme"' in html
+    assert 'rel="shortcut icon"' not in html
     assert 'href="/static/apple-touch-icon.png?v=20260908"' in html
 
     response = client.get("/favicon.ico")
@@ -769,6 +767,20 @@ def test_theme_preference_defaults_to_system_and_is_managed_in_settings():
     assert 'systemThemeQuery?.addEventListener("change"' in script
     assert "pi-theme" not in script
     assert 'title="Toggle theme"' not in html
+
+
+def test_dark_theme_uses_contrast_safe_boot_logo_and_synchronized_favicon():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+
+    assert 'id="app-favicon"' in html
+    assert 'rel="shortcut icon"' not in html
+    assert "this.syncFavicon();" in script
+    assert 'document.getElementById("app-favicon")' in script
+    assert "favicon-dark-32.png" in script
+    assert '[data-theme="dark"] .app-boot-brand img,' in styles
+    assert '[data-theme="dark"] .login-brand img,' in styles
     assert "t('settings.system')" in html
 
 
