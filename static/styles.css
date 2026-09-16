@@ -3751,6 +3751,31 @@ pre,
  gap: 6px;
  margin-left: auto;
 }
+.agent-market-card .card-body {
+ position: relative;
+}
+.market-agent-status {
+ position: absolute;
+ top: 16px;
+ right: 16px;
+ display: inline-flex;
+ align-items: center;
+ justify-content: center;
+ width: 30px;
+ height: 30px;
+ border-radius: 6px;
+}
+.market-agent-status svg {
+ width: 18px;
+ height: 18px;
+ stroke-width: 2;
+}
+.market-agent-status-installed {
+ color: var(--color-success);
+}
+.market-agent-status-update {
+ color: var(--color-primary);
+}
 .market-agent-install-action {
  margin-left: 0;
  color: var(--color-primary);

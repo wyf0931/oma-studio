@@ -124,9 +124,17 @@ def create_router(
             )
         return value if value.startswith("v") else f"v{value}"
 
-    def market_agent_view(publication: dict) -> dict:
+    def market_agent_view(publication: dict, request: Request) -> dict:
         latest = publication["latest"]
         source_agent = store.get_agent(publication["source_agent_id"])
+        installed = [
+            agent
+            for agent in visible_records(store.list_agents(), request)
+            if agent.get("source_publication_id") == publication["id"]
+        ]
+        is_update_available = any(
+            agent.get("source_hash") != latest["content_hash"] for agent in installed
+        )
         return {
             "id": publication["id"],
             "name": latest["content"]["name"],
@@ -147,6 +155,14 @@ def create_router(
             "install_count": publication.get("install_count", 0),
             "source_agent_id": publication["source_agent_id"],
             "avatar_available": bool(source_agent and source_agent.get("avatar_path")),
+            "installation_status": (
+                "update_available"
+                if is_update_available
+                else "installed"
+                if installed
+                else "uninstalled"
+            ),
+            "installed_agent_ids": [agent["id"] for agent in installed],
         }
 
     @router.get("/api/agents")
@@ -239,10 +255,11 @@ def create_router(
         return profile
 
     @router.get("/api/market/agents")
-    async def list_market_agents():
+    async def list_market_agents(request: Request):
         return {
             "agents": [
-                market_agent_view(item) for item in store.list_agent_publications()
+                market_agent_view(item, request)
+                for item in store.list_agent_publications()
             ]
         }
 
@@ -263,7 +280,7 @@ def create_router(
         ):
             raise HTTPException(409, f"Agent version {version} already exists")
         published = store.publish_agent(agent, user_id(request), version)
-        return {"agent": market_agent_view(published)}
+        return {"agent": market_agent_view(published, request)}
 
     @router.get("/api/market/agents/{publication_id}/avatar")
     async def get_market_agent_avatar(publication_id: str):

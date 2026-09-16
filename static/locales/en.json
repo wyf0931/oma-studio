@@ -224,6 +224,8 @@
     "shareAgentHint": "Share an Agent from the Agents page to make it available here.",
     "uninstallResource": "Uninstall resource",
     "installAgent": "Install Agent",
+    "agentInstalled": "Installed",
+    "agentUpdateAvailable": "Update available",
     "deleteMarketplaceAgent": "Delete Marketplace Agent",
     "mcpServer": "MCP server",
     "installedCount": "{{count}} installed",

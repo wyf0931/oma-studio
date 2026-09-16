@@ -401,6 +401,18 @@ def test_agent_card_typography_matches_marketplace_cards():
     assert ".market-description" in styles
 
 
+def test_marketplace_agent_cards_show_server_derived_installation_states():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+
+    assert "item.installation_status === 'installed'" in html
+    assert "item.installation_status === 'update_available'" in html
+    assert 'data-lucide="circle-check"' in html
+    assert 'data-lucide="circle-fading-arrow-up"' in html
+    assert ".market-agent-status-installed" in styles
+    assert ".market-agent-status-update" in styles
+
+
 def test_thought_blocks_open_by_default_and_label_streaming_state():
     script = Path("static/app.js").read_text(encoding="utf-8")
 
@@ -926,6 +938,52 @@ def test_agent_marketplace_publishes_and_installs_private_copy(client):
     )
     assert own_listing.status_code == 200
     assert own_listing.json()["agent"]["author"] == created["username"]
+
+
+def test_marketplace_agent_installation_status_tracks_current_and_outdated_copies(
+    client,
+):
+    source = client.post(
+        "/api/agents",
+        json={"name": f"status-source-{uuid4().hex[:8]}", "instruction": "v1"},
+    ).json()
+    listing = client.post(
+        f"/api/agents/{source['id']}/publish", json={"version": "v1.0.0"}
+    ).json()["agent"]
+    user = client.post(
+        "/api/users", json={"username": f"status-user-{uuid4().hex[:8]}"}
+    ).json()
+    client.post("/api/auth/logout")
+    client.post(
+        "/api/auth/login",
+        json={"username": user["username"], "password": "test-user-password"},
+    )
+
+    market = client.get("/api/market/agents").json()["agents"]
+    uninstalled = next(item for item in market if item["id"] == listing["id"])
+    assert uninstalled["installation_status"] == "uninstalled"
+    assert uninstalled["installed_agent_ids"] == []
+
+    installed = client.post(
+        f"/api/market/agents/{listing['id']}/install", json={"version": "v1.0.0"}
+    ).json()["agent"]
+    market = client.get("/api/market/agents").json()["agents"]
+    current = next(item for item in market if item["id"] == listing["id"])
+    assert current["installation_status"] == "installed"
+    assert current["installed_agent_ids"] == [installed["id"]]
+
+    client.post(
+        "/api/auth/login", json={"username": "admin", "password": "test-admin-password"}
+    )
+    client.patch(f"/api/agents/{source['id']}", json={"instruction": "v1.1"})
+    client.post(f"/api/agents/{source['id']}/publish", json={"version": "v1.1.0"})
+    client.post(
+        "/api/auth/login",
+        json={"username": user["username"], "password": "test-user-password"},
+    )
+    market = client.get("/api/market/agents").json()["agents"]
+    outdated = next(item for item in market if item["id"] == listing["id"])
+    assert outdated["installation_status"] == "update_available"
 
 
 def test_deleting_installed_agent_copy_does_not_delete_source_or_publication(client):
