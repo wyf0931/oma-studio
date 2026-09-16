@@ -279,10 +279,14 @@ class Store:
         return item
 
     def list_agents(self) -> list[dict]:
-        return self._all("agents")
+        return [agent for agent in self._all("agents") if not agent.get("deleted_at")]
 
     def get_agent(self, agent_id: str) -> dict | None:
         return self._find("agents", lambda item: item.get("id") == agent_id)
+
+    def get_active_agent(self, agent_id: str) -> dict | None:
+        agent = self.get_agent(agent_id)
+        return agent if agent and not agent.get("deleted_at") else None
 
     def create_agent(
         self,
@@ -514,7 +518,12 @@ class Store:
         return bool(
             agent
             and not agent.get("protected")
-            and self._remove("agents", lambda item: item.get("id") == agent_id)
+            and not agent.get("deleted_at")
+            and self._update(
+                "agents",
+                lambda item: item.get("id") == agent_id,
+                {"deleted_at": now_iso()},
+            )
         )
 
     def list_chats(self) -> list[dict]:

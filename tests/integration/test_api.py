@@ -1641,6 +1641,46 @@ def test_fresh_chat_messages_are_empty(client):
     assert response.json() == {"messages": []}
 
 
+def test_deleted_agent_keeps_chat_history_but_blocks_replies(
+    client, temporary_agent, monkeypatch
+):
+    import app.main as main_module
+
+    agent_id = temporary_agent({"name": "deleted-agent", "instruction": "x"}).json()[
+        "id"
+    ]
+    chat = client.post("/api/chats", json={"agent_id": agent_id}).json()
+    main_module.store.update_chat(chat["id"], {"status": "ready"})
+    session_path = main_module.settings.pi_session_dir / f"test_{chat['id']}.jsonl"
+    session_path.parent.mkdir(parents=True, exist_ok=True)
+    session_path.touch()
+
+    async def historic_messages(_chat):
+        return [
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": "historic answer"}],
+            }
+        ]
+
+    monkeypatch.setattr(main_module.runtime, "messages", historic_messages)
+    assert client.delete(f"/api/agents/{agent_id}").status_code == 200
+    assert agent_id not in {
+        agent["id"] for agent in client.get("/api/agents").json()["agents"]
+    }
+
+    history = client.get(f"/api/chats/{chat['id']}/messages")
+    assert history.status_code == 200
+    assert history.json()["messages"][0]["content"][0]["text"] == "historic answer"
+
+    blocked = client.post(
+        f"/api/chats/{chat['id']}/messages", json={"content": "reply"}
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["code"] == "chat.agentUnavailable"
+    session_path.unlink(missing_ok=True)
+
+
 def test_autopilot_crud(client):
     agent_id = client.get("/api/agents").json()["agents"][0]["id"]
     created = client.post(

@@ -81,6 +81,9 @@ def create_router(
             settings.pi_home, settings.pi_cwd, settings.pi_agents_home
         )
 
+    def active_agent_or_404(agent_id: str, request: Request) -> dict:
+        return visible_or_404(store.get_active_agent(agent_id), request, "Agent")
+
     def validate_capabilities(
         tools: list[str],
         extensions: list[str],
@@ -245,7 +248,7 @@ def create_router(
 
     @router.post("/api/agents/{agent_id}/publish")
     async def publish_agent(agent_id: str, payload: AgentPublish, request: Request):
-        agent = visible_or_404(store.get_agent(agent_id), request, "Agent")
+        agent = active_agent_or_404(agent_id, request)
         version = normalize_agent_version(payload.version)
         publication = next(
             (
@@ -304,11 +307,11 @@ def create_router(
 
     @router.get("/api/agents/{agent_id}")
     async def get_agent(agent_id: str, request: Request):
-        return visible_or_404(store.get_agent(agent_id), request, "Agent")
+        return active_agent_or_404(agent_id, request)
 
     @router.get("/api/agents/{agent_id}/avatar")
     async def get_agent_avatar(agent_id: str, request: Request):
-        agent = visible_or_404(store.get_agent(agent_id), request, "Agent")
+        agent = active_agent_or_404(agent_id, request)
         path = avatar_file(settings.data_dir, agent)
         if not path:
             raise HTTPException(404, "Agent avatar not found")
@@ -316,7 +319,7 @@ def create_router(
 
     @router.put("/api/agents/{agent_id}/avatar")
     async def upload_agent_avatar(agent_id: str, request: Request):
-        visible_or_404(store.get_agent(agent_id), request, "Agent")
+        active_agent_or_404(agent_id, request)
         content_length = request.headers.get("content-length")
         if content_length:
             try:
@@ -341,7 +344,7 @@ def create_router(
             payload.mcp_servers or [],
             resource_catalog,
         )
-        existing = visible_or_404(store.get_agent(agent_id), request, "Agent")
+        existing = active_agent_or_404(agent_id, request)
         validate_model_configuration(
             payload.provider
             if "provider" in payload.model_fields_set
@@ -361,7 +364,7 @@ def create_router(
 
     @router.delete("/api/agents/{agent_id}")
     async def delete_agent(agent_id: str, request: Request):
-        agent = visible_or_404(store.get_agent(agent_id), request, "Agent")
+        agent = active_agent_or_404(agent_id, request)
         if not store.delete_agent(agent_id):
             raise HTTPException(400, "Agent does not exist or is protected")
         remove_avatar(settings.data_dir, agent)

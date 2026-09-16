@@ -318,6 +318,8 @@ def create_router(
     @router.post("/chats", status_code=201)
     async def create_chat(payload: ChatCreate, request: Request):
         agent = visible_or_404(store.get_agent(payload.agent_id), request, "Agent")
+        if agent.get("deleted_at"):
+            raise HTTPException(404, "Agent not found")
         return store.create_chat(
             payload.agent_id,
             status="created",
@@ -434,6 +436,10 @@ def create_router(
             return {"messages": []}
         if not has_session_file(chat):
             raise HTTPException(404, "Pi session not found for this chat")
+        if not store.get_agent(chat["agent_id"]):
+            session_file = runtime.newest_session_file(chat)
+            messages = read_session_messages(session_file) if session_file else []
+            return {"messages": visible_messages(messages, mode)}
         if runtime.active_turn(chat_id) is not None:
             session_file = runtime.newest_session_file(chat)
             messages = read_session_messages(session_file) if session_file else []
@@ -569,6 +575,12 @@ def create_router(
         chat_id: str, payload: MessageCreate, request: Request, mode: str = "production"
     ):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
+        agent = store.get_agent(chat["agent_id"])
+        if not agent or agent.get("deleted_at"):
+            raise HTTPException(
+                409,
+                "This chat's Agent has been deleted or was not found. Please recreate the task.",
+            )
         if (
             len(payload.upload_ids) + len(payload.artifact_paths)
             > MAX_ATTACHMENTS_PER_MESSAGE

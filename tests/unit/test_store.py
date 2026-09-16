@@ -27,6 +27,9 @@ def test_default_agent_and_agent_crud(tmp_path: Path):
     updated = store.update_agent(agent["id"], {"instruction": "Be rigorous"})
     assert updated is not None and updated["instruction"] == "Be rigorous"
     assert store.delete_agent(agent["id"]) is True
+    deleted = store.get_agent(agent["id"])
+    assert deleted is not None and deleted["deleted_at"]
+    assert agent["id"] not in {item["id"] for item in store.list_agents()}
     assert store.delete_agent(default["id"]) is False
 
 

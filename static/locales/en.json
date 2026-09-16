@@ -118,7 +118,8 @@
     "notFound": "Chat not found",
     "uploadNotFound": "Upload not found",
     "deleteChat": "Delete chat",
-    "deleteConversation": "Remove conversation?"
+    "deleteConversation": "Remove conversation?",
+    "agentUnavailable": "This chat's Agent has been deleted or was not found. Please recreate the task."
   },
   "library": {
     "title": "Library",
