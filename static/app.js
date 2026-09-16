@@ -71,6 +71,7 @@ function platform() {
     draft: "",
     loading: false,
     chatViewToken: 0,
+    chatReadController: null,
     watchingChat: null,
     streamSource: null,
     pollTimer: null,
@@ -475,6 +476,20 @@ function platform() {
       }
       return data;
     },
+    beginChatReads() {
+      this.abortChatReads();
+      this.chatReadController = new AbortController();
+    },
+    abortChatReads() {
+      this.chatReadController?.abort();
+      this.chatReadController = null;
+    },
+    isAbortError(error) {
+      return error?.name === "AbortError";
+    },
+    chatRead(path) {
+      return this.api(path, { signal: this.chatReadController?.signal });
+    },
     async loadSession() {
       try {
         const data = await this.api("/api/auth/session");
@@ -570,6 +585,7 @@ function platform() {
       if (this.sessionExpired) return;
       this.sessionExpired = true;
       this.stopWatching();
+      this.abortChatReads();
       this.chatViewToken += 1;
       this.authUser = null;
       this.authChecked = true;
@@ -1025,13 +1041,13 @@ function platform() {
       this.filesLoading = true;
       try {
         const [outputs, inputs] = await Promise.all([
-          this.api(`/api/chats/${this.activeChat.id}/files`),
-          this.api(`/api/chats/${this.activeChat.id}/inputs`),
+          this.chatRead(`/api/chats/${this.activeChat.id}/files`),
+          this.chatRead(`/api/chats/${this.activeChat.id}/inputs`),
         ]);
         this.files = outputs.files;
         this.inputFiles = inputs.files;
       } catch (e) {
-        this.showError(e);
+        if (!this.isAbortError(e)) this.showError(e);
       } finally {
         this.filesLoading = false;
       }
@@ -1413,6 +1429,7 @@ function platform() {
     go(page) {
       if (page !== "chat") {
         this.stopWatching();
+        this.abortChatReads();
         this.chatViewToken += 1;
       }
       this.page = page;
@@ -1809,6 +1826,7 @@ function platform() {
         (this.activeChat?.status === "created" && this.pendingUploads.length ? this.activeChat : null);
       if (draftChat) void this.api(`/api/chats/${draftChat.id}`, { method: "DELETE" }).catch(() => {});
       this.stopWatching();
+      this.abortChatReads();
       this.chatViewToken += 1;
       this.resetShare();
       this.cancelEditingChatTitle();
@@ -1833,6 +1851,7 @@ function platform() {
     },
     async openChat(chat, updateUrl = true) {
       this.stopWatching();
+      this.beginChatReads();
       const viewToken = ++this.chatViewToken;
       this.resetShare();
       this.page = "chat";
@@ -1852,8 +1871,8 @@ function platform() {
       this.messagesLoading = true;
       try {
         const [data, currentChat] = await Promise.all([
-          this.api(`/api/chats/${chat.id}/messages?mode=${this.mode}`),
-          chat.status === "created" ? Promise.resolve(chat) : this.api(`/api/chats/${chat.id}`),
+          this.chatRead(`/api/chats/${chat.id}/messages?mode=${this.mode}`),
+          chat.status === "created" ? Promise.resolve(chat) : this.chatRead(`/api/chats/${chat.id}`),
         ]);
         if (viewToken !== this.chatViewToken || this.activeChat?.id !== chat.id) return;
         this.activeChat = currentChat;
@@ -1862,11 +1881,12 @@ function platform() {
         this.loading = currentChat.status === "running";
         this.messages = this.normalizeMessages(data.messages);
         if (currentChat.status === "created") {
-          this.pendingUploads = (await this.api(`/api/chats/${chat.id}/uploads`)).uploads || [];
+          this.pendingUploads = (await this.chatRead(`/api/chats/${chat.id}/uploads`)).uploads || [];
         }
         this.scrollMessagesToLatest();
       } catch (e) {
-        if (viewToken === this.chatViewToken && this.activeChat?.id === chat.id) this.showError(e);
+        if (!this.isAbortError(e) && viewToken === this.chatViewToken && this.activeChat?.id === chat.id)
+          this.showError(e);
       } finally {
         if (viewToken === this.chatViewToken && this.activeChat?.id === chat.id) this.messagesLoading = false;
       }
@@ -2161,10 +2181,10 @@ function platform() {
       const viewToken = this.chatViewToken;
       this.watchingChat = chatId;
       try {
-        const chat = await this.api(`/api/chats/${chatId}`);
+        const chat = await this.chatRead(`/api/chats/${chatId}`);
         if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
         if (this.activeChat?.id === chatId) this.activeChat = chat;
-        const data = await this.api(`/api/chats/${chatId}/messages?mode=${this.mode}`);
+        const data = await this.chatRead(`/api/chats/${chatId}/messages?mode=${this.mode}`);
         if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
         const normalized = this.normalizeMessages(data.messages);
         this.messages = normalized;
@@ -2215,7 +2235,7 @@ function platform() {
           }
         };
       } catch (e) {
-        if (viewToken === this.chatViewToken && this.activeChat?.id === chatId) {
+        if (!this.isAbortError(e) && viewToken === this.chatViewToken && this.activeChat?.id === chatId) {
           this.watchingChat = null;
           this.showError(e);
         }
@@ -2224,10 +2244,10 @@ function platform() {
     async finishWatch(chatId, viewToken = this.chatViewToken) {
       if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
       try {
-        const data = await this.api(`/api/chats/${chatId}/messages?mode=${this.mode}`);
+        const data = await this.chatRead(`/api/chats/${chatId}/messages?mode=${this.mode}`);
         if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
         this.setMessagesIfChanged(data.messages);
-        const chat = await this.api(`/api/chats/${chatId}`);
+        const chat = await this.chatRead(`/api/chats/${chatId}`);
         if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
         this.activeChat = chat;
         const found = this.chats.find((c) => c.id === chatId);
@@ -2235,7 +2255,8 @@ function platform() {
         this.loading = false;
         await this.refreshOpenFiles(chatId);
       } catch (e) {
-        if (viewToken === this.chatViewToken && this.activeChat?.id === chatId) this.showError(e);
+        if (!this.isAbortError(e) && viewToken === this.chatViewToken && this.activeChat?.id === chatId)
+          this.showError(e);
       }
     },
     startPolling(chatId, viewToken = this.chatViewToken) {
@@ -2246,13 +2267,13 @@ function platform() {
           return;
         }
         try {
-          const chat = await this.api(`/api/chats/${chatId}`);
+          const chat = await this.chatRead(`/api/chats/${chatId}`);
           if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) {
             this.stopPolling();
             return;
           }
           if (chat.status !== "running") {
-            const data = await this.api(`/api/chats/${chatId}/messages?mode=${this.mode}`);
+            const data = await this.chatRead(`/api/chats/${chatId}/messages?mode=${this.mode}`);
             if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
             this.setMessagesIfChanged(data.messages);
             this.activeChat = chat;
@@ -2263,7 +2284,7 @@ function platform() {
             await this.refreshOpenFiles(chatId);
             return;
           }
-          const data = await this.api(`/api/chats/${chatId}/messages?mode=${this.mode}`);
+          const data = await this.chatRead(`/api/chats/${chatId}/messages?mode=${this.mode}`);
           if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
           const normalized = this.setMessagesIfChanged(data.messages);
           const last = normalized[normalized.length - 1];
