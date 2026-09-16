@@ -25,6 +25,7 @@ from ...pi_rpc import ActiveTurn, PiRpcError, PiRuntimeManager
 from ...store import Store, now_iso, pi_terminal_failure
 from ...uploads import (
     delete_chat_uploads,
+    file_sha256,
     save_upload,
 )
 
@@ -389,30 +390,53 @@ def create_router(
     async def upload_chat_file(chat_id: str, request: Request):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
         existing = store.list_uploads(chat_id)
-        if len(existing) >= settings.max_upload_files:
-            raise HTTPException(
-                422, "The configured file limit for this message has been reached"
-            )
         used_bytes = sum(int(item.get("size", 0) or 0) for item in existing)
-        remaining_bytes = settings.max_upload_bytes - used_bytes
-        if remaining_bytes <= 0:
-            raise HTTPException(
-                413,
-                "The configured upload size limit for this message has been reached",
-            )
         saved = await save_upload(
             settings.pi_cwd,
             chat_id,
             unquote(request.headers.get("X-Upload-Filename", "")),
             request.headers.get("content-type"),
             request.stream(),
-            max_bytes=remaining_bytes,
+            # Read up to the configured per-file ceiling before checking the
+            # session budget, so a duplicate can still be recognized and reused
+            # even when the session is otherwise full.
+            max_bytes=settings.max_upload_bytes,
         )
+        owner_id = chat.get("user_id") or user_id(request)
+        duplicate = next(
+            (
+                item
+                for item in existing
+                if item.get("user_id") == owner_id
+                and (
+                    item.get("sha256")
+                    or file_sha256((settings.pi_cwd / item.get("path", "")).resolve())
+                )
+                == saved["sha256"]
+            ),
+            None,
+        )
+        if duplicate:
+            if not duplicate.get("sha256"):
+                store.update_upload(duplicate["id"], {"sha256": saved["sha256"]})
+            (settings.pi_cwd / saved["path"]).unlink(missing_ok=True)
+            return store.get_upload(duplicate["id"]) or duplicate
+        if used_bytes + saved["size"] > settings.max_upload_bytes:
+            (settings.pi_cwd / saved["path"]).unlink(missing_ok=True)
+            raise HTTPException(
+                413,
+                "The configured upload size limit for this chat has been reached",
+            )
+        if len(existing) >= settings.max_upload_files:
+            (settings.pi_cwd / saved["path"]).unlink(missing_ok=True)
+            raise HTTPException(
+                422, "The configured file limit for this chat has been reached"
+            )
         return store.create_upload(
             {
                 **saved,
                 "chat_id": chat_id,
-                "user_id": chat.get("user_id") or user_id(request),
+                "user_id": owner_id,
             }
         )
 

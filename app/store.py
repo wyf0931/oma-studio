@@ -604,6 +604,12 @@ class Store:
     def get_upload(self, upload_id: str) -> dict | None:
         return self._find("uploads", lambda item: item.get("id") == upload_id)
 
+    def update_upload(self, upload_id: str, values: dict) -> dict | None:
+        changed = self._update(
+            "uploads", lambda item: item.get("id") == upload_id, values
+        )
+        return self.get_upload(upload_id) if changed else None
+
     def list_uploads(self, chat_id: str) -> list[dict]:
         return sorted(
             [x for x in self._all("uploads") if x.get("chat_id") == chat_id],

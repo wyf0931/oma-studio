@@ -1366,6 +1366,54 @@ def test_chat_inputs_are_listed_and_served_only_for_their_chat(client, temporary
     assert (main_module.settings.pi_cwd / path).is_file()
 
 
+def test_identical_chat_uploads_reuse_the_existing_record(client, temporary_agent):
+    import hashlib
+
+    agent_id = temporary_agent({"name": "dedupe-uploads", "instruction": "x"}).json()[
+        "id"
+    ]
+    chat = client.post("/api/chats", json={"agent_id": agent_id}).json()
+    content = b"same bytes"
+    headers = {"X-Upload-Filename": "first.txt", "content-type": "text/plain"}
+    first = client.post(
+        f"/api/chats/{chat['id']}/uploads", content=content, headers=headers
+    )
+    second = client.post(
+        f"/api/chats/{chat['id']}/uploads",
+        content=content,
+        headers={**headers, "X-Upload-Filename": "renamed.txt"},
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert second.json()["id"] == first.json()["id"]
+    assert second.json()["sha256"] == hashlib.sha256(content).hexdigest()
+    assert len(client.get(f"/api/chats/{chat['id']}/inputs").json()["files"]) == 1
+
+
+def test_chat_upload_file_limit_is_one_hundred(client, temporary_agent):
+    agent_id = temporary_agent({"name": "many-uploads", "instruction": "x"}).json()[
+        "id"
+    ]
+    chat = client.post("/api/chats", json={"agent_id": agent_id}).json()
+    for index in range(100):
+        response = client.post(
+            f"/api/chats/{chat['id']}/uploads",
+            content=f"file-{index}".encode(),
+            headers={
+                "X-Upload-Filename": f"file-{index}.txt",
+                "content-type": "text/plain",
+            },
+        )
+        assert response.status_code == 201
+    blocked = client.post(
+        f"/api/chats/{chat['id']}/uploads",
+        content=b"file-100",
+        headers={"X-Upload-Filename": "file-100.txt", "content-type": "text/plain"},
+    )
+    assert blocked.status_code == 422
+
+
 def test_chat_detail_files_tabs_and_mobile_markdown_boundaries_are_explicit():
     html = Path("static/index.html").read_text(encoding="utf-8")
     script = Path("static/app.js").read_text(encoding="utf-8")
