@@ -231,6 +231,8 @@
     "shareAgentHint": "在智能体页面分享智能体后，它会显示在这里。",
     "uninstallResource": "卸载资源",
     "installAgent": "安装智能体",
+    "agentInstalled": "已安装",
+    "agentUpdateAvailable": "有可用更新",
     "deleteMarketplaceAgent": "删除市场智能体",
     "mcpServer": "数据源",
     "installedCount": "{{count}} 次安装",
