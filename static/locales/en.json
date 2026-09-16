@@ -114,6 +114,8 @@
     "whatShouldWeDo": "What should we do?",
     "startChat": "Start chat",
     "attachFiles": "Attach files",
+    "dropFilesHere": "Drop files to attach",
+    "dropFilesHint": "Files will upload when you send the message",
     "loadingMessages": "Loading messages…",
     "chatNotFound": "Chat not found",
     "titleEmpty": "Chat title cannot be empty",
