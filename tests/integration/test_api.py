@@ -440,6 +440,29 @@ def test_frontend_request_transport_keeps_json_binary_and_streaming_paths_distin
     assert "new EventSource(`/api/chats/${chatId}/stream`)" in script
 
 
+def test_chat_view_reads_are_abortable_without_cancelling_writes_or_streams():
+    script = Path("static/app.js").read_text(encoding="utf-8")
+
+    assert "chatReadController: null" in script
+    assert "this.chatReadController = new AbortController();" in script
+    assert "this.chatReadController?.abort();" in script
+    assert 'return error?.name === "AbortError";' in script
+    assert (
+        "return this.api(path, { signal: this.chatReadController?.signal });" in script
+    )
+    assert "this.beginChatReads();" in script
+    assert "this.abortChatReads();" in script
+    assert (
+        "await this.chatRead(`/api/chats/${chatId}/messages?mode=${this.mode}`)"
+        in script
+    )
+    assert (
+        "body: JSON.stringify({ content, upload_ids: uploadIds, artifact_paths: artifactPaths })"
+        in script
+    )
+    assert "new EventSource(`/api/chats/${chatId}/stream`)" in script
+
+
 def test_thought_blocks_open_by_default_and_label_streaming_state():
     script = Path("static/app.js").read_text(encoding="utf-8")
 
@@ -1434,7 +1457,7 @@ def test_chat_detail_files_tabs_and_mobile_markdown_boundaries_are_explicit():
     assert 'class="tabs tabs-box files-tabs"' in html
     assert "filesTab === 'outputs'" in html
     assert "filesTab === 'inputs'" in html
-    assert "this.api(`/api/chats/${this.activeChat.id}/inputs`)" in script
+    assert "this.chatRead(`/api/chats/${this.activeChat.id}/inputs`)" in script
     assert 'wrapper.className = "markdown-table-wrap"' in script
     assert ".file-markdown .markdown-table-wrap" in styles
     assert ".file-view-page," in styles
