@@ -1337,7 +1337,7 @@ body {
  position: absolute;
  left: 10px;
  top: auto;
- bottom: 10px;
+ bottom: 6px;
  width: 34px;
  height: 34px;
  min-height: 0;
@@ -1425,7 +1425,7 @@ body {
  position: absolute;
  right: 10px;
  top: auto;
- bottom: 10px;
+ bottom: 6px;
  transform: none;
 }
 .composer-foot {
@@ -5188,11 +5188,11 @@ pre,
  }
  .conversation-attach {
   left: 8px;
-  bottom: 10px;
+  bottom: 6px;
  }
  .conversation-send {
   right: 12px !important;
-  bottom: 10px;
+  bottom: 6px;
  }
  .files-drawer {
   width: min(92vw, 380px);
