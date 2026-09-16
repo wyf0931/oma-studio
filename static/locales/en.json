@@ -119,6 +119,11 @@
     "uploadNotFound": "Upload not found",
     "deleteChat": "Delete chat",
     "deleteConversation": "Remove conversation?",
+    "uploadTitle": "Add files to your task",
+    "uploadDropTitle": "Drag and drop files here",
+    "uploadDropHint": "or click to browse from your device",
+    "browseFiles": "Browse files",
+    "uploadLimit": "Up to 5 files per message",
     "agentUnavailable": "This chat's Agent has been deleted or was not found. Please recreate the task."
   },
   "library": {

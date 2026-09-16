@@ -1419,6 +1419,61 @@ body {
 .upload-trigger:hover {
  background: var(--color-base-200);
 }
+.upload-dialog .modal-box {
+ width: min(520px, calc(100vw - 32px));
+ max-width: none;
+}
+.upload-dropzone {
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ gap: 10px;
+ width: 100%;
+ min-height: 190px;
+ padding: 28px 20px;
+ border: 1px dashed var(--line);
+ border-radius: var(--radius-box);
+ background: var(--color-base-200);
+ color: var(--ink);
+ cursor: pointer;
+ font: inherit;
+ text-align: center;
+ transition:
+  border-color 0.15s,
+  background 0.15s;
+}
+.upload-dropzone > .lucide {
+ width: 30px;
+ height: 30px;
+ color: var(--color-primary);
+}
+.upload-dropzone strong {
+ font-size: 16px;
+}
+.upload-dropzone > span:not(.btn) {
+ color: var(--muted);
+ font-size: 13px;
+}
+.upload-dropzone:hover,
+.upload-dropzone-active {
+ border-color: var(--color-primary);
+ background: color-mix(in srgb, var(--color-primary) 8%, var(--color-base-200));
+}
+.upload-dropzone:disabled {
+ cursor: wait;
+ opacity: 0.65;
+}
+.upload-file-input {
+ width: 100%;
+ margin-top: 16px;
+}
+.upload-dialog-note {
+ margin: 10px 0 0;
+ color: var(--muted);
+ font-size: 12px;
+ text-align: center;
+}
 @media (max-width: 800px) {
  .topbar {
   padding: 0 18px;

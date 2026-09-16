@@ -416,7 +416,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260915-agent-search-card-width" in Path(
+    assert "app.js?v=20260915-new-task-upload-dialog" in Path(
         "static/index.html"
     ).read_text(encoding="utf-8")
 
@@ -1258,6 +1258,7 @@ def test_client_uploads_chat_files_and_limits_at_mentions_to_published_artifacts
 
 def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_tokens():
     html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
     styles = Path("static/styles.css").read_text(encoding="utf-8")
 
     start_footer = html.split('<div class="start-composer-foot">', 1)[1]
@@ -1267,6 +1268,12 @@ def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_to
     assert ".upload-trigger" in styles
     assert "border: 1px solid var(--line);" in styles
     assert "border-radius: var(--radius-field);" in styles
+    assert 'class="modal modal-middle upload-dialog"' in html
+    assert 'class="upload-dropzone"' in html
+    assert '@drop.prevent="handleUploadDrop($event)"' in html
+    assert 'class="file-input file-input-bordered upload-file-input"' in html
+    assert "async uploadFiles(selected)" in script
+    assert "this.uploadDialogOpen = false;" in script
 
 
 def test_sidebar_footer_uses_a_grouped_profile_menu_with_existing_actions():
