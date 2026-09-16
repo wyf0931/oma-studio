@@ -476,7 +476,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260916-input-at-mention" in Path("static/index.html").read_text(
+    assert "app.js?v=20260917-composer-actions" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -1591,6 +1591,18 @@ def test_chat_at_picker_includes_inputs_and_supports_keyboard_completion():
     assert 'event.key === "Tab"' in script
     assert ':class="{selected: index === attachmentCommandIndex}"' in html
     assert "left: 0;" in styles
+
+
+def test_composer_actions_stay_bottom_aligned_and_send_is_idle_ghost():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+
+    assert ':class="{idle: !draft.trim()}"' in html
+    assert ':class="{abort: loading, idle: !loading && !draft.trim()}"' in html
+    assert ".conversation-attach {" in styles
+    assert "bottom: 10px;" in styles
+    assert ".icon-send.idle" in styles
+    assert "width: 36px;" in styles
 
 
 def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_tokens():

@@ -536,13 +536,13 @@ body {
  font: 10px "DM Mono";
 }
 .icon-send {
- width: 42px;
- height: 42px;
+ width: 36px;
+ height: 36px;
  border: 0;
  border-radius: 50%;
  background: var(--color-primary);
  color: var(--color-primary-content);
- font: 700 20px Manrope;
+ font: 700 18px Manrope;
  display: grid;
  place-items: center;
  cursor: pointer;
@@ -551,6 +551,10 @@ body {
 .icon-send:disabled {
  opacity: 0.4;
  cursor: not-allowed;
+}
+.icon-send.idle {
+ background: transparent;
+ color: var(--muted);
 }
 .icon-send.abort {
  background: var(--color-error);
@@ -1332,7 +1336,8 @@ body {
 .conversation-attach {
  position: absolute;
  left: 10px;
- top: 50%;
+ top: auto;
+ bottom: 10px;
  width: 34px;
  height: 34px;
  min-height: 0;
@@ -1419,8 +1424,9 @@ body {
 .conversation-send {
  position: absolute;
  right: 10px;
- top: 50%;
- transform: translateY(-50%);
+ top: auto;
+ bottom: 10px;
+ transform: none;
 }
 .composer-foot {
  display: none;
@@ -5182,11 +5188,11 @@ pre,
  }
  .conversation-attach {
   left: 8px;
-  top: 50%;
+  bottom: 10px;
  }
  .conversation-send {
   right: 12px !important;
-  top: 50%;
+  bottom: 10px;
  }
  .files-drawer {
   width: min(92vw, 380px);
