@@ -165,9 +165,29 @@ def create_router(
             "installed_agent_ids": [agent["id"] for agent in installed],
         }
 
+    def agent_view(agent: dict) -> dict:
+        publication_id = agent.get("source_publication_id")
+        publication = (
+            store.get_agent_publication(publication_id) if publication_id else None
+        )
+        if not publication:
+            return agent
+        latest = publication["latest"]
+        return {
+            **agent,
+            "marketplace_latest_version": latest["version"],
+            "marketplace_update_available": agent.get("source_hash")
+            != latest["content_hash"],
+        }
+
     @router.get("/api/agents")
     async def list_agents(request: Request):
-        return {"agents": visible_records(store.list_agents(), request)}
+        return {
+            "agents": [
+                agent_view(agent)
+                for agent in visible_records(store.list_agents(), request)
+            ]
+        }
 
     @router.post("/api/agents", status_code=201)
     async def create_agent(payload: AgentCreate, request: Request):
@@ -321,6 +341,16 @@ def create_router(
                     or installed
                 )
         return {"agent": installed}
+
+    @router.post("/api/agents/{agent_id}/market-update")
+    async def update_agent_from_marketplace(agent_id: str, request: Request):
+        agent = active_agent_or_404(agent_id, request)
+        if not agent.get("source_publication_id"):
+            raise HTTPException(404, "Marketplace Agent not found")
+        updated = store.update_agent_from_publication(agent_id)
+        if not updated:
+            raise HTTPException(404, "Marketplace Agent not found")
+        return agent_view(updated)
 
     @router.get("/api/agents/{agent_id}")
     async def get_agent(agent_id: str, request: Request):

@@ -513,6 +513,24 @@ class Store:
         )
         return agent
 
+    def update_agent_from_publication(self, agent_id: str) -> dict | None:
+        agent = self.get_active_agent(agent_id)
+        publication_id = agent.get("source_publication_id") if agent else None
+        publication = (
+            self.get_agent_publication(publication_id) if publication_id else None
+        )
+        if not agent or not publication:
+            return None
+        latest = publication["latest"]
+        return self.update_agent(
+            agent_id,
+            {
+                **latest["content"],
+                "source_version": latest["version"],
+                "source_hash": latest["content_hash"],
+            },
+        )
+
     def delete_agent(self, agent_id: str) -> bool:
         agent = self.get_agent(agent_id)
         return bool(
