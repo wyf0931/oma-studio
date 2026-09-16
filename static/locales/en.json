@@ -245,6 +245,7 @@
     "agentInstalled": "Installed",
     "agentUpdateAvailable": "Update available",
     "updateAgent": "Update Agent",
+    "confirmUpdate": "Update",
     "updateAgentWarning": "Updating replaces this Agent's configuration with the latest Marketplace version. Your local changes may be overwritten.",
     "updateAgentVersion": "Update to version",
     "deleteMarketplaceAgent": "Delete Marketplace Agent",

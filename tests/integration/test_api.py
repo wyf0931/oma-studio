@@ -495,6 +495,16 @@ def test_agent_marketplace_update_uses_one_confirmed_flow():
     assert "confirmMarketplaceAgentUpdate()" in html
     assert "requestMarketListingUpdate(item)" in script
     assert "/market-update" in script
+    assert "x-text=\"t('marketplace.confirmUpdate')\"" in html
+
+
+def test_chinese_agent_update_warning_uses_localized_marketplace_name():
+    chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
+
+    warning = chinese["marketplace"]["updateAgentWarning"]
+    assert "市场最新版本" in warning
+    assert "Marketplace" not in warning
+    assert chinese["marketplace"]["confirmUpdate"] == "更新"
 
 
 def test_frontend_request_transport_keeps_json_binary_and_streaming_paths_distinct():
