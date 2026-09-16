@@ -114,6 +114,8 @@
     "whatShouldWeDo": "我们接下来做什么？",
     "startChat": "开始聊天",
     "attachFiles": "添加文件",
+    "dropFilesHere": "将文件拖到这里即可添加",
+    "dropFilesHint": "发送消息时才会上传文件",
     "loadingMessages": "正在加载消息…",
     "chatNotFound": "找不到聊天",
     "titleEmpty": "聊天标题不能为空",

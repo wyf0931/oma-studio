@@ -99,12 +99,11 @@ function platform() {
     filesTab: "outputs",
     pendingUploads: [],
     pendingArtifacts: [],
-    uploadDraftChat: null,
     uploadingFiles: false,
-    uploadDialogOpen: false,
     uploadDragActive: false,
+    uploadDragDepth: 0,
     uploadSelection: [],
-    uploadLimits: { max_files: 10, max_bytes: 20 * 1024 * 1024 },
+    uploadLimits: { max_files: 100, max_bytes: 100 * 1024 * 1024 },
     fileViewer: null,
     libraryFiles: [],
     libraryLoading: false,
@@ -1104,7 +1103,17 @@ function platform() {
       return this.filesTab === "inputs" ? this.inputFiles : this.files;
     },
     pendingAttachments() {
-      return [...this.pendingUploads, ...this.pendingArtifacts];
+      return [
+        ...this.pendingUploads,
+        ...this.uploadSelection.map((file) => ({
+          _localFile: file,
+          id: `local:${file.name}:${file.lastModified}:${file.size}`,
+          filename: file.name,
+          media_type: file.type || "application/octet-stream",
+          size: file.size,
+        })),
+        ...this.pendingArtifacts,
+      ];
     },
     attachmentCommandMatch() {
       if (!this.activeChat || this.sharedMode) return null;
@@ -1131,19 +1140,8 @@ function platform() {
       this.draft = this.draft.replace(/(?:^|\s)@[^\s]*$/, (value) => (value.startsWith(" ") ? " " : ""));
       this.$nextTick(() => document.getElementById("conversation-message")?.focus());
     },
-    async ensureUploadChat() {
-      if (this.activeChat) return this.activeChat;
-      if (this.uploadDraftChat) return this.uploadDraftChat;
-      if (!this.selectedAgentId) throw new Error("Choose an Agent before attaching a file");
-      const chat = await this.api("/api/chats", {
-        method: "POST",
-        body: JSON.stringify({ agent_id: this.selectedAgentId }),
-      });
-      this.uploadDraftChat = chat;
-      return chat;
-    },
     openUploadPicker() {
-      if (!this.uploadingFiles) this.uploadDialogOpen = true;
+      if (!this.uploadingFiles) this.$refs.uploadInput?.click();
     },
     async handleUploadSelection(event) {
       const selected = [...(event.target.files || [])];
@@ -1151,15 +1149,30 @@ function platform() {
       this.addUploadSelection(selected);
     },
     async handleUploadDrop(event) {
-      this.uploadDragActive = false;
+      this.resetUploadDragState();
       if (this.uploadingFiles) return;
       this.addUploadSelection([...(event.dataTransfer?.files || [])]);
     },
+    handleContentDragEnter(event) {
+      if (this.uploadingFiles || !event.dataTransfer?.types?.includes("Files")) return;
+      this.uploadDragDepth += 1;
+      this.uploadDragActive = true;
+    },
+    handleContentDragOver(event) {
+      if (!this.uploadingFiles && event.dataTransfer?.types?.includes("Files")) this.uploadDragActive = true;
+    },
+    handleContentDragLeave(event) {
+      if (!event.currentTarget.contains(event.relatedTarget)) this.resetUploadDragState();
+    },
+    resetUploadDragState() {
+      this.uploadDragDepth = 0;
+      this.uploadDragActive = false;
+    },
     addUploadSelection(selected) {
       if (!selected.length || this.uploadingFiles) return;
-      const maxFiles = Number(this.uploadLimits.max_files) || 10;
-      const maxBytes = Number(this.uploadLimits.max_bytes) || 20 * 1024 * 1024;
-      const currentFiles = this.pendingAttachments().length + this.uploadSelection.length;
+      const maxFiles = Number(this.uploadLimits.max_files) || 100;
+      const maxBytes = Number(this.uploadLimits.max_bytes) || 100 * 1024 * 1024;
+      const currentFiles = this.pendingUploads.length + this.pendingArtifacts.length + this.uploadSelection.length;
       const availableFiles = maxFiles - currentFiles;
       if (selected.length > availableFiles) {
         this.showError(new Error(`You can attach at most ${maxFiles} files to one message`));
@@ -1189,11 +1202,12 @@ function platform() {
       if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
       return `${(size / (1024 * 1024)).toFixed(1)} MB`;
     },
-    async uploadFiles() {
-      if (!this.uploadSelection.length || this.uploadingFiles) return;
+    async uploadFiles(chat) {
+      if (!this.uploadSelection.length) return [];
+      if (this.uploadingFiles) return [];
       this.uploadingFiles = true;
+      const uploaded = [];
       try {
-        const chat = await this.ensureUploadChat();
         for (const file of [...this.uploadSelection]) {
           const requestId = crypto.randomUUID();
           const response = await fetch(`/api/chats/${chat.id}/uploads`, {
@@ -1213,26 +1227,24 @@ function platform() {
             throw error;
           }
           this.pendingUploads.push(data);
+          uploaded.push(data);
           this.removeUploadSelection(file);
         }
-        this.uploadDialogOpen = false;
+        return uploaded;
       } catch (error) {
         this.showError(error);
+        throw error;
       } finally {
         this.uploadingFiles = false;
       }
     },
-    startUpload() {
-      void this.uploadFiles();
-    },
-    closeUploadDialog() {
-      if (!this.uploadingFiles) {
-        this.uploadDialogOpen = false;
-        this.uploadDragActive = false;
-      }
+    removePendingAttachment(file) {
+      if (file._localFile) return this.removeUploadSelection(file._localFile);
+      if (file.filename) return void this.removePendingUpload(file);
+      this.removePendingArtifact(file);
     },
     async removePendingUpload(upload) {
-      const chat = this.activeChat || this.uploadDraftChat;
+      const chat = this.activeChat;
       if (!chat) return;
       try {
         await this.api(`/api/chats/${chat.id}/uploads/${upload.id}`, { method: "DELETE" });
@@ -1802,9 +1814,7 @@ function platform() {
       }
     },
     newChat() {
-      const draftChat =
-        this.uploadDraftChat ||
-        (this.activeChat?.status === "created" && this.pendingUploads.length ? this.activeChat : null);
+      const draftChat = this.activeChat?.status === "created" && this.pendingUploads.length ? this.activeChat : null;
       if (draftChat) void this.api(`/api/chats/${draftChat.id}`, { method: "DELETE" }).catch(() => {});
       this.stopWatching();
       this.chatViewToken += 1;
@@ -1819,7 +1829,6 @@ function platform() {
       this.pendingUploads = [];
       this.uploadSelection = [];
       this.pendingArtifacts = [];
-      this.uploadDraftChat = null;
       this.draft = "";
       this.loading = false;
       this.messagesLoading = false;
@@ -1843,7 +1852,6 @@ function platform() {
       this.filesTab = "outputs";
       this.pendingUploads = [];
       this.pendingArtifacts = [];
-      this.uploadDraftChat = null;
       this.resetConversationInput();
       if (updateUrl) history.pushState({}, "", `/chat/${chat.id}` + this.modeQuery());
       this.messages = [];
@@ -1904,18 +1912,13 @@ function platform() {
       }
     },
     async sendFirst() {
-      if (!this.draft.trim() || (!this.selectedAgentId && !this.uploadDraftChat)) return;
-      let createdChatId = this.uploadDraftChat?.id || null;
+      if (!this.draft.trim() || !this.selectedAgentId) return;
       try {
-        const chat =
-          this.uploadDraftChat ||
-          (await this.api("/api/chats", {
-            method: "POST",
-            body: JSON.stringify({ agent_id: this.selectedAgentId }),
-          }));
-        createdChatId = chat.id;
+        const chat = await this.api("/api/chats", {
+          method: "POST",
+          body: JSON.stringify({ agent_id: this.selectedAgentId }),
+        });
         this.selectedAgentId = chat.agent_id;
-        this.uploadDraftChat = null;
         this.activeChat = chat;
         this.chats.unshift(chat);
         history.pushState({}, "", `/chat/${chat.id}`);
@@ -1927,13 +1930,6 @@ function platform() {
           history.pushState({}, "", "/chat" + this.modeQuery());
         }
       } catch (e) {
-        if (createdChatId) {
-          await this.api(`/api/chats/${createdChatId}`, { method: "DELETE" }).catch(() => {});
-        }
-        if (this.activeChat?.title === "New conversation")
-          this.chats = this.chats.filter((item) => item.id !== this.activeChat.id);
-        this.activeChat = null;
-        this.messages = [];
         this.showError(e);
       }
     },
@@ -2010,36 +2006,37 @@ function platform() {
     async sendMessage() {
       const content = this.draft.trim();
       if (!content || !this.activeChat || this.loading) return;
-      const messageAttachments = this.pendingAttachments().map((file) => ({
-        id: file.id || `artifact:${file.path}`,
-        name: file.filename || file.name,
-        path: file.path,
-        media_type: file.media_type || "application/octet-stream",
-        size: file.size,
-      }));
-      this.draft = "";
-      this.resetConversationInput();
-      this.messages.push({
-        _key: crypto.randomUUID(),
-        role: "user",
-        content: [{ type: "text", text: content }],
-        _attachments: messageAttachments,
-      });
-      this.messages.push({
-        _key: crypto.randomUUID(),
-        role: "assistant",
-        content: [{ type: "text", text: "" }],
-        _reasoningParts: [{ type: "thinking", thinking: "" }],
-        _tools: [],
-        _streaming: true,
-      });
       this.loading = true;
-      const uploadIds = this.pendingUploads.map((file) => file.id);
-      const artifactPaths = this.pendingArtifacts.map((file) => file.path);
       const chatId = this.activeChat.id;
       const viewToken = this.chatViewToken;
       const isCurrentView = () => viewToken === this.chatViewToken && this.activeChat?.id === chatId;
       try {
+        await this.uploadFiles(this.activeChat);
+        const messageAttachments = this.pendingAttachments().map((file) => ({
+          id: file.id || `artifact:${file.path}`,
+          name: file.filename || file.name,
+          path: file.path,
+          media_type: file.media_type || "application/octet-stream",
+          size: file.size,
+        }));
+        this.draft = "";
+        this.resetConversationInput();
+        this.messages.push({
+          _key: crypto.randomUUID(),
+          role: "user",
+          content: [{ type: "text", text: content }],
+          _attachments: messageAttachments,
+        });
+        this.messages.push({
+          _key: crypto.randomUUID(),
+          role: "assistant",
+          content: [{ type: "text", text: "" }],
+          _reasoningParts: [{ type: "thinking", thinking: "" }],
+          _tools: [],
+          _streaming: true,
+        });
+        const uploadIds = this.pendingUploads.map((file) => file.id);
+        const artifactPaths = this.pendingArtifacts.map((file) => file.path);
         const requestId = crypto.randomUUID();
         const response = await fetch(`/api/chats/${chatId}/messages`, {
           method: "POST",
