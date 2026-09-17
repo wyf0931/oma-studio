@@ -476,7 +476,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260917-composer-actions" in Path("static/index.html").read_text(
+    assert "app.js?v=20260917-safari-hidden" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -1621,7 +1621,7 @@ def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_to
     assert 'class="modal modal-middle upload-dialog"' not in html
     assert 'class="upload-dropzone"' not in html
     assert '@drop.prevent="handleUploadDrop($event)"' in html
-    assert 'class="hidden"' in html
+    assert 'hidden\n            type="file"' in html
     assert "async uploadFiles(chat)" in script
     assert "this.$refs.uploadInput?.click()" in script
     assert "this.uploadDialogOpen" not in script

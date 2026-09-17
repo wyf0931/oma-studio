@@ -49,7 +49,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260917-composer-actions" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260917-safari-hidden" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -291,7 +291,7 @@
         >
           <input
             x-ref="uploadInput"
-            class="hidden"
+            hidden
             type="file"
             multiple
             @change="handleUploadSelection($event)"
@@ -3478,6 +3478,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260917-composer-actions"></script>
+    <script src="/static/app.js?v=20260917-safari-hidden"></script>
   </body>
 </html>
