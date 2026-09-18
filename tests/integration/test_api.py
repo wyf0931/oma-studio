@@ -1677,6 +1677,15 @@ def test_composer_actions_stay_bottom_aligned_and_send_is_idle_ghost():
     assert "width: 36px;" in styles
 
 
+def test_markdown_code_overflow_stays_inside_message_content():
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+
+    assert "overflow-x: hidden;" in styles
+    assert ".markdown-part pre {" in styles
+    assert ".conversation,\n.message,\n.markdown-part {" in styles
+    assert "white-space: pre;" in styles
+
+
 def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_tokens():
     html = Path("static/index.html").read_text(encoding="utf-8")
     script = Path("static/app.js").read_text(encoding="utf-8")

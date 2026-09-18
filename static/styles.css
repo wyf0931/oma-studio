@@ -592,7 +592,10 @@ body {
 }
 .message-list {
  flex: 1;
- overflow: auto;
+ min-width: 0;
+ max-width: 100%;
+ overflow-y: auto;
+ overflow-x: hidden;
  padding: 28px 3px;
 }
 .chat-loading {
@@ -658,6 +661,9 @@ body {
 .message-body {
  font-size: 14px;
  line-height: 1.75;
+ min-width: 0;
+ max-width: 100%;
+ overflow-wrap: anywhere;
 }
 .message.user .message-body {
  background: var(--color-neutral);
@@ -685,12 +691,15 @@ body {
  color: var(--color-success);
 }
 .message-body pre {
+ min-width: 0;
+ max-width: 100%;
  background: var(--color-base-200);
  border: 1px solid var(--line);
  padding: 14px;
  border-radius: 7px;
  overflow: auto;
  font: 12px / 1.6 "DM Mono";
+ white-space: pre;
 }
 .message-body code {
  font-family: "DM Mono";
@@ -2214,14 +2223,24 @@ body {
  padding-right: clamp(28px, 7vw, 110px);
 }
 .markdown-part pre {
+ min-width: 0;
+ max-width: 100%;
+ overflow-x: auto;
  font-size: 15px;
  line-height: 1.7;
  color: var(--ink);
 }
 .markdown-part pre code {
+ max-width: 100%;
  font-size: 1em;
  line-height: inherit;
  color: var(--ink);
+}
+.conversation,
+.message,
+.markdown-part {
+ min-width: 0;
+ max-width: 100%;
 }
 .chat-empty {
  margin-top: 4vh;
