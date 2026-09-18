@@ -377,6 +377,7 @@
                         class="textarea textarea-bordered start-input"
                         x-model="draft"
                         @input="resizeStartInput($event); updateSkillCommandState()"
+                        @paste="handlePaste($event)"
                         @scroll="syncSkillCommandScroll($event)"
                         @keydown="handleSkillCommandKeydown($event)"
                         @keydown.enter.meta.prevent="sendFirst()"
@@ -577,6 +578,7 @@
                     x-ref="conversationInput"
                     x-model="draft"
                     @input="resizeConversationInput($event); updateAttachmentCommandState()"
+                    @paste="handlePaste($event)"
                     @keydown="handleAttachmentKeydown($event)"
                     @keydown.enter.meta.prevent="sendMessage()"
                     :disabled="loading"
@@ -3526,6 +3528,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260920-artifact-share"></script>
+    <script src="/static/app.js?v=20260922-paste-images"></script>
   </body>
 </html>
