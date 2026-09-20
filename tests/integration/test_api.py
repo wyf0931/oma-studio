@@ -2304,6 +2304,47 @@ def test_markdown_file_preview_can_create_a_public_share_link():
     assert 'new URLSearchParams(location.search).has("share")' in script
 
 
+def test_share_and_message_actions_render_localized_labels():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
+    chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
+
+    # The share bar, the share dialog, and the message actions used to hardcode these
+    # English labels while the locale files already defined the same strings.
+    for literal in (
+        "Copy link",
+        "Copied",
+        "Create &amp; copy",
+        "Share link",
+        "Anyone with the link",
+        "Session usage",
+    ):
+        assert literal not in html
+
+    for key in (
+        "create",
+        "creating",
+        "createCopy",
+        "copy",
+        "copied",
+        "barHint",
+        "shareLink",
+        "anyoneWithLink",
+        "close",
+    ):
+        assert f"t('share.{key}')" in html
+        assert english["share"][key]
+        assert chinese["share"][key]
+
+    for key in ("copyMessage", "copied", "shareMessage", "sessionUsage"):
+        assert f"t('chat.{key}')" in html
+        assert english["chat"][key]
+        assert chinese["chat"][key]
+
+    assert set(english["share"]) == set(chinese["share"])
+    assert set(english["chat"]) == set(chinese["chat"])
+
+
 def test_shared_file_preview_has_dynamic_social_metadata(client, temporary_agent):
     from app import main as main_module
 
