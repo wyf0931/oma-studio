@@ -130,12 +130,17 @@ def test_existing_sqlite_gets_agent_profile_columns(tmp_path: Path):
         columns = {
             row[1] for row in connection.exec_driver_sql("PRAGMA table_info(agents)")
         }
+        artifact_share_columns = {
+            row[1]
+            for row in connection.exec_driver_sql("PRAGMA table_info(artifact_shares)")
+        }
         version = connection.exec_driver_sql(
             "SELECT value FROM schema_meta WHERE key='version'"
         ).scalar()
     engine.dispose()
     assert {"description", "tags_json", "quickstarts_json", "deleted_at"} <= columns
-    assert version == "3"
-    backups = list(tmp_path.glob("platform.sqlite3.schema-v3.*.bak"))
+    assert {"token", "chat_id", "path", "artifact_type"} <= artifact_share_columns
+    assert version == "4"
+    backups = list(tmp_path.glob("platform.sqlite3.schema-v4.*.bak"))
     assert len(backups) == 1
     assert backups[0].stat().st_size > 0

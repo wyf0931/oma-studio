@@ -476,7 +476,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260920-share-file" in Path("static/index.html").read_text(
+    assert "app.js?v=20260920-artifact-share" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -2293,8 +2293,15 @@ def test_markdown_file_preview_can_create_a_public_share_link():
     script = Path("static/app.js").read_text(encoding="utf-8")
 
     assert 'data-lucide="share-2"' in html
-    assert '@click="shareViewedFile()"' in html
-    assert 'new URLSearchParams({ share: data.token, path, from: "chat" })' in script
+    assert 'x-show="fileViewer.canManageShare"' in html
+    assert "requestRevokeShare(fileViewer.artifactShare) : shareViewedFile()" in html
+    assert 'data-lucide="link-2-off"' in html
+    assert "x-text=\"t('share.linkExpiredTitle')\"" in html
+    assert "fileViewerExpired = true" in script
+    assert "artifact-shares?path=" in script
+    assert 'shareTarget = "artifact"' in script
+    assert "this.fileViewer.artifactShare = await this.api(" in script
+    assert 'new URLSearchParams(location.search).has("share")' in script
 
 
 def test_shared_file_preview_has_dynamic_social_metadata(client, temporary_agent):
@@ -2336,6 +2343,118 @@ def test_shared_file_preview_has_dynamic_social_metadata(client, temporary_agent
         'property="og:description" content="Preview roadmap.md from Roadmap &amp;'
         ' launch in OMA Studio."'
     ) in page.text
+    client.delete(f"/api/chats/{chat['id']}")
+
+
+def test_markdown_artifact_shares_are_independent_path_scoped_and_revocable(
+    client, temporary_agent
+):
+    from app import main as main_module
+
+    agent_id = temporary_agent({"name": "artifact-share", "instruction": "x"}).json()[
+        "id"
+    ]
+    chat = client.post("/api/chats", json={"agent_id": agent_id}).json()
+    path = "reports/quarterly/summary.md"
+    other_path = "reports/quarterly/other.md"
+    file_path = main_module.settings.pi_cwd / path
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_text("# Private to this artifact token", encoding="utf-8")
+    other_file_path = main_module.settings.pi_cwd / other_path
+    other_file_path.write_text("# A different generated artifact", encoding="utf-8")
+    session_path = main_module.settings.pi_session_dir / f"test_{chat['id']}.jsonl"
+    session_path.write_text(
+        json.dumps(
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "toolCall",
+                            "name": "write",
+                            "arguments": {"path": path},
+                        },
+                        {
+                            "type": "toolCall",
+                            "name": "write",
+                            "arguments": {"path": other_path},
+                        },
+                    ],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    endpoint = f"/api/chats/{chat['id']}/artifact-shares"
+    assert client.get(endpoint, params={"path": path}).status_code == 404
+    created = client.post(endpoint, params={"path": path})
+    assert created.status_code == 200
+    result = created.json()
+    token = result["token"]
+    assert result["existing"] is False
+    assert result["artifact_type"] == "markdown"
+    assert (
+        result["url"]
+        == f"/file-view?share={token}&path=reports%2Fquarterly%2Fsummary.md&from=chat"
+    )
+
+    reused = client.post(endpoint, params={"path": path})
+    assert reused.json()["token"] == token
+    assert reused.json()["existing"] is True
+    assert client.get(endpoint, params={"path": path}).json()["token"] == token
+
+    public_content = client.get(
+        f"/api/share/{token}/files/content", params={"path": path}
+    )
+    assert public_content.status_code == 200
+    assert public_content.json()["content"] == "# Private to this artifact token"
+    assert (
+        client.get(
+            f"/api/share/{token}/files/content",
+            params={"path": other_path},
+        ).status_code
+        == 404
+    )
+    assert client.get(f"/api/share/{token}").status_code == 404
+
+    page = client.get(result["url"])
+    assert page.status_code == 200
+    assert "<title>summary.md — OMA Studio</title>" in page.text
+    records = client.get("/api/shares").json()["shares"]
+    record = next(item for item in records if item["token"] == token)
+    assert record["kind"] == "artifact"
+    assert record["path"] == path
+    assert record["url"] == result["url"]
+
+    revoked = client.delete(f"/api/shares/{token}")
+    assert revoked.status_code == 200
+    assert (
+        client.get(
+            f"/api/share/{token}/files/content", params={"path": path}
+        ).status_code
+        == 404
+    )
+    assert all(
+        item["token"] != token for item in client.get("/api/shares").json()["shares"]
+    )
+    client.delete(f"/api/chats/{chat['id']}")
+    file_path.unlink(missing_ok=True)
+    other_file_path.unlink(missing_ok=True)
+    file_path.parent.rmdir()
+    file_path.parent.parent.rmdir()
+    session_path.unlink(missing_ok=True)
+
+
+def test_artifact_share_requires_generated_markdown(client, temporary_agent):
+    agent_id = temporary_agent(
+        {"name": "artifact-share-validation", "instruction": "x"}
+    ).json()["id"]
+    chat = client.post("/api/chats", json={"agent_id": agent_id}).json()
+    endpoint = f"/api/chats/{chat['id']}/artifact-shares"
+
+    assert client.post(endpoint, params={"path": "notes.pdf"}).status_code == 415
+    assert client.post(endpoint, params={"path": "missing.md"}).status_code == 404
     client.delete(f"/api/chats/{chat['id']}")
 
 

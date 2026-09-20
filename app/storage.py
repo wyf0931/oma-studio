@@ -15,7 +15,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 from .storage_models import TABLE_MODELS
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 SCHEMA_ALTERS = {
     "agents": {
         "description": "TEXT",
@@ -200,6 +200,8 @@ def _validate_records(
         ("autopilot_runs", "chat_id", "chats"),
         ("shares", "user_id", "users"),
         ("shares", "chat_id", "chats"),
+        ("artifact_shares", "user_id", "users"),
+        ("artifact_shares", "chat_id", "chats"),
         ("sessions", "user_id", "users"),
         ("agent_publications", "source_agent_id", "agents"),
         ("agent_publications", "owner_user_id", "users"),

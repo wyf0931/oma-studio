@@ -120,6 +120,17 @@ class Share(SQLModel, table=True):
     extra_json: str = "{}"
 
 
+class ArtifactShare(SQLModel, table=True):
+    __tablename__: ClassVar[str] = "artifact_shares"
+    token: str = Field(primary_key=True)
+    user_id: str | None = Field(default=None, index=True)
+    chat_id: str = Field(index=True)
+    path: str
+    artifact_type: str = "markdown"
+    created_at: str
+    extra_json: str = "{}"
+
+
 class AgentPublication(SQLModel, table=True):
     __tablename__: ClassVar[str] = "agent_publications"
     id: str = Field(primary_key=True)
@@ -168,6 +179,7 @@ TABLE_MODELS = {
     "autopilots": Autopilot,
     "autopilot_runs": AutopilotRun,
     "shares": Share,
+    "artifact_shares": ArtifactShare,
     "agent_publications": AgentPublication,
     "agent_publication_versions": AgentPublicationVersion,
     "uploads": Upload,

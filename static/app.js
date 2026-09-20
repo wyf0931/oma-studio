@@ -85,6 +85,7 @@ function platform() {
     shareMode: false,
     shareStep: null,
     shareUrl: "",
+    shareTarget: "session",
     creatingShare: false,
     copiedShare: false,
     copiedKey: "",
@@ -113,6 +114,7 @@ function platform() {
     attachmentCommandDismissed: false,
     uploadLimits: { max_files: 100, max_bytes: 100 * 1024 * 1024 },
     fileViewer: null,
+    fileViewerExpired: false,
     sharingViewedFile: false,
     libraryFiles: [],
     libraryLoading: false,
@@ -260,9 +262,7 @@ function platform() {
       this.observeIcons();
       this.observeImageArtifacts();
       this.sharedMode =
-        window.location.pathname.startsWith("/share/") ||
-        window.location.pathname === "/file-view" ||
-        new URLSearchParams(location.search).has("share");
+        window.location.pathname.startsWith("/share/") || new URLSearchParams(location.search).has("share");
       if (this.sharedMode) this.authChecked = true;
       this.initializeThemePreference();
       await this.initI18n();
@@ -655,11 +655,12 @@ function platform() {
       }
     },
     shareRecordTitle(share) {
+      if (share.kind === "artifact") return String(share.path || "");
       const title = String(share.title || "");
       return [...title].length > 20 ? `${[...title].slice(0, 20).join("")}…` : title;
     },
     shareRecordUrl(share) {
-      return `/share/${encodeURIComponent(share.token || "")}`;
+      return share.url || `/share/${encodeURIComponent(share.token || "")}`;
     },
     requestRevokeShare(share) {
       this.shareRevokeTarget = share;
@@ -671,7 +672,10 @@ function platform() {
       try {
         await this.api(`/api/shares/${encodeURIComponent(share.token)}`, { method: "DELETE" });
         this.shareRecords = this.shareRecords.filter((item) => item.token !== share.token);
-        if (this.shareUrl.endsWith(`/share/${share.token}`)) this.resetShare();
+        if (this.fileViewer?.artifactShare?.token === share.token) this.fileViewer.artifactShare = null;
+        if (this.shareUrl.endsWith(`/share/${share.token}`) || this.shareUrl.includes(`share=${share.token}&`)) {
+          this.resetShare();
+        }
         this.shareRevokeTarget = null;
         this.showToast(this.t("share.revoked"));
       } catch (error) {
@@ -1418,7 +1422,14 @@ function platform() {
       const share = params.get("share");
       const chatId = params.get("chat_id");
       const path = params.get("path");
+      this.fileViewer = null;
+      this.fileViewerExpired = false;
       if ((!chatId && !share) || !path) {
+        if (share) {
+          this.fileViewerExpired = true;
+          document.title = this.t("share.linkExpiredTitle");
+          return;
+        }
         this.showError(new Error("File reference is incomplete"));
         return;
       }
@@ -1431,13 +1442,37 @@ function platform() {
         this.fileViewer = {
           chatId: chatId || `share:${share}`,
           isShared: Boolean(share),
+          canManageShare: Boolean(
+            chatId &&
+            !share &&
+            params.get("kind") !== "input" &&
+            ["md", "markdown"].includes(path.split(".").pop()?.toLowerCase() || ""),
+          ),
+          artifactShare: null,
           path,
           content: data.content,
         };
+        if (this.fileViewer.canManageShare) await this.loadArtifactShare(chatId, path);
         document.title = path.split("/").pop() || "File";
         setTimeout(() => this.renderMermaidDiagrams(), 0);
-      } catch (e) {
-        this.showError(e);
+      } catch (error) {
+        if (share && error.status === 404) {
+          this.fileViewer = null;
+          this.fileViewerExpired = true;
+          document.title = this.t("share.linkExpiredTitle");
+        } else {
+          this.showError(error);
+        }
+      }
+    },
+    async loadArtifactShare(chatId, path) {
+      try {
+        this.fileViewer.artifactShare = await this.api(
+          `/api/chats/${encodeURIComponent(chatId)}/artifact-shares?path=${encodeURIComponent(path)}`,
+        );
+        this.fileViewer.artifactShare.kind = "artifact";
+      } catch (error) {
+        if (error.status !== 404) this.showError(error);
       }
     },
     async shareViewedFile() {
@@ -1447,19 +1482,21 @@ function platform() {
       if (!chatId || !path || this.sharingViewedFile) return;
       this.sharingViewedFile = true;
       try {
-        const data = await this.api(`/api/chats/${encodeURIComponent(chatId)}/share`, {
-          method: "POST",
-        });
-        const query = new URLSearchParams({ share: data.token, path, from: "chat" });
-        const url = `${location.origin}/file-view?${query.toString()}`;
-        try {
-          if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
-          await navigator.clipboard.writeText(url);
-        } catch {
-          window.prompt(this.t("share.fileLinkCreated"), url);
-          return;
-        }
-        this.showToast(this.t("share.fileLinkCopied"));
+        const data = await this.api(
+          `/api/chats/${encodeURIComponent(chatId)}/artifact-shares?path=${encodeURIComponent(path)}`,
+          {
+            method: "POST",
+          },
+        );
+        this.fileViewer.artifactShare = {
+          ...data,
+          kind: "artifact",
+          title: this.activeChat?.title || "",
+        };
+        this.shareTarget = "artifact";
+        this.shareUrl = `${location.origin}${data.url}`;
+        this.shareStep = "created";
+        this.copiedShare = false;
       } catch (error) {
         this.showError(error);
       } finally {
@@ -2478,6 +2515,7 @@ function platform() {
     async startShare() {
       if (!this.activeChat || this.sharedMode) return;
       try {
+        this.shareTarget = "session";
         const data = await this.api(`/api/chats/${this.activeChat.id}/share`);
         this.shareUrl = `${location.origin}${data.url}`;
         this.shareStep = "created";
@@ -2513,6 +2551,7 @@ function platform() {
       this.shareMode = false;
     },
     openShareDialog() {
+      this.shareTarget = "session";
       this.shareStep = "confirm";
     },
     closeShareDialog() {
@@ -2524,11 +2563,13 @@ function platform() {
       this.shareStep = null;
       this.shareUrl = "";
       this.copiedShare = false;
+      this.shareTarget = "session";
     },
     async createShare() {
       if (!this.activeChat || this.creatingShare) return;
       this.creatingShare = true;
       try {
+        this.shareTarget = "session";
         const data = await this.api(`/api/chats/${this.activeChat.id}/share`, {
           method: "POST",
         });

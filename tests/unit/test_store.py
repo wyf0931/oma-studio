@@ -87,6 +87,29 @@ def test_chat_index_does_not_store_messages(tmp_path: Path):
     assert "session_file" not in chat
 
 
+def test_artifact_shares_are_independent_per_file_and_revocable(tmp_path: Path):
+    store = Store(tmp_path / "platform.sqlite3")
+    agent = store.ensure_default_agent()
+    chat = store.create_chat(agent["id"], user_id="owner-1")
+
+    first = store.create_artifact_share(chat["id"], "reports/one.md", "owner-1")
+    reused = store.create_artifact_share(chat["id"], "reports/one.md", "owner-1")
+    second = store.create_artifact_share(chat["id"], "reports/two.md", "owner-1")
+
+    assert first["token"] == reused["token"]
+    assert first["token"] != second["token"]
+    assert first["artifact_type"] == "markdown"
+    assert {share["path"] for share in store.list_artifact_shares("owner-1")} == {
+        "reports/one.md",
+        "reports/two.md",
+    }
+    assert store.delete_artifact_share(first["token"], "someone-else") is False
+    assert store.delete_artifact_share(first["token"], "owner-1") is True
+    assert store.get_artifact_share(first["token"]) is None
+    assert store.delete_chat(chat["id"]) is True
+    assert store.list_artifact_shares("owner-1") == []
+
+
 def test_autopilot_chats_always_get_fresh_session_ids(tmp_path: Path):
     store = Store(tmp_path / "db.json")
     agent = store.ensure_default_agent()
