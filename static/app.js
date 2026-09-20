@@ -113,6 +113,7 @@ function platform() {
     attachmentCommandDismissed: false,
     uploadLimits: { max_files: 100, max_bytes: 100 * 1024 * 1024 },
     fileViewer: null,
+    sharingViewedFile: false,
     libraryFiles: [],
     libraryLoading: false,
     librarySearch: "",
@@ -657,8 +658,8 @@ function platform() {
       const title = String(share.title || "");
       return [...title].length > 20 ? `${[...title].slice(0, 20).join("")}…` : title;
     },
-    shareRecordLink(share) {
-      return `/share/${String(share.token || "").slice(0, 8)}…`;
+    shareRecordUrl(share) {
+      return `/share/${encodeURIComponent(share.token || "")}`;
     },
     requestRevokeShare(share) {
       this.shareRevokeTarget = share;
@@ -1429,6 +1430,7 @@ function platform() {
             );
         this.fileViewer = {
           chatId: chatId || `share:${share}`,
+          isShared: Boolean(share),
           path,
           content: data.content,
         };
@@ -1436,6 +1438,32 @@ function platform() {
         setTimeout(() => this.renderMermaidDiagrams(), 0);
       } catch (e) {
         this.showError(e);
+      }
+    },
+    async shareViewedFile() {
+      const params = new URLSearchParams(location.search);
+      const chatId = params.get("chat_id");
+      const path = this.fileViewer?.path;
+      if (!chatId || !path || this.sharingViewedFile) return;
+      this.sharingViewedFile = true;
+      try {
+        const data = await this.api(`/api/chats/${encodeURIComponent(chatId)}/share`, {
+          method: "POST",
+        });
+        const query = new URLSearchParams({ share: data.token, path, from: "chat" });
+        const url = `${location.origin}/file-view?${query.toString()}`;
+        try {
+          if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+          await navigator.clipboard.writeText(url);
+        } catch {
+          window.prompt(this.t("share.fileLinkCreated"), url);
+          return;
+        }
+        this.showToast(this.t("share.fileLinkCopied"));
+      } catch (error) {
+        this.showError(error);
+      } finally {
+        this.sharingViewedFile = false;
       }
     },
     renderMermaidDiagrams() {

@@ -476,7 +476,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260917-safari-hidden" in Path("static/index.html").read_text(
+    assert "app.js?v=20260920-share-file" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -2280,8 +2280,21 @@ def test_share_records_profile_ui_uses_revoke_confirmation_and_existing_link_che
     assert 'data-lucide="link-2-off"' in html
     assert 'x-show="shareRecordsOpen"' in html
     assert 'x-show="shareRevokeTarget"' in html
+    assert "t('share.shareId')" in html
+    assert 'target="_blank"' in html
+    assert 'x-text="share.token"' in html
     assert 'this.api("/api/shares")' in script
     assert "this.api(`/api/chats/${this.activeChat.id}/share`)" in script
+    assert "shareRecordUrl(share)" in script
+
+
+def test_markdown_file_preview_can_create_a_public_share_link():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+
+    assert 'data-lucide="share-2"' in html
+    assert '@click="shareViewedFile()"' in html
+    assert 'new URLSearchParams({ share: data.token, path, from: "chat" })' in script
 
 
 def test_shared_file_preview_has_dynamic_social_metadata(client, temporary_agent):
