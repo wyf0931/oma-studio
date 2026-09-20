@@ -3175,6 +3175,16 @@ pre,
  margin-left: auto;
  margin-right: auto;
 }
+.file-view-share {
+ flex: 0 0 auto;
+ margin-left: auto;
+}
+.share-record-id {
+ display: inline-block;
+ max-width: 240px;
+ overflow-wrap: anywhere;
+ vertical-align: middle;
+}
 .file-view-back {
  position: fixed;
  top: 18px;
