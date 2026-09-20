@@ -2,7 +2,11 @@ import json
 from pathlib import Path
 
 from app.config import get_settings
-from app.resources import discover_models, discover_resources
+from app.resources import (
+    discover_models,
+    discover_resources,
+    resolve_extension_path,
+)
 
 
 def test_discovers_pi_model_catalog(tmp_path: Path):
@@ -217,3 +221,60 @@ def test_resource_metadata_includes_package_author(tmp_path: Path):
 
     extensions = discover_resources(pi_home, tmp_path / "workspace")["extensions"]
     assert extensions[0]["author"] == "Example Author"
+
+
+def _package(tmp_path: Path, name: str, declared: list[str], entries: list[str]):
+    package_dir = tmp_path / "npm" / "node_modules" / name
+    package_dir.mkdir(parents=True)
+    (package_dir / "package.json").write_text(
+        json.dumps({"name": name, "pi": {"extensions": declared}}),
+        encoding="utf-8",
+    )
+    for entry in entries:
+        path = package_dir / entry
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("export default {}", encoding="utf-8")
+    return package_dir
+
+
+def test_resolve_extension_path_heals_renamed_package_entry(tmp_path: Path):
+    # pi-subagents 0.70.0 ships compiled index.js, so a saved index.ts path goes stale.
+    package_dir = _package(tmp_path, "pi-subagents", ["./index.js"], ["index.js"])
+
+    assert resolve_extension_path(str(package_dir / "index.ts")) == str(
+        package_dir / "index.js"
+    )
+
+
+def test_resolve_extension_path_prefers_the_declared_entry(tmp_path: Path):
+    package_dir = _package(
+        tmp_path,
+        "example-extension",
+        ["./dist/entry.js"],
+        ["index.ts", "dist/entry.js"],
+    )
+
+    assert resolve_extension_path(str(package_dir / "legacy.ts")) == str(
+        package_dir / "dist" / "entry.js"
+    )
+
+
+def test_resolve_extension_path_keeps_existing_and_unknown_paths(tmp_path: Path):
+    package_dir = _package(tmp_path, "example-extension", [], ["index.ts"])
+    existing = str(package_dir / "index.ts")
+    assert resolve_extension_path(existing) == existing
+
+    unknown = str(tmp_path / "npm" / "node_modules" / "gone" / "index.ts")
+    assert resolve_extension_path(unknown) == unknown
+
+
+def test_resolve_extension_path_handles_directory_extensions(tmp_path: Path):
+    extension_dir = tmp_path / "extensions" / "local-extension"
+    extension_dir.mkdir(parents=True)
+    (extension_dir / "index.js").write_text("export default {}", encoding="utf-8")
+
+    # An existing extension directory is passed to Pi as-is.
+    assert resolve_extension_path(str(extension_dir)) == str(extension_dir)
+    assert resolve_extension_path(str(extension_dir / "index.ts")) == str(
+        extension_dir / "index.js"
+    )

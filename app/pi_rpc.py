@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
-from .resources import discover_resources
+from .resources import discover_resources, resolve_extension_path
 from .store import IMAGE_TOOLS, WEB_TOOLS, pi_terminal_failure
 
 logger = logging.getLogger(__name__)
@@ -376,9 +376,7 @@ class PiRuntimeManager:
                 Path(__file__).parent.parent / "extensions" / "oma-image-tools.ts"
             )
             command += ["--extension", str(extension)]
-        extension_paths = [
-            self._resource_path(path) for path in agent.get("extensions", [])
-        ]
+        extension_paths = self._extension_paths(agent)
         if any("pi-mcp-adapter" in path for path in extension_paths):
             for tool in ("mcp", "mcpScript"):
                 if tool not in tools:
@@ -442,6 +440,30 @@ class PiRuntimeManager:
         finally:
             await client.close()
         return parse_agent_profile(result.get("text", ""))
+
+    def _extension_paths(self, agent: dict) -> list[str]:
+        """Map selected extensions to their mounts and heal renamed package entries.
+
+        Agent records keep the path discovered when they were saved, so a Pi
+        package that renames its entry file would otherwise pass a missing path
+        to Pi, which exits before any request can be served.
+        """
+        paths: list[str] = []
+        for value in agent.get("extensions", []):
+            mapped = self._resource_path(value)
+            resolved = resolve_extension_path(mapped)
+            if resolved != mapped:
+                logger.warning(
+                    "Pi extension entry no longer exists; using the current entry",
+                    extra={
+                        "event": "pi.extension.reentry",
+                        "operation": "resolve",
+                        "stored_path": mapped,
+                        "resolved_path": resolved,
+                    },
+                )
+            paths.append(resolved)
+        return paths
 
     def _resource_path(self, value: str) -> str:
         """Map host Pi and agent-neutral paths to their container mounts."""
