@@ -50,6 +50,10 @@ def _skill_metadata(path: Path, source: str | None = None) -> dict:
     }
 
 
+# Conventional Pi extension entry files, used to heal renamed package entries.
+_EXTENSION_ENTRY_FILES = ("index.js", "index.ts", "index.mjs", "index.cjs")
+
+
 def _skill_sources(pi_home: Path, agents_home: Path) -> dict[str, str]:
     sources: dict[str, str] = {}
     for lock_path in (
@@ -70,6 +74,47 @@ def _skill_sources(pi_home: Path, agents_home: Path) -> dict[str, str]:
             if isinstance(skill_path, str):
                 sources[Path(skill_path).parent.name] = entry["source"]
     return sources
+
+
+def _package_entry_candidates(directory: Path) -> list[Path]:
+    """Entry files a Pi package directory can expose, declared entries first."""
+    candidates: list[Path] = []
+    package_file = directory / "package.json"
+    if package_file.is_file():
+        try:
+            package = json.loads(package_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            package = {}
+        if isinstance(package, dict):
+            declared = (package.get("pi") or {}).get("extensions")
+            if isinstance(declared, list):
+                candidates += [
+                    directory / relative
+                    for relative in declared
+                    if isinstance(relative, str)
+                ]
+    candidates += [directory / name for name in _EXTENSION_ENTRY_FILES]
+    return candidates
+
+
+def resolve_extension_path(value: str) -> str:
+    """Return a loadable entry for an extension path persisted by an Agent.
+
+    Agents store the path discovered when they were saved, so a Pi package that
+    renames its entry file leaves them pointing at a file that no longer exists
+    (pi-subagents 0.70.0 ships compiled ``index.js`` instead of ``index.ts``).
+    Re-resolve inside the same directory before Pi is started; the original value
+    is returned unchanged when nothing else matches, so Pi still reports the
+    failure instead of silently dropping the Agent's selection.
+    """
+    path = Path(value)
+    if path.exists():
+        return value
+    directory = path if path.is_dir() or not path.suffix else path.parent
+    for candidate in _package_entry_candidates(directory):
+        if candidate.is_file():
+            return str(candidate)
+    return value
 
 
 def _extension_metadata(

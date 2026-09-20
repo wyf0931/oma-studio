@@ -1,4 +1,5 @@
 import asyncio
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -146,6 +147,69 @@ def test_container_maps_host_pi_home_resource_paths():
         create=False,
     )
     assert "/home/node/.agents/skills/shared-skill" in command
+
+
+def test_command_heals_extension_entries_renamed_by_a_package_upgrade(tmp_path):
+    # pi-subagents 0.70.0 ships compiled index.js, so saved index.ts paths go stale
+    # and Pi exits before serving any request.
+    package_dir = tmp_path / "pi-subagents"
+    package_dir.mkdir()
+    (package_dir / "package.json").write_text(
+        json.dumps({"name": "pi-subagents", "pi": {"extensions": ["./index.js"]}}),
+        encoding="utf-8",
+    )
+    (package_dir / "index.js").write_text("export default {}", encoding="utf-8")
+
+    settings = SimpleNamespace(
+        pi_cli_path="pi",
+        pi_session_dir="sessions",
+        pi_provider=None,
+        pi_model=None,
+        pi_thinking_level="low",
+        pi_home=str(tmp_path / ".pi" / "agent"),
+        pi_agents_home=str(tmp_path / ".agents"),
+    )
+    runtime = PiRuntimeManager(settings, store=None)
+    command = runtime._command(
+        {
+            "instruction": "Delegate work.",
+            "tools": ["read"],
+            "extensions": [str(package_dir / "index.ts")],
+            "skills": [],
+        },
+        "chat-1",
+        create=False,
+    )
+
+    assert str(package_dir / "index.js") in command
+    assert str(package_dir / "index.ts") not in command
+
+
+def test_command_keeps_unresolvable_extension_paths_for_pi_to_report(tmp_path):
+    missing = tmp_path / "gone" / "index.ts"
+
+    settings = SimpleNamespace(
+        pi_cli_path="pi",
+        pi_session_dir="sessions",
+        pi_provider=None,
+        pi_model=None,
+        pi_thinking_level="low",
+        pi_home=str(tmp_path / ".pi" / "agent"),
+        pi_agents_home=str(tmp_path / ".agents"),
+    )
+    runtime = PiRuntimeManager(settings, store=None)
+    command = runtime._command(
+        {
+            "instruction": "Delegate work.",
+            "tools": ["read"],
+            "extensions": [str(missing)],
+            "skills": [],
+        },
+        "chat-1",
+        create=False,
+    )
+
+    assert str(missing) in command
 
 
 def test_instruction_generator_is_ephemeral_and_loads_selected_skills_read_only():
