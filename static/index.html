@@ -522,20 +522,30 @@
                   ><article class="message" :class="message.role" x-show="messageVisible(message)">
                     <div class="message-body" x-html="renderMessage(message)"></div>
                     <div class="assistant-footer" x-show="isActionableAssistant(message)">
-                      <div class="session-usage" x-html="sessionUsageMarkup()" aria-label="Session usage"></div>
+                      <div
+                        class="session-usage"
+                        x-html="sessionUsageMarkup()"
+                        :aria-label="t('chat.sessionUsage')"
+                      ></div>
                       <div class="message-actions">
                         <button
                           type="button"
                           class="action-btn"
                           :class="{ active: copiedKey === message._key }"
                           @click="copyMessage(message)"
-                          :title="copiedKey === message._key ? 'Copied' : 'Copy'"
-                          aria-label="Copy"
+                          :title="copiedKey === message._key ? t('chat.copied') : t('chat.copyMessage')"
+                          :aria-label="t('chat.copyMessage')"
                         >
                           <i data-lucide="check" x-show="copiedKey === message._key" aria-hidden="true"></i>
                           <i data-lucide="copy" x-show="copiedKey !== message._key" aria-hidden="true"></i>
                         </button>
-                        <button type="button" class="action-btn" @click="startShare()" title="Share" aria-label="Share">
+                        <button
+                          type="button"
+                          class="action-btn"
+                          @click="startShare()"
+                          :title="t('chat.shareMessage')"
+                          :aria-label="t('chat.shareMessage')"
+                        >
                           <i data-lucide="share-2" aria-hidden="true"></i>
                         </button>
                       </div>
@@ -612,14 +622,16 @@
                 </div>
               </div>
               <div class="share-bar" x-show="shareMode" x-cloak>
-                <span class="share-hint"
-                  >Create a read-only link to this conversation. Anyone with the link can view it — no sign-in
-                  required.</span
-                >
+                <span class="share-hint" x-text="t('share.barHint')"></span>
                 <div class="share-bar-actions">
-                  <button type="button" class="btn btn-ghost" @click="cancelShare()">Cancel</button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost"
+                    @click="cancelShare()"
+                    x-text="t('common.cancel')"
+                  ></button>
                   <button type="button" class="btn btn-primary" @click="openShareDialog()" :disabled="creatingShare">
-                    <span x-text="creatingShare ? 'Creating…' : 'Create share link'"></span>
+                    <span x-text="creatingShare ? t('share.creating') : t('share.create')"></span>
                   </button>
                 </div>
               </div>
@@ -3483,23 +3495,20 @@
       <div class="modal-box share-dialog">
         <div class="dialog-head">
           <h2 x-text="shareTarget === 'artifact' ? t('share.fileShareTitle') : t('share.create')"></h2>
-          <button type="button" class="icon-btn" @click="closeShareDialog()" aria-label="Close">
+          <button type="button" class="icon-btn" @click="closeShareDialog()" :aria-label="t('share.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
         <template x-if="shareStep === 'confirm'"
           ><div>
-            <p class="share-warning">
-              Anyone with the link can view this conversation — no password or sign-in required. Check for sensitive or
-              private content before sharing.
-            </p>
+            <p class="share-warning" x-text="t('share.anyoneWithLink')"></p>
             <button
               type="button"
               class="btn btn-primary create-share-btn"
               @click="createShare()"
               :disabled="creatingShare"
             >
-              <span x-text="creatingShare ? 'Creating…' : 'Create & copy'"></span>
+              <span x-text="creatingShare ? t('share.creating') : t('share.createCopy')"></span>
             </button></div></template
         ><template x-if="shareStep === 'created'"
           ><div class="share-link-row">
@@ -3509,10 +3518,10 @@
               :value="shareUrl"
               readonly
               @focus="$event.target.select()"
-              aria-label="Share link"
+              :aria-label="t('share.shareLink')"
             />
             <button type="button" class="btn btn-primary copy-link-btn" @click="copyShareLink()">
-              <span x-text="copiedShare ? 'Copied' : 'Copy link'"></span>
+              <span x-text="copiedShare ? t('share.copied') : t('share.copy')"></span>
             </button></div
         ></template>
       </div>
