@@ -3161,8 +3161,16 @@ pre,
  margin: 0;
  overflow-x: hidden;
 }
-.app-shell.shared .file-view-page {
+.app-shell.shared .file-view-page,
+.app-shell.file-preview .file-view-page {
  padding: 72px clamp(22px, 8vw, 140px) 48px;
+}
+.app-shell.file-preview .history-panel,
+.app-shell.file-preview .mobile-topbar {
+ display: none;
+}
+.app-shell.file-preview .workspace {
+ grid-template-columns: 1fr;
 }
 .file-view-header {
  display: flex;
@@ -3178,6 +3186,31 @@ pre,
 .file-view-share {
  flex: 0 0 auto;
  margin-left: auto;
+}
+.file-share-expired {
+ max-width: 440px;
+ min-height: 48vh;
+ margin: 12vh auto 0;
+ display: grid;
+ justify-items: center;
+ align-content: center;
+ gap: 14px;
+ text-align: center;
+}
+.file-share-expired-icon {
+ width: 30px;
+ height: 30px;
+ color: var(--muted);
+}
+.file-share-expired h1 {
+ margin: 0;
+ font-size: 22px;
+ font-weight: 650;
+}
+.file-share-expired p {
+ max-width: 340px;
+ color: var(--muted);
+ margin: 0;
 }
 .share-record-id {
  display: inline-block;
@@ -5656,8 +5689,15 @@ body > .link-drawer {
 }
 .share-link-row {
  display: flex;
+ flex-wrap: wrap;
  gap: 8px;
  align-items: center;
+}
+.share-link-note {
+ flex: 0 0 100%;
+ margin: 0 0 4px;
+ color: var(--muted);
+ font-size: 14px;
 }
 .share-link-input {
  flex: 1;

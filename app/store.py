@@ -593,6 +593,7 @@ class Store:
 
     def delete_chat(self, chat_id: str) -> bool:
         self._remove("shares", lambda item: item.get("chat_id") == chat_id)
+        self._remove("artifact_shares", lambda item: item.get("chat_id") == chat_id)
         self._remove("uploads", lambda item: item.get("chat_id") == chat_id)
         return bool(self._remove("chats", lambda item: item.get("id") == chat_id))
 
@@ -651,14 +652,72 @@ class Store:
         existing = self.get_chat_share(chat_id)
         if existing:
             return existing
+        token = secrets.token_urlsafe(12)
+        while self.get_share(token) or self.get_artifact_share(token):
+            token = secrets.token_urlsafe(12)
         share = {
-            "token": secrets.token_urlsafe(12),
+            "token": token,
             "chat_id": chat_id,
             "created_at": now_iso(),
         }
         if user_id:
             share["user_id"] = user_id
         self._insert("shares", share)
+        return share
+
+    def get_artifact_share(self, token: str) -> dict | None:
+        return self._find("artifact_shares", lambda item: item.get("token") == token)
+
+    def get_chat_artifact_share(self, chat_id: str, path: str) -> dict | None:
+        return self._find(
+            "artifact_shares",
+            lambda item: item.get("chat_id") == chat_id and item.get("path") == path,
+        )
+
+    def list_artifact_shares(self, user_id: str) -> list[dict]:
+        return sorted(
+            [
+                share
+                for share in self._all("artifact_shares")
+                if share.get("user_id") == user_id
+            ],
+            key=lambda share: share.get("created_at", ""),
+            reverse=True,
+        )
+
+    def delete_artifact_share(self, token: str, user_id: str) -> bool:
+        return bool(
+            self._remove(
+                "artifact_shares",
+                lambda share: (
+                    share.get("token") == token and share.get("user_id") == user_id
+                ),
+            )
+        )
+
+    def create_artifact_share(
+        self,
+        chat_id: str,
+        path: str,
+        user_id: str | None = None,
+        artifact_type: str = "markdown",
+    ) -> dict:
+        existing = self.get_chat_artifact_share(chat_id, path)
+        if existing:
+            return existing
+        token = secrets.token_urlsafe(12)
+        while self.get_share(token) or self.get_artifact_share(token):
+            token = secrets.token_urlsafe(12)
+        share = {
+            "token": token,
+            "chat_id": chat_id,
+            "path": path,
+            "artifact_type": artifact_type,
+            "created_at": now_iso(),
+        }
+        if user_id:
+            share["user_id"] = user_id
+        self._insert("artifact_shares", share)
         return share
 
     def list_autopilots(self) -> list[dict]:

@@ -247,11 +247,27 @@ async def shared_spa(token: str, request: Request):
 async def file_view_spa(request: Request):
     token = request.query_params.get("share")
     path = request.query_params.get("path")
-    chat = _shared_chat(token) if token else None
+    artifact_share = store.get_artifact_share(token) if token else None
+    if artifact_share and artifact_share.get("path") == path:
+        chat = store.get_chat(artifact_share["chat_id"])
+    elif artifact_share:
+        chat = None
+    else:
+        chat = _shared_chat(token) if token else None
     if chat and path:
         session_file = runtime.newest_session_file(chat)
         messages = read_session_messages(session_file) if session_file else []
         file_path = resolve_chat_file(messages, settings.pi_cwd, path)
+        if (
+            artifact_share
+            and file_path
+            and file_path.suffix.lower()
+            not in {
+                ".md",
+                ".markdown",
+            }
+        ):
+            file_path = None
         if file_path:
             chat_title = chat.get("title") or "Shared conversation"
             return _spa_page(
