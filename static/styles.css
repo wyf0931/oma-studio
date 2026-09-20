@@ -3184,8 +3184,10 @@ pre,
  margin-right: auto;
 }
 .file-view-share {
- flex: 0 0 auto;
- margin-left: auto;
+ position: fixed;
+ top: 18px;
+ right: 18px;
+ z-index: 40;
 }
 .file-share-expired {
  max-width: 440px;
@@ -3282,6 +3284,10 @@ pre,
  .file-view-back {
   top: 8px;
   left: 8px;
+ }
+ .file-view-share {
+  top: 8px;
+  right: 8px;
  }
 }
 }
