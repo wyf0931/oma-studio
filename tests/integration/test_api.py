@@ -221,6 +221,58 @@ def test_agent_auto_model_configuration_requires_all_three_values():
     assert error.value.status_code == 422
 
 
+def test_agent_auto_model_configuration_clears_explicit_selection(
+    client, temporary_agent, monkeypatch
+):
+    import app.api.routers.agents as agents_router
+
+    catalog = {
+        "extensions": [],
+        "skills": [],
+        "mcp_servers": [],
+        "providers": [
+            {
+                "id": "deepseek",
+                "models": [
+                    {
+                        "id": "deepseek-flash",
+                        "thinking_levels": ["minimal", "low", "medium"],
+                    }
+                ],
+            }
+        ],
+    }
+    monkeypatch.setattr(agents_router, "discover_resources", lambda *_args: catalog)
+
+    created = temporary_agent(
+        {
+            "name": "auto-config",
+            "instruction": "Use the deployment defaults.",
+            "provider": "deepseek",
+            "model": "deepseek-flash",
+            "thinking_level": "low",
+        }
+    )
+    assert created.status_code == 201
+    agent_id = created.json()["id"]
+    assert created.json()["provider"] == "deepseek"
+
+    updated = client.patch(
+        f"/api/agents/{agent_id}",
+        json={"provider": None, "model": None, "thinking_level": None},
+    )
+
+    assert updated.status_code == 200
+    body = updated.json()
+    assert body["provider"] is None
+    assert body["model"] is None
+    assert body["thinking_level"] is None
+    stored = client.get(f"/api/agents/{agent_id}").json()
+    assert stored["provider"] is None
+    assert stored["model"] is None
+    assert stored["thinking_level"] is None
+
+
 def test_instruction_draft_uses_validated_selected_capabilities(client, monkeypatch):
     import app.main as main_module
     from app.api.routers import agents as agents_router

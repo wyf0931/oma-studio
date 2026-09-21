@@ -19,6 +19,11 @@ WEB_TOOLS = ["web_fetch", "web_search", "publish_artifact"]
 IMAGE_TOOLS = ["generate_image", "edit_image"]
 PLATFORM_TOOLS = WEB_TOOLS + IMAGE_TOOLS
 SUPPORTED_TOOLS = BUILTIN_TOOLS + PLATFORM_TOOLS
+# Auto model configuration is stored as NULL so the deployment defaults
+# (PI_PROVIDER / PI_MODEL / PI_THINKING_LEVEL) apply at turn time. An explicit
+# None for one of these keys therefore clears the stored value instead of
+# meaning "field not provided".
+NULLABLE_AGENT_FIELDS = {"provider", "model", "thinking_level"}
 DEFAULT_AGENT_INSTRUCTION = "Be helpful, clear, concise and easy to follow; don't sacrifice clarity for brevity."
 LEGACY_DEFAULT_AGENT_INSTRUCTION = "Be helpful, clear, and concise."
 
@@ -331,7 +336,11 @@ class Store:
         return item
 
     def update_agent(self, agent_id: str, values: dict) -> dict | None:
-        values = {k: v for k, v in values.items() if v is not None}
+        values = {
+            k: v
+            for k, v in values.items()
+            if v is not None or k in NULLABLE_AGENT_FIELDS
+        }
         if "tools" in values:
             values["tools_configured"] = True
         values["updated_at"] = now_iso()

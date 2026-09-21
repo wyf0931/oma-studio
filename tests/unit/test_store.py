@@ -33,6 +33,44 @@ def test_default_agent_and_agent_crud(tmp_path: Path):
     assert store.delete_agent(default["id"]) is False
 
 
+def test_update_agent_clears_model_configuration_for_auto(tmp_path: Path):
+    store = Store(tmp_path / "db.json")
+    agent = store.create_agent(
+        "auto-config",
+        "Use the deployment defaults",
+        provider="deepseek",
+        model="deepseek-flash",
+        thinking_level="low",
+    )
+
+    updated = store.update_agent(
+        agent["id"], {"provider": None, "model": None, "thinking_level": None}
+    )
+
+    assert updated is not None
+    assert updated["provider"] is None
+    assert updated["model"] is None
+    assert updated["thinking_level"] is None
+    stored = store.get_agent(agent["id"])
+    assert stored is not None
+    assert stored["provider"] is None
+    assert updated["content_hash"] == Store.agent_content_hash(updated)
+
+
+def test_update_agent_keeps_none_valued_fields_outside_auto_fields(tmp_path: Path):
+    store = Store(tmp_path / "db.json")
+    agent = store.create_agent(
+        "keep-description",
+        "Keep the stored description",
+        description="Keep me",
+    )
+
+    updated = store.update_agent(agent["id"], {"description": None})
+
+    assert updated is not None
+    assert updated["description"] == "Keep me"
+
+
 def test_default_agent_instruction_migrates_legacy_value(tmp_path: Path):
     store = Store(tmp_path / "db.json")
     default = store.ensure_default_agent()
