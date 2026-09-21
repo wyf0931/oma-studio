@@ -181,7 +181,8 @@ docker compose up --build
 | `${PI_HOST_AGENTS_HOME:-~/.agents}` | `/home/node/.agents` | Agent-neutral shared skills |
 
 Compose reads `.env` for `PI_PROVIDER`, `PI_MODEL`, the resource defaults, `PI_PLATFORM_DATA_DIR`,
-`PI_CWD`, `PI_LOG_DIR`, `PI_HOST_HOME`, `PI_HOST_AGENTS_HOME`, and optional `PI_DOCKER_CWD`; container-internal paths are fixed in `docker-compose.yml`. This means a local
+`PI_CWD`, `PI_LOG_DIR`, `PI_HOST_HOME`, `PI_HOST_AGENTS_HOME`, optional `PI_DOCKER_CWD`, and the
+host-side publish settings `OMA_BIND_ADDRESS` and `OMA_PORT`; container-internal paths are fixed in `docker-compose.yml`. This means a local
 `.env` with `PI_PLATFORM_DATA_DIR=data` shares the repository's existing metadata and Pi
 sessions with Docker. No reverse proxy or extra services — FastAPI serves the API and UI
 directly, and `init: true` reaps the short-lived Pi subprocesses the app spawns. When the
@@ -281,6 +282,7 @@ PI_SESSION_DIR=/absolute/path/to/.oma-studio/data/pi-sessions
 PI_LOG_DIR=/absolute/path/to/.oma-studio/logs
 PI_CWD=/absolute/path/to/.oma-studio/workspace
 OMA_TIMEZONE=Asia/Shanghai
+OMA_BIND_ADDRESS=127.0.0.1
 PI_HOST_HOME=/absolute/path/to/.oma-studio/pi-home/agent
 PI_HOST_AGENTS_HOME=/absolute/path/to/.oma-studio/.agents
 PI_PROVIDER=deepseek
@@ -305,7 +307,10 @@ OMA_MAX_UPLOAD_MB=100
 
 `OMA_MAX_UPLOAD_FILES` and `OMA_MAX_UPLOAD_MB` configure the maximum number and total size of unique files staged for one chat/session. Re-uploading identical bytes in the same chat reuses the existing upload record and does not consume another slot. They default to 100 files and 100 MiB.
 
-The bundled Docker Compose service exposes FastAPI directly and does not include NGINX. If this deployment is placed behind an external NGINX reverse proxy, set `client_max_body_size 100m;` for the OMA Studio location so it matches `OMA_MAX_UPLOAD_MB`.
+The bundled Docker Compose service exposes FastAPI directly and does not include NGINX. It publishes
+port 8000 on loopback by default, so a reverse proxy on the same host is the only way in; set
+`OMA_BIND_ADDRESS=0.0.0.0` only when a firewall you control already restricts access. If this
+deployment is placed behind an external NGINX reverse proxy, set `client_max_body_size 100m;` for the OMA Studio location so it matches `OMA_MAX_UPLOAD_MB`.
 
 ### Providers and models
 

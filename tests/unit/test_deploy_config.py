@@ -1,6 +1,18 @@
 from pathlib import Path
 
 
+def test_compose_publishes_the_app_port_on_loopback_by_default():
+    compose = Path("docker-compose.yml").read_text(encoding="utf-8")
+
+    assert '"${OMA_BIND_ADDRESS:-127.0.0.1}:${OMA_PORT:-8000}:8000"' in compose
+
+
+def test_production_overlay_does_not_republish_the_app_port():
+    overlay = Path("deploy/docker-compose.production.yaml").read_text(encoding="utf-8")
+
+    assert "ports" not in overlay
+
+
 def test_production_deploy_validates_both_pi_host_mounts():
     script = Path("bin/deploy-server.sh").read_text(encoding="utf-8")
 
