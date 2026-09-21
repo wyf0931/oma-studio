@@ -19,11 +19,11 @@ WEB_TOOLS = ["web_fetch", "web_search", "publish_artifact"]
 IMAGE_TOOLS = ["generate_image", "edit_image"]
 PLATFORM_TOOLS = WEB_TOOLS + IMAGE_TOOLS
 SUPPORTED_TOOLS = BUILTIN_TOOLS + PLATFORM_TOOLS
-# Auto model configuration is stored as NULL so the deployment defaults
-# (PI_PROVIDER / PI_MODEL / PI_THINKING_LEVEL) apply at turn time. An explicit
-# None for one of these keys therefore clears the stored value instead of
-# meaning "field not provided".
-NULLABLE_AGENT_FIELDS = {"provider", "model", "thinking_level"}
+# Fields where an explicit None clears the stored value instead of meaning
+# "not provided": the Auto model triple, which is stored as NULL so the
+# deployment defaults (PI_PROVIDER / PI_MODEL / PI_THINKING_LEVEL) apply, and
+# the optional description, which the agent editor clears by sending null.
+NULLABLE_AGENT_FIELDS = {"provider", "model", "thinking_level", "description"}
 DEFAULT_AGENT_INSTRUCTION = "Be helpful, clear, concise and easy to follow; don't sacrifice clarity for brevity."
 LEGACY_DEFAULT_AGENT_INSTRUCTION = "Be helpful, clear, and concise."
 

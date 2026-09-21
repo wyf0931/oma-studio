@@ -57,18 +57,35 @@ def test_update_agent_clears_model_configuration_for_auto(tmp_path: Path):
     assert updated["content_hash"] == Store.agent_content_hash(updated)
 
 
-def test_update_agent_keeps_none_valued_fields_outside_auto_fields(tmp_path: Path):
+def test_update_agent_keeps_none_valued_fields_outside_nullable_fields(tmp_path: Path):
     store = Store(tmp_path / "db.json")
     agent = store.create_agent(
-        "keep-description",
-        "Keep the stored description",
-        description="Keep me",
+        "keep-instruction",
+        "Keep the stored instruction",
+    )
+
+    updated = store.update_agent(agent["id"], {"instruction": None})
+
+    assert updated is not None
+    assert updated["instruction"] == "Keep the stored instruction"
+
+
+def test_update_agent_clears_description(tmp_path: Path):
+    store = Store(tmp_path / "db.json")
+    agent = store.create_agent(
+        "clear-description",
+        "Keep it short",
+        description="Remove me",
     )
 
     updated = store.update_agent(agent["id"], {"description": None})
 
     assert updated is not None
-    assert updated["description"] == "Keep me"
+    assert updated["description"] is None
+    stored = store.get_agent(agent["id"])
+    assert stored is not None
+    assert stored["description"] is None
+    assert updated["content_hash"] == Store.agent_content_hash(updated)
 
 
 def test_default_agent_instruction_migrates_legacy_value(tmp_path: Path):
