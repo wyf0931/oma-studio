@@ -273,6 +273,25 @@ def test_agent_auto_model_configuration_clears_explicit_selection(
     assert stored["thinking_level"] is None
 
 
+def test_agent_editor_clears_description(client, temporary_agent):
+    created = temporary_agent(
+        {
+            "name": "clear-description",
+            "instruction": "Keep it short.",
+            "description": "Remove me",
+        }
+    )
+    assert created.status_code == 201
+    agent_id = created.json()["id"]
+    assert created.json()["description"] == "Remove me"
+
+    updated = client.patch(f"/api/agents/{agent_id}", json={"description": None})
+
+    assert updated.status_code == 200
+    assert updated.json()["description"] is None
+    assert client.get(f"/api/agents/{agent_id}").json()["description"] is None
+
+
 def test_instruction_draft_uses_validated_selected_capabilities(client, monkeypatch):
     import app.main as main_module
     from app.api.routers import agents as agents_router
