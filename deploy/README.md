@@ -15,8 +15,10 @@ The directory is mounted independently; existing skills in `PI_HOST_HOME` are
 not moved automatically.
 
 Deploy with the root Compose definition plus this production overlay. The
-example binds FastAPI to loopback for a separately managed TLS reverse proxy.
-It does not add a proxy or represent `PI_CWD` as a sandbox.
+Compose definition publishes FastAPI on loopback by default for a separately
+managed TLS reverse proxy, so production stays reachable only through NGINX
+unless `OMA_BIND_ADDRESS` is set explicitly. It does not add a proxy or
+represent `PI_CWD` as a sandbox.
 
 ```bash
 docker compose --env-file /opt/apps/oma-studio/.env.ops \
