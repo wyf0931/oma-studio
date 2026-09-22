@@ -557,7 +557,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260922-unshare-session" in Path("static/index.html").read_text(
+    assert "app.js?v=20260922-dead-share-login" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -2362,6 +2362,30 @@ def test_shared_session_payload_reports_owner_management(client, temporary_agent
     assert anonymous.json()["can_manage"] is False
 
     client.delete(f"/api/chats/{chat['id']}")
+
+
+def test_dead_share_link_sends_anonymous_visitors_to_sign_in():
+    script = Path("static/app.js").read_text(encoding="utf-8")
+
+    block = script.split("async openSharedChat(token) {", 1)[1].split(
+        "cancelShare() {", 1
+    )[0]
+    assert "e.status === 404" in block
+    assert "if (this.authUser)" in block
+    # Signed-in visitor: back to their own workspace with a notice.
+    assert 'this.showToast(this.t("share.linkExpiredTitle"))' in block
+    assert 'location.assign("/")' in block
+    # Anonymous visitor: leave shared mode so the sign-in screen renders, and drop
+    # the dead token from the URL so a later login lands in the workspace.
+    assert "this.sharedMode = false" in block
+    assert 'history.replaceState({}, "", "/")' in block
+
+    # Shared views resolve the session (auth-exempt endpoint) so the branch above
+    # can tell an anonymous reader from a signed-in one.
+    init = script.split("async init() {", 1)[1].split(
+        'window.addEventListener("popstate"', 1
+    )[0]
+    assert "await this.loadSession()" in init
 
 
 def test_message_stream_sends_keepalive_when_idle(client, monkeypatch, temporary_agent):

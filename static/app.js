@@ -274,6 +274,10 @@ function platform() {
           this.renderIconsSoon();
           return;
         }
+      } else {
+        // Public share views stay anonymous, but a dead link must know whether a
+        // session exists before deciding what to render (see openSharedChat).
+        await this.loadSession();
       }
       window.addEventListener("popstate", () => this.routeFromUrl());
       try {
@@ -2590,7 +2594,20 @@ function platform() {
       } catch (e) {
         this.activeChat = null;
         this.messages = [];
-        this.showError(e);
+        if (e.status === 404) {
+          // Revoked or unknown link: there is no public content to show, so an
+          // anonymous visitor belongs on the sign-in screen instead of an empty
+          // workspace, and a signed-in visitor goes back to their own chats.
+          if (this.authUser) {
+            this.showToast(this.t("share.linkExpiredTitle"));
+            location.assign("/");
+          } else {
+            this.sharedMode = false;
+            history.replaceState({}, "", "/");
+          }
+        } else {
+          this.showError(e);
+        }
       } finally {
         this.messagesLoading = false;
       }
