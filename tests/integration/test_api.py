@@ -2469,6 +2469,12 @@ def test_chat_share_sits_in_the_header_and_creates_in_one_step():
     assert "t('share.createCopy')" not in html
     assert "t('share.anyoneWithLink')" in html
 
+    # The dialog body keeps the house gap below the head divider (see .confirm-copy).
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    assert '<div class="share-dialog-body">' in html
+    assert ".share-dialog-body {" in styles
+    assert "padding-top: 22px;" in styles
+
 
 def test_shared_file_preview_has_dynamic_social_metadata(client, temporary_agent):
     from app import main as main_module

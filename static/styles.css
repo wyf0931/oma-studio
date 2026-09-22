@@ -5704,13 +5704,14 @@ body > .link-drawer {
  font-size: 17px;
  font-weight: 700;
 }
+/* Body content sits 22px below the head divider, matching .confirm-copy. */
+.share-dialog-body {
+ padding-top: 22px;
+}
 .share-warning {
  font-size: 14px;
  color: var(--muted);
  margin: 0 0 16px;
-}
-.create-share-btn {
- width: 100%;
 }
 .share-link-row {
  display: flex;
