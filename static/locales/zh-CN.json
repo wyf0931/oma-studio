@@ -149,6 +149,7 @@
     "noMatchingChats": "没有匹配的聊天"
   },
   "files": {
+    "copyCode": "复制代码",
     "notFound": "文件不存在，或不是由此聊天生成的文件"
   },
   "autopilots": {

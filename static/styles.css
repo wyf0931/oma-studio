@@ -3282,6 +3282,48 @@ pre,
  overflow-wrap: anywhere;
  word-break: break-word;
 }
+/* Copy control for file-preview code blocks: pinned to the block's top-right,
+   outside the horizontal scroller so it stays put while the code scrolls. */
+.code-block {
+ position: relative;
+}
+.code-copy-btn {
+ position: absolute;
+ top: 8px;
+ right: 8px;
+ z-index: 1;
+ display: inline-flex;
+ align-items: center;
+ justify-content: center;
+ width: 30px;
+ height: 30px;
+ border: 1px solid var(--line);
+ border-radius: 999px;
+ background: var(--color-base-100);
+ color: var(--muted);
+ cursor: pointer;
+ opacity: 0.8;
+}
+.code-copy-btn:hover,
+.code-copy-btn:focus-visible {
+ opacity: 1;
+ color: var(--ink);
+}
+.code-copy-glyph {
+ display: inline-flex;
+}
+.code-copy-btn .code-copy-glyph-done,
+.code-copy-btn.copied .code-copy-glyph-copy {
+ display: none;
+}
+.code-copy-btn.copied {
+ opacity: 1;
+ border-color: var(--color-success);
+ color: var(--color-success);
+}
+.code-copy-btn.copied .code-copy-glyph-done {
+ display: inline-flex;
+}
 .file-markdown .mockup-code {
  background: var(--code-surface);
  color: var(--code-ink);
