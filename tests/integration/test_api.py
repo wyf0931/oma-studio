@@ -557,7 +557,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260922-file-download" in Path("static/index.html").read_text(
+    assert "app.js?v=20260922-unshare-session" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -2307,6 +2307,60 @@ def test_turn_survives_viewer_disconnect(client, monkeypatch, temporary_agent):
             break
         time_module.sleep(0.2)
     assert status == "ready"
+    client.delete(f"/api/chats/{chat['id']}")
+
+
+def test_shared_session_page_offers_unshare_next_to_the_file_drawer():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
+    chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
+
+    header = html.split('<div class="chat-header">', 1)[1].split(
+        '<div class="message-list"', 1
+    )[0]
+    assert 'class="icon-btn chat-unshare-toggle"' in header
+    # Only the owner, and only while viewing the public link, may revoke.
+    assert 'x-show="sharedMode && sharedCanManage"' in header
+    assert header.index("chat-unshare-toggle") < header.index("files-toggle")
+    # Reuses the existing revoke confirmation dialog and DELETE endpoint.
+    assert "requestRevokeShare({ token: sharedToken, kind: 'session' })" in header
+    assert "confirmRevokeShare()" in html
+    assert "shareRevokeTarget" in html
+
+    assert "sharedCanManage: false" in script
+    assert "this.sharedCanManage = Boolean(data.can_manage)" in script
+    assert ".chat-unshare-toggle {" in styles
+
+    assert english["share"]["revokeSession"]
+    assert chinese["share"]["revokeSession"]
+    assert set(english["share"]) == set(chinese["share"])
+
+
+def test_shared_session_payload_reports_owner_management(client, temporary_agent):
+    agent_id = temporary_agent({"name": "share-manager", "instruction": "x"}).json()[
+        "id"
+    ]
+    chat = client.post("/api/chats", json={"agent_id": agent_id}).json()
+    token = client.post(f"/api/chats/{chat['id']}/share").json()["token"]
+
+    # The signed-in owner sees the revoke control.
+    owned = client.get(f"/api/share/{token}")
+    assert owned.status_code == 200
+    assert owned.json()["can_manage"] is True
+
+    # Anonymous readers never do.
+    saved = [(cookie.name, cookie.value) for cookie in client.cookies.jar]
+    client.cookies.clear()
+    try:
+        anonymous = client.get(f"/api/share/{token}")
+    finally:
+        for name, value in saved:
+            client.cookies.set(name, value)
+    assert anonymous.status_code == 200
+    assert anonymous.json()["can_manage"] is False
+
     client.delete(f"/api/chats/{chat['id']}")
 
 

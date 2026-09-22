@@ -342,6 +342,7 @@
     "shareId": "分享 ID",
     "openShareRecord": "打开分享内容",
     "shareFile": "分享文件",
+    "revokeSession": "取消分享链接",
     "revokeFile": "取消文件分享",
     "fileShareTitle": "分享 Markdown 文件",
     "fileShareNote": "拥有此链接的人无需登录即可查看该 Markdown 文件。",
