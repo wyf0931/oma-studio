@@ -1,3 +1,9 @@
 static/typography.css
 *.min.*
+
+# Hand-formatted prose: prettier's markdown printer only realigns tables, and
+# tooling that formats on write (pi-lens runs `npx prettier --write`) churns the
+# file on every edit. CI checks formatting for static/app.js and static/index.html only.
+README.md
+
 node_modules/
