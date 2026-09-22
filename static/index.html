@@ -49,7 +49,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260922-markdown-overflow" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260922-share-header" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -502,6 +502,16 @@
                 </div>
                 <button
                   type="button"
+                  class="icon-btn chat-share-toggle"
+                  x-show="!sharedMode"
+                  @click="startShare()"
+                  :title="t('chat.shareMessage')"
+                  :aria-label="t('chat.shareMessage')"
+                >
+                  <i data-lucide="share-2" aria-hidden="true"></i>
+                </button>
+                <button
+                  type="button"
                   class="icon-btn files-toggle"
                   @click="toggleFiles()"
                   title="Generated files"
@@ -539,15 +549,6 @@
                         >
                           <i data-lucide="check" x-show="copiedKey === message._key" aria-hidden="true"></i>
                           <i data-lucide="copy" x-show="copiedKey !== message._key" aria-hidden="true"></i>
-                        </button>
-                        <button
-                          type="button"
-                          class="action-btn"
-                          @click="startShare()"
-                          :title="t('chat.shareMessage')"
-                          :aria-label="t('chat.shareMessage')"
-                        >
-                          <i data-lucide="share-2" aria-hidden="true"></i>
                         </button>
                       </div>
                     </div></article
@@ -632,7 +633,7 @@
                     @click="cancelShare()"
                     x-text="t('common.cancel')"
                   ></button>
-                  <button type="button" class="btn btn-primary" @click="openShareDialog()" :disabled="creatingShare">
+                  <button type="button" class="btn btn-primary" @click="createShare()" :disabled="creatingShare">
                     <span x-text="creatingShare ? t('share.creating') : t('share.create')"></span>
                   </button>
                 </div>
@@ -3496,38 +3497,30 @@
     >
       <div class="modal-box share-dialog">
         <div class="dialog-head">
-          <h2 x-text="shareTarget === 'artifact' ? t('share.fileShareTitle') : t('share.create')"></h2>
+          <h2 x-text="shareTarget === 'artifact' ? t('share.fileShareTitle') : t('share.shareLink')"></h2>
           <button type="button" class="icon-btn" @click="closeShareDialog()" :aria-label="t('share.close')">
             <i data-lucide="x" aria-hidden="true"></i>
           </button>
         </div>
-        <template x-if="shareStep === 'confirm'"
+        <template x-if="shareStep === 'created'"
           ><div>
-            <p class="share-warning" x-text="t('share.anyoneWithLink')"></p>
-            <button
-              type="button"
-              class="btn btn-primary create-share-btn"
-              @click="createShare()"
-              :disabled="creatingShare"
-            >
-              <span x-text="creatingShare ? t('share.creating') : t('share.createCopy')"></span>
-            </button></div></template
-        ><template x-if="shareStep === 'created'"
-          ><div class="share-link-row">
-            <p class="share-link-note" x-show="shareTarget === 'artifact'" x-text="t('share.fileShareNote')"></p>
-            <input
-              class="share-link-input"
-              :value="shareUrl"
-              readonly
-              @focus="$event.target.select()"
-              :aria-label="t('share.shareLink')"
-            />
-            <button type="button" class="btn btn-primary copy-link-btn" @click="copyShareLink()">
-              <span x-text="copiedShare ? t('share.copied') : t('share.copy')"></span>
-            </button></div
+            <p class="share-warning" x-show="shareTarget !== 'artifact'" x-text="t('share.anyoneWithLink')"></p>
+            <div class="share-link-row">
+              <p class="share-link-note" x-show="shareTarget === 'artifact'" x-text="t('share.fileShareNote')"></p>
+              <input
+                class="share-link-input"
+                :value="shareUrl"
+                readonly
+                @focus="$event.target.select()"
+                :aria-label="t('share.shareLink')"
+              />
+              <button type="button" class="btn btn-primary copy-link-btn" @click="copyShareLink()">
+                <span x-text="copiedShare ? t('share.copied') : t('share.copy')"></span>
+              </button>
+            </div></div
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260922-paste-images"></script>
+    <script src="/static/app.js?v=20260922-share-flow"></script>
   </body>
 </html>

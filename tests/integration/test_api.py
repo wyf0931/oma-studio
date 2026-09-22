@@ -557,7 +557,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260922-paste-images" in Path("static/index.html").read_text(
+    assert "app.js?v=20260922-share-flow" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -2414,7 +2414,6 @@ def test_share_and_message_actions_render_localized_labels():
     for literal in (
         "Copy link",
         "Copied",
-        "Create &amp; copy",
         "Share link",
         "Anyone with the link",
         "Session usage",
@@ -2424,7 +2423,6 @@ def test_share_and_message_actions_render_localized_labels():
     for key in (
         "create",
         "creating",
-        "createCopy",
         "copy",
         "copied",
         "barHint",
@@ -2443,6 +2441,33 @@ def test_share_and_message_actions_render_localized_labels():
 
     assert set(english["share"]) == set(chinese["share"])
     assert set(english["chat"]) == set(chinese["chat"])
+
+
+def test_chat_share_sits_in_the_header_and_creates_in_one_step():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+
+    # The session share control belongs to the page header, left of the file drawer.
+    header = html.split('<div class="chat-header">', 1)[1].split(
+        '<div class="message-list"', 1
+    )[0]
+    assert 'class="icon-btn chat-share-toggle"' in header
+    assert "startShare()" in header
+    assert header.index("chat-share-toggle") < header.index("files-toggle")
+
+    # The final-answer actions keep copy only.
+    actions = html.split('<div class="message-actions">', 1)[1].split("</div>", 1)[0]
+    assert "copyMessage(message)" in actions
+    assert "startShare()" not in actions
+
+    # One step: the share bar creates the link, and the dialog only shows it.
+    assert '@click="createShare()"' in html
+    assert "openShareDialog" not in script
+    assert "openShareDialog" not in html
+    assert "shareStep === 'confirm'" not in html
+    assert "create-share-btn" not in html
+    assert "t('share.createCopy')" not in html
+    assert "t('share.anyoneWithLink')" in html
 
 
 def test_shared_file_preview_has_dynamic_social_metadata(client, temporary_agent):
