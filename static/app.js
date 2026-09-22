@@ -1428,6 +1428,24 @@ function platform() {
       const resource = file.kind === "input" ? "inputs" : "files";
       return `/api/chats/${encodeURIComponent(file.chat_id)}/${resource}/download?path=${encodeURIComponent(file.path)}`;
     },
+    // The preview page reuses the drawer/library download endpoint; shared
+    // (token-gated) previews stay read-only because that endpoint needs a session.
+    fileViewerDownloadUrl() {
+      const viewer = this.fileViewer;
+      if (!viewer || viewer.isShared) return "";
+      return this.downloadUrl({
+        chat_id: viewer.chatId,
+        kind: viewer.kind,
+        path: viewer.path,
+      });
+    },
+    fileViewerDownloadName() {
+      return (
+        String(this.fileViewer?.path || "")
+          .split("/")
+          .pop() || "file"
+      );
+    },
     async loadFileViewer() {
       const params = new URLSearchParams(location.search);
       const share = params.get("share");
@@ -1452,6 +1470,7 @@ function platform() {
             );
         this.fileViewer = {
           chatId: chatId || `share:${share}`,
+          kind: params.get("kind") === "input" ? "input" : "file",
           isShared: Boolean(share),
           canManageShare: Boolean(
             chatId &&

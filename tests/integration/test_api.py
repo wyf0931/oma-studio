@@ -557,7 +557,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260922-code-copy" in Path("static/index.html").read_text(
+    assert "app.js?v=20260922-file-download" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -1341,6 +1341,36 @@ def test_file_download_links_preserve_generated_filename():
     html = Path("static/index.html").read_text(encoding="utf-8")
 
     assert html.count(':download="file.name"') == 2
+
+
+def test_file_preview_offers_the_drawer_and_library_download_entry():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
+    chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
+
+    actions = html.split('<div class="file-view-actions">', 1)[1].split("</div>", 1)[0]
+    assert 'class="file-view-download btn btn-ghost btn-circle"' in actions
+    assert ':href="fileViewerDownloadUrl()"' in actions
+    assert ':download="fileViewerDownloadName()"' in actions
+    # Download sits left of share in the same fixed top-right cluster.
+    assert actions.index("file-view-download") < actions.index("file-view-share")
+    # Token-gated shared previews stay read-only: the download endpoint needs a session.
+    assert 'x-show="!fileViewer.isShared"' in actions
+
+    # Same endpoint helper the drawer and the library already use.
+    assert "fileViewerDownloadUrl() {" in script
+    assert "this.downloadUrl({" in script
+    assert 'kind: params.get("kind") === "input" ? "input" : "file"' in script
+    # The two existing entry points keep their own binding.
+    assert html.count(':download="file.name"') == 2
+
+    assert ".file-view-actions {" in styles
+    assert "gap: 8px;" in styles
+    assert english["files"]["download"]
+    assert chinese["files"]["download"]
+    assert set(english["files"]) == set(chinese["files"])
 
 
 def test_chat_file_list_and_download_include_chat_id(
