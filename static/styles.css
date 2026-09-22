@@ -5764,6 +5764,7 @@ body > .link-drawer {
  display: flex;
  align-items: center;
  justify-content: flex-end;
+ gap: 10px;
  min-height: 56px;
  padding: 8px 20px;
  border-bottom: 0;
@@ -5787,7 +5788,10 @@ body > .link-drawer {
  }
 }
 .chat-header .files-toggle {
- margin-left: auto;
+ margin-left: 0;
+}
+.chat-share-toggle {
+ font-size: 19px;
 }
 .chat-title-control {
  min-width: 0;

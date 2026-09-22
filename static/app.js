@@ -2561,10 +2561,6 @@ function platform() {
     cancelShare() {
       this.shareMode = false;
     },
-    openShareDialog() {
-      this.shareTarget = "session";
-      this.shareStep = "confirm";
-    },
     closeShareDialog() {
       this.shareStep = null;
       this.copiedShare = false;
