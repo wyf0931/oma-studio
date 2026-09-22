@@ -3202,11 +3202,14 @@ pre,
  margin-left: auto;
  margin-right: auto;
 }
-.file-view-share {
+.file-view-actions {
  position: fixed;
  top: 18px;
  right: 18px;
  z-index: 40;
+ display: flex;
+ align-items: center;
+ gap: 8px;
 }
 .file-share-expired {
  max-width: 440px;
@@ -3346,7 +3349,7 @@ pre,
   top: 8px;
   left: 8px;
  }
- .file-view-share {
+ .file-view-actions {
   top: 8px;
   right: 8px;
  }

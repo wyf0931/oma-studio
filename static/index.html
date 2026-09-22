@@ -49,7 +49,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260922-code-copy" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260922-file-download" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
@@ -791,6 +791,18 @@
             </button>
             <div class="file-view-header">
               <span class="file-view-path" x-text="fileViewer.path"></span>
+            </div>
+            <div class="file-view-actions">
+              <a
+                class="file-view-download btn btn-ghost btn-circle"
+                x-show="!fileViewer.isShared"
+                :href="fileViewerDownloadUrl()"
+                :download="fileViewerDownloadName()"
+                :title="t('files.download')"
+                :aria-label="t('files.download')"
+              >
+                <i data-lucide="download" aria-hidden="true"></i>
+              </a>
               <button
                 type="button"
                 class="file-view-share btn btn-ghost btn-circle"
@@ -3521,6 +3533,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260922-code-copy"></script>
+    <script src="/static/app.js?v=20260922-file-download"></script>
   </body>
 </html>
