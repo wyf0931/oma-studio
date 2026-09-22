@@ -1264,6 +1264,17 @@ function platform() {
       event.target.value = "";
       this.addUploadSelection(selected);
     },
+    handlePaste(event) {
+      if (this.uploadingFiles) return;
+      const items = [...(event.clipboardData?.items || [])];
+      const images = items
+        .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter(Boolean);
+      if (!images.length) return;
+      event.preventDefault();
+      this.addUploadSelection(images);
+    },
     async handleUploadDrop(event) {
       this.resetUploadDragState();
       if (this.uploadingFiles) return;

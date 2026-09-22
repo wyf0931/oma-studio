@@ -557,7 +557,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260920-artifact-share" in Path("static/index.html").read_text(
+    assert "app.js?v=20260922-paste-images" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -1694,6 +1694,16 @@ def test_markdown_code_overflow_stays_inside_message_content():
     assert ".markdown-part pre {" in styles
     assert ".conversation,\n.message,\n.markdown-part {" in styles
     assert "white-space: pre;" in styles
+
+
+def test_chat_inputs_accept_clipboard_images_without_intercepting_text_paste():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    script = Path("static/app.js").read_text(encoding="utf-8")
+
+    assert html.count('@paste="handlePaste($event)"') == 2
+    assert "event.clipboardData?.items" in script
+    assert 'item.type.startsWith("image/")' in script
+    assert "event.preventDefault();" in script
 
 
 def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_tokens():
