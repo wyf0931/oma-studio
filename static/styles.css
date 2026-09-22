@@ -5836,7 +5836,8 @@ body > .link-drawer {
 .chat-header .files-toggle {
  margin-left: 0;
 }
-.chat-share-toggle {
+.chat-share-toggle,
+.chat-unshare-toggle {
  font-size: 19px;
 }
 .chat-title-control {

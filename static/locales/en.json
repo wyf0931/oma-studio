@@ -342,6 +342,7 @@
     "shareId": "Share ID",
     "openShareRecord": "Open shared item",
     "shareFile": "Share file",
+    "revokeSession": "Revoke share link",
     "revokeFile": "Revoke file share",
     "fileShareTitle": "Share Markdown file",
     "fileShareNote": "Anyone with this link can view this Markdown file without signing in.",

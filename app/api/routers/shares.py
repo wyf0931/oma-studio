@@ -136,10 +136,11 @@ def create_router(
         return {"ok": True, "token": token}
 
     @router.get("/share/{token}")
-    async def get_shared_chat(token: str):
+    async def get_shared_chat(token: str, request: Request):
         share = store.get_share(token)
         if not share:
             raise HTTPException(404, "Share not found")
+        viewer = getattr(request.state, "user", None)
         chat = store.get_chat(share["chat_id"])
         if not chat:
             raise HTTPException(404, "Share not found")
@@ -158,6 +159,9 @@ def create_router(
                 "agent_id": chat.get("agent_id"),
             },
             "messages": visible_messages(messages, "production"),
+            # The shared page shows a revoke control only to the account that owns
+            # the link; anonymous readers and other accounts never see it.
+            "can_manage": bool(viewer) and share.get("user_id") == viewer["id"],
         }
 
     @router.get("/share/{token}/files")

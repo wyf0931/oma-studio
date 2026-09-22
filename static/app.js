@@ -82,6 +82,7 @@ function platform() {
     pollTimer: null,
     sharedMode: false,
     sharedToken: "",
+    sharedCanManage: false,
     shareMode: false,
     shareStep: null,
     shareUrl: "",
@@ -668,6 +669,7 @@ function platform() {
     async confirmRevokeShare() {
       const share = this.shareRevokeTarget;
       if (!share || this.shareRevoking) return;
+      const viewingRevokedShare = this.sharedMode && share.token === this.sharedToken;
       this.shareRevoking = true;
       try {
         await this.api(`/api/shares/${encodeURIComponent(share.token)}`, { method: "DELETE" });
@@ -678,6 +680,8 @@ function platform() {
         }
         this.shareRevokeTarget = null;
         this.showToast(this.t("share.revoked"));
+        // The page the owner is looking at no longer has a public link.
+        if (viewingRevokedShare) location.assign("/");
       } catch (error) {
         this.showError(error);
       } finally {
@@ -2568,10 +2572,13 @@ function platform() {
     async openSharedChat(token) {
       this.sharedToken = token;
       this.sharedMode = true;
+      this.sharedCanManage = false;
       this.page = "chat";
       this.messagesLoading = true;
       try {
         const data = await this.api(`/api/share/${encodeURIComponent(token)}`);
+        // Only the account that owns the link may revoke it from this page.
+        this.sharedCanManage = Boolean(data.can_manage);
         this.activeChat = {
           ...(data.chat || {}),
           id: `share:${token}`,
@@ -2601,6 +2608,7 @@ function platform() {
       this.shareUrl = "";
       this.copiedShare = false;
       this.shareTarget = "session";
+      this.sharedCanManage = false;
     },
     async createShare() {
       if (!this.activeChat || this.creatingShare) return;
