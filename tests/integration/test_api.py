@@ -557,7 +557,7 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260922-share-flow" in Path("static/index.html").read_text(
+    assert "app.js?v=20260922-code-copy" in Path("static/index.html").read_text(
         encoding="utf-8"
     )
 
@@ -780,6 +780,39 @@ def test_agent_save_refreshes_list_without_opening_detail_dialog():
     assert "this.createDialog = false;" in script
     assert "this.dialog = null;" in script
     assert "this.dialog = refreshedAgent;" not in script
+
+
+def test_file_preview_code_blocks_offer_a_copy_action():
+    script = Path("static/app.js").read_text(encoding="utf-8")
+    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
+    chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
+
+    # One code-block renderer covers every supported code file (json, yaml, txt, sh, xml…).
+    code_extensions = script.split("isCodeFile(path) {", 1)[1].split("].includes", 1)[0]
+    for extension in ("json", "yaml", "yml", "txt", "sh", "bash", "xml"):
+        assert f'"{extension}"' in code_extensions
+
+    # The button sits inside the block, copies the code element, and swaps its glyph.
+    assert 'class="code-block"' in script
+    assert 'class="code-copy-btn"' in script
+    assert 'onclick="window.omaPlatform.copyCodeBlock(this)"' in script
+    assert 'block?.querySelector("code")?.textContent' in script
+    assert "copyCodeBlock(button) {" in script
+    assert 'button.classList.add("copied")' in script
+
+    # Pinned to the block's top-right, outside the horizontal scroller.
+    assert ".code-block {" in styles
+    assert ".code-copy-btn {" in styles
+    assert "position: absolute;" in styles
+    assert "top: 8px;" in styles
+    assert "right: 8px;" in styles
+    assert ".code-copy-btn.copied" in styles
+
+    assert "t('files.copyCode')" in script or 't("files.copyCode")' in script
+    assert english["files"]["copyCode"]
+    assert chinese["files"]["copyCode"]
+    assert set(english["files"]) == set(chinese["files"])
 
 
 def test_structured_file_preview_uses_csv_table_and_code_renderer():

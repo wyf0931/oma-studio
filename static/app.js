@@ -2523,6 +2523,17 @@ function platform() {
         if (this.copiedKey === message._key) this.copiedKey = "";
       }, 1500);
     },
+    // Injected code-block markup cannot use Alpine directives, so the button
+    // calls back through the window bridge and toggles its own copied state.
+    copyCodeBlock(button) {
+      const block = button?.closest?.(".code-block");
+      const text = block?.querySelector("code")?.textContent || "";
+      if (!text) return;
+      navigator.clipboard?.writeText(text);
+      if (button._copyTimer) clearTimeout(button._copyTimer);
+      button.classList.add("copied");
+      button._copyTimer = setTimeout(() => button.classList.remove("copied"), 1500);
+    },
     async startShare() {
       if (!this.activeChat || this.sharedMode) return;
       try {
@@ -2949,6 +2960,7 @@ function platform() {
         "ts",
         "tsx",
         "txt",
+        "xml",
         "yaml",
         "yml",
       ].includes(this.fileExtension(path));
@@ -2969,7 +2981,8 @@ function platform() {
     renderCodeFile(source, extension) {
       const language = this.normalizeCodeLanguage(extension);
       const highlighted = this.highlightCode(String(source || ""), language);
-      return `<div class="mockup-code overflow-x-auto w-full"><pre><code class="hljs language-${this.escape(language)}">${highlighted}</code></pre></div>`;
+      const label = this.escape(this.t("files.copyCode"));
+      return `<div class="code-block"><button type="button" class="code-copy-btn" onclick="window.omaPlatform.copyCodeBlock(this)" aria-label="${label}" title="${label}"><span class="code-copy-glyph code-copy-glyph-copy"><i data-lucide="copy" aria-hidden="true"></i></span><span class="code-copy-glyph code-copy-glyph-done"><i data-lucide="check" aria-hidden="true"></i></span></button><div class="mockup-code overflow-x-auto w-full"><pre><code class="hljs language-${this.escape(language)}">${highlighted}</code></pre></div></div>`;
     },
     renderFilePreview() {
       const path = this.fileViewer?.path || "";
