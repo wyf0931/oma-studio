@@ -5,7 +5,7 @@ from app.store import Store
 
 
 def test_default_agent_and_agent_crud(tmp_path: Path):
-    store = Store(tmp_path / "db.json")
+    store = Store(tmp_path / "platform.sqlite3")
     default = store.ensure_default_agent()
     assert default["name"] == "assistant"
     assert default["protected"] is True
@@ -34,7 +34,7 @@ def test_default_agent_and_agent_crud(tmp_path: Path):
 
 
 def test_update_agent_clears_model_configuration_for_auto(tmp_path: Path):
-    store = Store(tmp_path / "db.json")
+    store = Store(tmp_path / "platform.sqlite3")
     agent = store.create_agent(
         "auto-config",
         "Use the deployment defaults",
@@ -58,7 +58,7 @@ def test_update_agent_clears_model_configuration_for_auto(tmp_path: Path):
 
 
 def test_update_agent_keeps_none_valued_fields_outside_nullable_fields(tmp_path: Path):
-    store = Store(tmp_path / "db.json")
+    store = Store(tmp_path / "platform.sqlite3")
     agent = store.create_agent(
         "keep-instruction",
         "Keep the stored instruction",
@@ -71,7 +71,7 @@ def test_update_agent_keeps_none_valued_fields_outside_nullable_fields(tmp_path:
 
 
 def test_update_agent_clears_description(tmp_path: Path):
-    store = Store(tmp_path / "db.json")
+    store = Store(tmp_path / "platform.sqlite3")
     agent = store.create_agent(
         "clear-description",
         "Keep it short",
@@ -89,7 +89,7 @@ def test_update_agent_clears_description(tmp_path: Path):
 
 
 def test_default_agent_instruction_migrates_legacy_value(tmp_path: Path):
-    store = Store(tmp_path / "db.json")
+    store = Store(tmp_path / "platform.sqlite3")
     default = store.ensure_default_agent()
     store.update_agent(
         default["id"], {"instruction": "Be helpful, clear, and concise."}
@@ -103,7 +103,7 @@ def test_default_agent_instruction_migrates_legacy_value(tmp_path: Path):
 
 
 def test_agent_user_profile_metadata_round_trips(tmp_path: Path):
-    store = Store(tmp_path / "db.json")
+    store = Store(tmp_path / "platform.sqlite3")
     agent = store.create_agent(
         "writer",
         "Follow the internal writing rules.",
@@ -119,7 +119,7 @@ def test_agent_user_profile_metadata_round_trips(tmp_path: Path):
 
 
 def test_deleting_agent_publication_keeps_installed_copy(tmp_path: Path):
-    store = Store(tmp_path / "db.json")
+    store = Store(tmp_path / "platform.sqlite3")
     source = store.create_agent("publisher", "Share this agent")
     publication = store.publish_agent(source, "admin", "v1.0.0")
     store.publish_agent(source, "admin", "v1.1.0")
@@ -134,7 +134,7 @@ def test_deleting_agent_publication_keeps_installed_copy(tmp_path: Path):
 
 
 def test_chat_index_does_not_store_messages(tmp_path: Path):
-    store = Store(tmp_path / "db.json")
+    store = Store(tmp_path / "platform.sqlite3")
     agent = store.ensure_default_agent()
     chat = store.create_chat(agent["id"], "session-1")
     assert chat["session_id"] == "session-1"
@@ -166,7 +166,7 @@ def test_artifact_shares_are_independent_per_file_and_revocable(tmp_path: Path):
 
 
 def test_autopilot_chats_always_get_fresh_session_ids(tmp_path: Path):
-    store = Store(tmp_path / "db.json")
+    store = Store(tmp_path / "platform.sqlite3")
     agent = store.ensure_default_agent()
     first = store.create_autopilot_chat(agent["id"], "Daily")
     second = store.create_autopilot_chat(agent["id"], "Daily")
@@ -176,7 +176,7 @@ def test_autopilot_chats_always_get_fresh_session_ids(tmp_path: Path):
 
 
 def test_new_chat_defaults_to_its_own_session_id(tmp_path: Path):
-    store = Store(tmp_path / "db.json")
+    store = Store(tmp_path / "platform.sqlite3")
     agent = store.ensure_default_agent()
     chat = store.create_chat(agent["id"], status="created")
     assert chat["session_id"] == chat["id"]
@@ -184,7 +184,7 @@ def test_new_chat_defaults_to_its_own_session_id(tmp_path: Path):
 
 
 def test_autopilot_and_run_metadata(tmp_path: Path):
-    store = Store(tmp_path / "db.json")
+    store = Store(tmp_path / "platform.sqlite3")
     agent = store.ensure_default_agent()
     autopilot = store.create_autopilot(
         "Daily brief", "Summarize today", agent["id"], "0 9 * * *"
@@ -196,7 +196,7 @@ def test_autopilot_and_run_metadata(tmp_path: Path):
 
 
 def test_viewing_a_chat_does_not_change_ordering(tmp_path: Path):
-    store = Store(tmp_path / "db.json")
+    store = Store(tmp_path / "platform.sqlite3")
     agent = store.ensure_default_agent()
     first = store.create_chat(agent["id"], "session-first")
     second = store.create_chat(agent["id"], "session-second")  # newest → listed on top

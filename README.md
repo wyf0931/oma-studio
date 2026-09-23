@@ -374,28 +374,20 @@ If the `pi-mcp-adapter` extension is selected, its `mcp` and `mcpScript` tools a
 
 | Data | Owner | Default location |
 | --- | --- | --- |
-| Agent definitions and chat metadata | OMA Studio / SQLModel + SQLite | `~/.oma-studio/data/platform.sqlite3` (legacy JSON is migrated once and backed up) |
+| Agent definitions and chat metadata | OMA Studio / SQLModel + SQLite | `~/.oma-studio/data/platform.sqlite3` |
 | Pi session transcripts | Pi | `~/.oma-studio/data/pi-sessions` |
 | Agent working directory | Pi / platform | `~/.oma-studio/workspace` |
 | Chat uploads | OMA Studio metadata + workspace files | `~/.oma-studio/workspace/uploads/<chat-id>/` |
 | Pi configuration, extensions, skills, models | Pi | `~/.pi/agent` |
 
-SQLite records chat identity, title, Agent binding, timestamps, status, and upload metadata only. It is intentionally not a second message or file-content store. On first startup with legacy `platform.json`, OMA Studio validates and imports it once, then creates a timestamped `.bak` copy.
+SQLite records chat identity, title, Agent binding, timestamps, status, and upload metadata only. It is intentionally not a second message or file-content store. `platform.sqlite3` is the only metadata store; the TinyDB-to-SQLite migration is complete, so no startup path reads the retired `platform.json` snapshot. See [docs/database-schema.md](docs/database-schema.md) for the archive and rollback procedure.
 
 Agents, Chats, Autopilots, Autopilot runs, and Shares carry an explicit `user_id`.
 Normal users can only see and modify their own records; administrators can see all
 users' records. Marketplace Skills and Extensions are global Pi resources and can
-only be installed or uninstalled by administrators. Existing records are assigned
-to the built-in admin with a one-off backfill script rather than being migrated on
-every application startup:
-
-```bash
-uv run python scripts/backfill_user_ownership.py --data ~/.oma-studio/data
-uv run python scripts/backfill_user_ownership.py --data ~/.oma-studio/data --apply
-```
-
-The first command is a dry run. The script is idempotent and does not rewrite Pi
-session transcripts or generated files. File listing, preview, and download routes
+only be installed or uninstalled by administrators. Ownership is assigned when a
+record is written, so no backfill step runs at application startup.
+File listing, preview, and download routes
 apply the same ownership check; token-based share routes remain accessible to anyone
 with the valid share token.
 

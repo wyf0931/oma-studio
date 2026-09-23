@@ -22,7 +22,7 @@ def test_autopilot_defaults_to_shanghai_timezone():
 
 
 def test_scheduler_recovers_stale_runs_on_start(tmp_path):
-    store = Store(tmp_path / "platform.json")
+    store = Store(tmp_path / "platform.sqlite3")
     agent = store.ensure_default_agent()
     autopilot = store.create_autopilot("Daily", "Do work", agent["id"], "0 9 * * *")
     store.create_autopilot_run(autopilot["id"], "chat-1", "session-1")

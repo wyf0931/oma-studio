@@ -143,7 +143,7 @@ Library 页面聚合 Agent 创建的文件，支持：
 
 - FastAPI 提供 API 和静态前端。
 - Pi 通过 RPC/JSONL 承担 Agent 执行、工具调用、流式事件和会话历史。
-- TinyDB 保存平台元数据，不复制 Pi 的消息正文。
+- SQLite（SQLModel）保存平台元数据，不复制 Pi 的消息正文。
 - 生产部署使用 Docker Compose、独立 release 目录、共享数据目录和 NGINX HTTPS 反向代理。
 - Provider、Model、Thinking level 从 Pi 的模型目录发现，可按 Agent 覆盖全局默认值。
 - Skill、Extension、MCP 资源从工作区发现，并在 Agent 上显式选择。
