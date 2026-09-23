@@ -609,7 +609,15 @@ def test_chat_view_reads_are_abortable_without_cancelling_writes_or_streams():
     assert "new EventSource(`/api/chats/${chatId}/stream`)" in script
 
 
-def test_thought_blocks_open_by_default_and_label_streaming_state():
+def test_thought_blocks_follow_the_turn_state_and_honor_user_preference():
+    """Issue #165: a turn's process block tracks the turn it belongs to.
+
+    Expanded while the turn is in flight (there is no answer yet), collapsed once
+    the final answer arrives, and an explicit user toggle outranks that default in
+    both directions. One turn is one assistant group, so earlier rounds stay
+    collapsed while the in-flight round is open.
+    """
+
     script = Path("static/app.js").read_text(encoding="utf-8")
 
     assert 'const label = isStreaming ? "Thinking"' in script
@@ -617,13 +625,26 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
         "Object.prototype.hasOwnProperty.call(this.reasoningOpen, reasoningKey)"
         in script
     )
-    assert "hasPreference ? this.reasoningOpen[reasoningKey] : true" in script
+    # No preference recorded follows the turn state; a recorded preference wins.
+    assert (
+        'const checked = (hasPreference ? this.reasoningOpen[reasoningKey] : isStreaming) ? " checked" : "";'
+        in script
+    )
+    assert "this.reasoningOpen[reasoningKey] : true" not in script
+    # The render path is read-only: setReasoningOpen() is the only writer, so an
+    # automatic transition can never be mistaken for a user choice.
+    assert script.count("this.reasoningOpen[") == 2
+    assert "if (key) this.reasoningOpen[key] = input.checked;" in script
+    # The group's own streaming flag drives the default, one group per turn.
     assert (
         "renderReasoning(message._reasoningParts || [], message._key, message._streaming)"
         in script
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
-    assert 'const label = isStreaming ? "Thinking"' in script
+    assert (
+        "assistantGroup._streaming = assistantGroup._streaming || message._streaming;"
+        in script
+    )
     app_src = re.search(
         r'<script src="(/static/app\.js[^"]*)"',
         Path("static/index.html").read_text(encoding="utf-8"),
