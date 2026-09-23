@@ -36,7 +36,7 @@ CSS build pipeline — a deliberate non-goal (see §4).
 | `100vh` is the *large* viewport | address bar / keyboard changes the visible height → composer pushed out of view, double scrollbars | **fixed**: every layout height now pairs `100vh` with a `100dvh` companion | SO [37112218](https://stackoverflow.com/questions/37112218/css3-100vh-not-constant-in-mobile-browser), [74144034](https://stackoverflow.com/questions/74144034/why-is-the-css-height100vh-rule-exceeding-the-viewport-height-on-mobile-device), [58886797](https://stackoverflow.com/questions/58886797/how-to-access-the-real-100vh-on-ios-in-css); caniuse [viewport-unit-variants](https://caniuse.com/viewport-unit-variants) |
 | Soft keyboard overlays fixed/sticky bottom bars | the composer is covered while typing | **not fixed** — needs device evidence, then a ~10-line `visualViewport` handler (`--keyboard-inset`) | SO [43833049](https://stackoverflow.com/questions/43833049/how-to-make-fixed-content-go-above-ios-keyboard), [48320336](https://stackoverflow.com/questions/48320336/how-to-keep-fixed-html-element-visible-on-bottom-of-screen-when-the-soft-keyboar), [79758083](https://stackoverflow.com/questions/79758083/ios-26-safari-visualviewport-change-after-dismissing-keyboard) |
 | iOS 26 fixed/sticky displacement regression | fixed elements drift as you scroll | **watch** — documented in the checklist; only restructure if it reproduces | SO [79753701](https://stackoverflow.com/questions/79753701/ios-26-safari-web-layouts-are-breaking-due-to-fixed-sticky-position-elements-g), WebKit [297779](https://bugs.webkit.org/show_bug.cgi?id=297779) |
-| Focus-zoom on fields below 16px | tapping an input zooms the page and offsets the layout | **fixed**: all form controls are ≥ 16px, enforced by test | iOS Safari behaviour (documented in the test) |
+| Focus-zoom on fields below 16px | tapping an input zooms the page and offsets the layout | **fixed on iOS only**: the five compact controls are raised to 16px inside the `-webkit-touch-callout` block, so desktop/Chrome sizing is untouched | iOS Safari behaviour (documented in the test) |
 | Sticky `:hover` on touch, hover-revealed actions | first tap only "enters hover"; delete/publish appear to need two taps | **fixed**: the three hover-revealed card actions are always visible on iOS | WebKit [209292](https://bugs.webkit.org/show_bug.cgi?id=209292), r/webdev [g5gdlz](https://www.reddit.com/r/webdev/comments/g5gdlz/fyi_ipad_does_not_handle_pointerhover_media/) |
 | `pointer` / `hover` media queries unreliable on iPad | `@media (hover: hover)` gating cannot be trusted | **avoided**: the iOS path is gated by `@supports (-webkit-touch-callout: none)` instead | r/webdev above, [humanwhocodes](https://humanwhocodes.com/blog/2012/07/05/ios-has-a-hover-problem/) |
 | Missing touch primitives | tap flash, double-tap zoom, accidental text selection | **fixed**: `-webkit-tap-highlight-color: transparent`, `touch-action: manipulation`, `-webkit-text-size-adjust: 100%` | iOS Safari conventions |
@@ -55,8 +55,8 @@ not action): HN [9804533](https://news.ycombinator.com/item?id=9804533),
 | Change | Where |
 | --- | --- |
 | `100vh` → `vh` + `dvh` companion pairs (17 sites) | `static/styles.css` |
-| Form controls raised to the 16px floor (`.theme-picker .select` ×2, `.agent-select`, `.composer textarea`, `.library-search input`) | `static/styles.css` |
-| iOS/iPadOS touch block (`@supports (-webkit-touch-callout: none)`): text-size-adjust, tap highlight, `touch-action`, always-visible card actions | `static/styles.css` |
+| Form-control focus-zoom floor raised **inside the iOS block only** (`.agent-select`, `.theme-picker .select`, `.composer textarea`, `.chat-title-input`, `.library-search input`); desktop and Chrome keep their 12–15px sizes | `static/styles.css` |
+| iOS/iPadOS touch block (`@supports (-webkit-touch-callout: none)`): text-size-adjust, tap highlight, `touch-action`, the 16px control floor, always-visible card actions | `static/styles.css` |
 | `-webkit-backdrop-filter` companion | `static/styles.css` (`backdrop-filter: none`) |
 | `overscroll-behavior: contain` on `.modal-box`; `min-height: 0` on `.message-list` | `static/styles.css` |
 | Unsupported-browser notice (CSS-gated, CSS-dismissible) + copy | `static/index.html`, `static/styles.css`, `static/locales/*` |
@@ -68,6 +68,12 @@ not action): HN [9804533](https://news.ycombinator.com/item?id=9804533),
 - New dependencies, polyfill libraries, or a CSS preprocessor.
 - Layout redesign, or `position: fixed` → `sticky` restructuring without device
   evidence that the iOS 26 drift bug reaches us.
+- **Changing the desktop (Chrome) rendering.** Safari support is incremental:
+  every fix here is either inert on Chrome (`100dvh` equals `100vh` without a
+  dynamic browser UI, `-webkit-touch-callout` never matches, the below-baseline
+  notice stays hidden because Chrome supports `color-mix()`) or scoped inside
+  the iOS-only block. The one shared change is `overscroll-behavior: contain` on
+  `.modal-box`, which also improves Chrome's dialog behaviour.
 
 ## 5. Device checklist (run on a real iPad before a UI release)
 
