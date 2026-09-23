@@ -24,6 +24,7 @@
     "user": "User"
   },
   "common": {
+    "unsupportedBrowser": "This browser is below the supported baseline. OMA Studio needs Safari 16.4 or newer (iPadOS 16.4+).",
     "cancel": "Cancel",
     "close": "Close",
     "save": "Save",

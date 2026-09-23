@@ -499,6 +499,14 @@ npm run build:css
 
 The build uses the official `@tailwindcss/typography` plugin. Keep `static/typography.css` in sync when changing Markdown presentation classes.
 
+**Browser baseline: Safari / iPadOS 16.4 or newer.** That floor comes from Tailwind CSS v4
+(`@property`, `color-mix()`, `oklch()`, `@layer`), which the CDN build and the generated
+typography stylesheet both depend on. Older engines get a dismissible notice instead of a
+broken UI. The audit, the iPad-specific pitfalls and the device checklist live in
+[`docs/safari-ipad-compatibility.md`](docs/safari-ipad-compatibility.md);
+`tests/unit/test_style_compat.py` enforces the invariants (every `100vh` height keeps a
+`dvh` companion, `backdrop-filter` keeps its `-webkit-` prefix, form controls stay at 16px).
+
 Useful commands:
 
 ```bash
