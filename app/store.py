@@ -10,7 +10,7 @@ from uuid import uuid4
 from sqlmodel import Session, select
 
 from .auth import hash_password, new_session_token, session_digest
-from .storage import create_sqlite_engine, from_row, migrate_tinydb, to_row
+from .storage import create_sqlite_engine, from_row, to_row
 from .storage_models import TABLE_MODELS
 
 DEFAULT_TOOLS = ["read", "write", "edit", "bash"]
@@ -51,14 +51,8 @@ class Store:
     """Dictionary-compatible metadata store backed by SQLModel/SQLite."""
 
     def __init__(self, path: Path):
-        self.legacy_path = (
-            path if path.suffix != ".sqlite3" else path.with_name("platform.json")
-        )
-        self.sqlite_path = (
-            path if path.suffix == ".sqlite3" else path.with_name("platform.sqlite3")
-        )
-        migrate_tinydb(self.legacy_path, self.sqlite_path)
-        self.engine = create_sqlite_engine(self.sqlite_path)
+        self.sqlite_path = path
+        self.engine = create_sqlite_engine(path)
 
     def close(self) -> None:
         self.engine.dispose()

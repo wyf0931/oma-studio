@@ -16,7 +16,7 @@ session transcripts**. Status: MVP, single user, localhost.
 | --- | --- | --- |
 | Python | 3.11+ managed by **uv** | Never use pip directly; use `uv` / `uv run`. |
 | API | FastAPI + Pydantic | Request validation lives in Pydantic models in `app/main.py`. |
-| Storage | SQLModel + SQLite (file `~/.oma-studio/data/platform.sqlite3`) | Metadata only; legacy JSON is migrated once with backup. |
+| Storage | SQLModel + SQLite (file `~/.oma-studio/data/platform.sqlite3`) | Metadata only; SQLite is the sole metadata store. Legacy TinyDB JSON is a read-only archive that no code path reads. |
 | Agent runtime | Pi RPC subprocess | One short-lived Pi process per operation (send / stream / messages). |
 | Frontend | Plain static HTML/JS/CSS in `static/` | No bundler. Alpine.js + DaisyUI 5 + Tailwind browser build via CDN; Lucide is the required icon system for all UI icons. |
 | Markdown rendering | marked + DOMPurify + highlight.js + mermaid (CDN) | Sanitized HTML only; never inject raw model output. |

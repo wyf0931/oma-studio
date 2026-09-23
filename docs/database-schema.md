@@ -2,11 +2,11 @@
 
 OMA Studio 的平台元数据保存在 `platform.sqlite3`，由 SQLModel 和 SQLite 管理。当前数据库包含 12 张业务表，以及 1 张由存储层维护的 `schema_meta` 表，共 13 张表。
 
-SQLite 是运行时唯一的元数据存储。旧的 `platform.json` 只用于一次性迁移：当目标 SQLite 文件不存在且 legacy JSON 存在时，应用会校验并导入数据，然后创建带 UTC 时间戳的 `.bak` 备份。已有 SQLite 执行 schema 增量升级前，会使用 SQLite 原生 backup API 创建 `platform.sqlite3.schema-vN.<timestamp>.bak`，再执行 `ALTER TABLE`；因此 WAL 中的已提交数据也包含在升级前备份中。Pi 消息正文、工具调用结果、完整对话记录和 Pi 原生 session 文件仍由 Pi 管理，不写入 SQLite。
+SQLite 是运行时唯一的元数据存储，没有任何启动路径会读取 JSON。TinyDB 到 SQLite 的迁移已经完成：`platform.json` 及其 `.bak` 只作为只读归档保留，应用不会再读取或写入它们（见下文“归档与回滚”）。已有 SQLite 执行 schema 增量升级前，会使用 SQLite 原生 backup API 创建 `platform.sqlite3.schema-vN.<timestamp>.bak`，再执行 `ALTER TABLE`；因此 WAL 中的已提交数据也包含在升级前备份中。Pi 消息正文、工具调用结果、完整对话记录和 Pi 原生 session 文件仍由 Pi 管理，不写入 SQLite。
 
 ## ER 图
 
-下面的连线表示应用层的逻辑关系。当前 SQLModel 字段使用 ID 约定和索引表达关联，数据库本身没有声明 `FOREIGN KEY` 约束；删除级联和跨表一致性由 `Store` 与业务路由维护。`schema_meta.version` 当前为 2，启动时会对已有 SQLite 执行增量列迁移。
+下面的连线表示应用层的逻辑关系。当前 SQLModel 字段使用 ID 约定和索引表达关联，数据库本身没有声明 `FOREIGN KEY` 约束；删除级联和跨表一致性由 `Store` 与业务路由维护。`schema_meta.version` 当前为 4，启动时会对已有 SQLite 执行增量列迁移。
 
 ```mermaid
 erDiagram
@@ -162,7 +162,7 @@ erDiagram
 
     SCHEMA_META {
         string key PK "当前为 version"
-        string value "当前 schema version 为 2"
+        string value "当前 schema version 为 4"
     }
 ```
 
@@ -216,7 +216,7 @@ erDiagram
 
 ### `schema_meta`
 
-由 `create_sqlite_engine()` 单独创建，用于记录存储 schema 版本。当前写入 `key = 'version'`、`value = '2'`。它不属于 `TABLE_MODELS`，也不参与 legacy TinyDB 数据迁移。
+由 `create_sqlite_engine()` 单独创建，用于记录存储 schema 版本。当前写入 `key = 'version'`、`value = '4'`。它不属于 `TABLE_MODELS`。
 
 ## 索引和关系约束
 
@@ -245,22 +245,47 @@ SQLModel 当前创建的索引如下：
 - `autopilot_runs` 继承 Autopilot / Chat 的用户归属，访问控制由路由层验证。
 - Marketplace publication 与 version 的存在性和归属由 Store / router 维护。
 
-## SQLite 初始化和 legacy 迁移
+## SQLite 初始化和 schema 升级
 
 应用启动时执行以下流程：
 
-1. `Store` 使用 `platform.sqlite3` 初始化。
-2. 如果 SQLite 不存在而同目录存在 `platform.json`，读取并校验 legacy TinyDB 数据。
-3. 将 12 张 legacy 表导入临时 SQLite 文件，逐表核对记录数量。
-4. 复制原始 JSON 为带 UTC 时间戳的 `.bak` 文件。
-5. 原子替换为 `platform.sqlite3`，随后由 SQLModel 创建缺失表并写入 `schema_meta.version`。
+1. `Store` 使用 `platform.sqlite3` 初始化；文件不存在时直接创建空的 SQLite 数据库。
+2. 已有 SQLite 如果 `schema_meta.version` 低于 `SCHEMA_VERSION`，或缺少 `SCHEMA_ALTERS` 中的列，会先用 SQLite 原生 backup API 创建 `platform.sqlite3.schema-vN.<timestamp>.bak`。
+3. SQLModel 创建缺失的表，存储层补齐缺失的列。
+4. 写入 `schema_meta.version`。
 
-迁移是一次性的：只要 `platform.sqlite3` 已存在，应用不会重复读取 `platform.json`。操作者也可以显式预览或执行迁移：
+应用不会读取 JSON：`platform.json` 已经退役，即使它与 SQLite 同目录存在也不会被解析或导入。如果数据目录缺少 `platform.sqlite3`，应用会创建空库，而不会回退到旧数据。
+
+## 归档与回滚
+
+TinyDB 迁移在 local 和 production 均已完成并核对：`platform.json` 中的每一条记录都存在于 `platform.sqlite3`（SQLite 是其严格超集），且 `agents`、`chats`、`autopilots`、`autopilot_runs`、`shares`、`artifact_shares`、`sessions` 中不存在 `user_id` 为空的记录。
+
+保留的数据文件（不属于代码，由操作者管理）：
+
+| 文件 | 作用 |
+| --- | --- |
+| `platform.json` | 迁移前的只读快照，仅作历史归档 |
+| `platform.json.<UTC>.bak` | 迁移时自动生成的原始 JSON 副本 |
+| `platform.sqlite3.schema-vN.<UTC>.bak` | 每次 schema 升级前的完整 SQLite 备份（含 WAL 中已提交的数据） |
+
+这些文件不再被任何代码路径读取，也不会被自动删除；是否清理由操作者决定。
+
+回滚原则：迁移之后产生的状态只存在于 SQLite，因此回滚应以 SQLite 备份为单位，而不是从 JSON 重建。
 
 ```bash
-uv run python scripts/migrate_tinydb_to_sqlite.py --data ~/.oma-studio/data
-uv run python scripts/migrate_tinydb_to_sqlite.py --data ~/.oma-studio/data --apply
+# 确认可用的备份
+ls -l ~/.oma-studio/data/platform.sqlite3*.bak
+# 停止服务后，用备份替换当前数据库，并删除同目录的 -wal / -shm 文件
 ```
+
+只有在所有 SQLite 备份都不可用、必须从旧的 JSON 快照重建这种极端情况下，才需要重新引入一次性迁移代码。该脚本已随本次清理从仓库移除，可从 git 历史中取回：
+
+```bash
+git log --oneline -- scripts/migrate_tinydb_to_sqlite.py
+git show <commit>:scripts/migrate_tinydb_to_sqlite.py > /tmp/migrate_tinydb_to_sqlite.py
+```
+
+用这种方式重建的数据库只包含迁移时点的数据，此后新增的 Agent、Chat 和分享都会丢失。
 
 ## 数据边界
 
