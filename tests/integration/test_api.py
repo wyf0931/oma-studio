@@ -1,4 +1,6 @@
 import json
+import re
+import struct
 from pathlib import Path
 from uuid import uuid4
 
@@ -437,12 +439,77 @@ def test_favicon_assets_are_explicit_and_ico_is_not_spa_html(client):
     assert 'sizes="32x32"' in html
     assert 'href="/static/favicon-32.png?v=20260917-theme"' in html
     assert 'rel="shortcut icon"' not in html
-    assert 'href="/static/apple-touch-icon.png?v=20260908"' in html
+    assert 'rel="apple-touch-icon"' in html
 
     response = client.get("/favicon.ico")
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/x-icon"
     assert response.content[:4] == b"\x00\x00\x01\x00"
+
+
+APPLE_TOUCH_ICON_LINK = re.compile(r'<link\b[^>]*rel="apple-touch-icon"[^>]*>')
+APPLE_TOUCH_ICON_HREF = re.compile(r'href="([^"]+)"')
+APPLE_TOUCH_ICON_SIZES = re.compile(r'sizes="(\d+)x(\d+)"')
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+# PNG color types without an alpha channel: grayscale, truecolor, palette.
+OPAQUE_PNG_COLOR_TYPES = {0, 2, 3}
+
+
+def assert_opaque_png(path):
+    """Return the (width, height) of `path`, failing if the PNG can be transparent."""
+    data = path.read_bytes()
+    assert data[:8] == PNG_SIGNATURE, f"{path} is not a PNG"
+    length, chunk_type = struct.unpack(">I4s", data[8:16])
+    assert (length, chunk_type) == (13, b"IHDR"), f"{path} has no leading IHDR chunk"
+    width, height, _depth, color_type, _compression, _filter, _interlace = (
+        struct.unpack(">IIBBBBB", data[16:29])
+    )
+    assert color_type in OPAQUE_PNG_COLOR_TYPES, (
+        f"{path} carries an alpha channel (PNG color type {color_type}); a home-screen icon must be "
+        "self-contained and opaque so iOS cannot composite a dark mark onto a black background"
+    )
+    assert b"tRNS" not in data, f"{path} declares transparency through a tRNS chunk"
+    return width, height
+
+
+def test_apple_touch_icon_is_opaque_and_resolves_to_a_real_asset(client):
+    html = Path("static/index.html").read_text(encoding="utf-8")
+
+    links = APPLE_TOUCH_ICON_LINK.findall(html)
+    assert links, (
+        "static/index.html must declare an apple-touch-icon for Add to Home Screen"
+    )
+
+    declared = []
+    for link in links:
+        href = APPLE_TOUCH_ICON_HREF.search(link)
+        assert href, f"apple-touch-icon link has no href: {link}"
+        url = href.group(1)
+        assert url.startswith("/static/"), (
+            f"apple-touch-icon must be a local asset: {url}"
+        )
+        assert "?v=" in url, f"apple-touch-icon href must be cache-busted: {url}"
+
+        path = Path(url.split("?", 1)[0].lstrip("/"))
+        assert path.is_file(), f"apple-touch-icon {url} does not resolve to a file"
+        width, height = assert_opaque_png(path)
+
+        sizes = APPLE_TOUCH_ICON_SIZES.search(link)
+        if sizes:
+            assert (width, height) == (int(sizes.group(1)), int(sizes.group(2))), (
+                f"{url} is {width}x{height} but declares {sizes.group(0)}"
+            )
+
+        response = client.get(url)
+        assert response.status_code == 200, f"{url} is not served"
+        assert response.headers["content-type"] == "image/png"
+        assert response.content[:8] == PNG_SIGNATURE
+        declared.append(path)
+
+    orphans = set(Path("static").glob("apple-touch-icon*.png")) - set(declared)
+    assert not orphans, (
+        f"unreferenced home-screen icon assets left behind: {sorted(orphans)}"
+    )
 
 
 def test_agent_edit_entry_is_card_action_only():
