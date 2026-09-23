@@ -3790,7 +3790,10 @@ function platform() {
       const label = isStreaming ? "Thinking" : seconds === null ? "Thought" : `Thought for ${seconds}s`;
       const reasoningKey = `${messageKey || "message"}:reasoning`;
       const hasPreference = Object.prototype.hasOwnProperty.call(this.reasoningOpen, reasoningKey);
-      const checked = (hasPreference ? this.reasoningOpen[reasoningKey] : true) ? " checked" : "";
+      // The block follows its turn: open while the turn is in flight (there is no
+      // answer to read yet), closed once the turn lands. An explicit user toggle in
+      // either direction outranks that default and is recorded by setReasoningOpen().
+      const checked = (hasPreference ? this.reasoningOpen[reasoningKey] : isStreaming) ? " checked" : "";
       return `<div class="collapse reasoning-collapse"><input type="checkbox" data-reasoning-key="${this.escape(reasoningKey)}" onchange="window.omaPlatform.setReasoningOpen(this)"${checked} /><div class="collapse-title process-label"><i data-lucide="sparkle" aria-hidden="true"></i><span>${label}</span><i class="reasoning-chevron" data-lucide="chevron-down" aria-hidden="true"></i></div><div class="collapse-content"><ul class="timeline timeline-compact timeline-snap-icon timeline-vertical reasoning-timeline">${content}</ul></div></div>`;
     },
     renderProcessToolCall(name, args) {
