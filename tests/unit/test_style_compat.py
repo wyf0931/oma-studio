@@ -105,11 +105,40 @@ def test_backdrop_filter_always_carries_the_webkit_prefix():
         )
 
 
-def test_form_controls_keep_the_sixteen_pixel_focus_zoom_floor():
-    offenders = _declared_size_px(_styles())
-    assert offenders == [], (
-        "Safari auto-zooms a focused field below 16px; raise these: "
-        + "; ".join(f"{selector} = {size}px" for selector, size in offenders)
+def _ios_raised_selectors(ios: str) -> set[str]:
+    """Selectors the iOS block raises to 16px (handles selector lists and comments)."""
+    raised = set()
+    block = re.sub(r"/\*.*?\*/", "", ios, flags=re.DOTALL)
+    for match in re.finditer(r"([^{}]+)\{([^{}]*)\}", block):
+        selector, body = match.group(1), match.group(2)
+        size = FONT_SIZE.search(body)
+        if not size:
+            continue
+        value = float(size.group(1)) * (1 if size.group(2) == "px" else 16)
+        if value < 16:
+            continue
+        for part in selector.split(","):
+            part = " ".join(part.split())
+            if part:
+                raised.add(part)
+    return raised
+
+
+def test_compact_form_controls_are_raised_on_ios_only():
+    """Chrome keeps today's compact chrome; iOS gets the 16px focus-zoom floor.
+
+    Safari auto-zooms a focused field below 16px, but the majority of our users
+    run desktop Chrome and must not see a font-size change, so the floor lives
+    inside the iOS-only block instead of on the shared declarations.
+    """
+    styles = _styles()
+    compact = [(s, size) for s, size in _declared_size_px(styles)]
+    assert compact, "expected the compact control sizes to stay in the stylesheet"
+    raised = _ios_raised_selectors(_block(styles, IOS_GATE))
+    missing = sorted(selector for selector, _ in compact if selector not in raised)
+    assert missing == [], (
+        "these controls sit below Safari's 16px focus-zoom floor without an iOS "
+        "override: " + "; ".join(missing)
     )
 
 

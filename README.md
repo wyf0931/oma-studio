@@ -505,7 +505,8 @@ typography stylesheet both depend on. Older engines get a dismissible notice ins
 broken UI. The audit, the iPad-specific pitfalls and the device checklist live in
 [`docs/safari-ipad-compatibility.md`](docs/safari-ipad-compatibility.md);
 `tests/unit/test_style_compat.py` enforces the invariants (every `100vh` height keeps a
-`dvh` companion, `backdrop-filter` keeps its `-webkit-` prefix, form controls stay at 16px).
+`dvh` companion, `backdrop-filter` keeps its `-webkit-` prefix, and every sub-16px form
+control keeps its iOS-only 16px override so the desktop sizing is untouched).
 
 Useful commands:
 

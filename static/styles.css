@@ -528,7 +528,7 @@ body {
  width: 190px;
  min-height: 38px;
  border-color: var(--line);
- font-size: 16px;
+ font-size: 12px;
  background: var(--color-base-100);
  color: var(--ink);
 }
@@ -2131,9 +2131,8 @@ body {
 .sidebar-footer {
  gap: 16px;
 }
-/* 16px keeps Safari/iOS from auto-zooming on focus (see docs/safari-ipad-compatibility.md). */
 .theme-picker .select {
- font-size: 16px;
+ font-size: 13px;
 }
 .sidebar-footer .theme-picker {
  display: flex;
@@ -2559,7 +2558,7 @@ body {
  font-size: 12px;
 }
 .theme-picker .select {
- font-size: 16px;
+ font-size: 13px;
 }
 .sidebar-heading {
  font-size: 14px;
@@ -2586,7 +2585,7 @@ body {
  font-size: 16px;
 }
 .agent-select {
- font-size: 16px;
+ font-size: 14px;
 }
 .composer-hint {
  font-size: 12px;
@@ -2596,7 +2595,7 @@ body {
 }
 
 .composer textarea {
- font-size: 16px;
+ font-size: 15px;
 }
 .page-heading p {
  font-size: 16px;
@@ -3588,7 +3587,7 @@ pre,
  outline: 0;
  background: transparent;
  color: var(--ink);
- font-size: 16px;
+ font-size: 14px;
 }
 .library-table-wrap {
  overflow: auto;
@@ -5885,7 +5884,7 @@ body > .link-drawer {
  min-height: 36px;
  height: 36px;
  padding: 6px 10px;
- font-size: 16px;
+ font-size: 14px;
 }
 .content-panel:has(.conversation) .message-list {
  padding-top: 84px;
@@ -5949,6 +5948,17 @@ body > .link-drawer {
  .btn {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+ }
+ /* Safari zooms the page when a focused field is smaller than 16px. Our compact
+    chrome uses 12–15px controls, so raise only those here — Chrome and desktop
+    sizing stay exactly as they were. Keep this list in sync with the controls
+    that declare a smaller font-size (tests/unit/test_style_compat.py checks it). */
+ .agent-select,
+ .theme-picker .select,
+ .composer textarea,
+ .chat-title-input,
+ .library-search input {
+  font-size: 16px;
  }
  /* Touch has no hover: keep the hover-revealed card actions visible. */
  .trash-btn,
