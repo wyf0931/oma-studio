@@ -2097,39 +2097,6 @@ function platform() {
       }
       if (this.activeChat?.status === "running") void this.watchChat(chat.id);
     },
-    async routeFromUrl() {
-      this.syncModeFromUrl();
-      if (window.location.pathname === "/file-view") {
-        this.page = "file";
-        await this.loadFileViewer();
-        return;
-      }
-      if (window.location.pathname === "/library") {
-        this.page = "library";
-        await this.loadLibrary(1);
-        return;
-      }
-      const match = window.location.pathname.match(/^\/chat\/([^/]+)$/);
-      if (window.location.pathname === "/agents") {
-        this.page = "agents";
-        return;
-      }
-      this.page = "chat";
-      if (match) {
-        const chat = this.chats.find((item) => item.id === decodeURIComponent(match[1]));
-        if (chat) await this.openChat(chat, false);
-        else {
-          this.activeChat = null;
-          this.messages = [];
-          this.showError(new Error("Chat not found"));
-        }
-      } else {
-        this.activeChat = null;
-        this.messages = [];
-        this.draft = "";
-        this.loading = false;
-      }
-    },
     async sendFirst() {
       if (!this.draft.trim() || !this.selectedAgentId) return;
       try {
@@ -3622,11 +3589,11 @@ function platform() {
         await this.openSharedChat(decodeURIComponent(shareMatch[1]));
         return;
       }
-      const match = window.location.pathname.match(/^\/chat\/([^/]+)$/);
       if (window.location.pathname === "/agents") {
         this.page = "agents";
         return;
       }
+      const match = window.location.pathname.match(/^\/chat\/([^/]+)$/);
       this.page = "chat";
       if (match) {
         const chat = this.chats.find((item) => item.id === decodeURIComponent(match[1]));

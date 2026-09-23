@@ -624,8 +624,13 @@ def test_thought_blocks_open_by_default_and_label_streaming_state():
     )
     assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
     assert 'const label = isStreaming ? "Thinking"' in script
-    assert "app.js?v=20260922-dead-share-login" in Path("static/index.html").read_text(
-        encoding="utf-8"
+    app_src = re.search(
+        r'<script src="(/static/app\.js[^"]*)"',
+        Path("static/index.html").read_text(encoding="utf-8"),
+    )
+    assert app_src, "static/index.html must load /static/app.js"
+    assert "?v=" in app_src.group(1), (
+        f"app.js must be cache-busted after a frontend change: {app_src.group(1)}"
     )
 
 
