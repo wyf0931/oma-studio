@@ -62,6 +62,17 @@ not action): HN [9804533](https://news.ycombinator.com/item?id=9804533),
 | Unsupported-browser notice (CSS-gated, CSS-dismissible) + copy | `static/index.html`, `static/styles.css`, `static/locales/*` |
 | Executable contract | `tests/unit/test_style_compat.py` |
 
+### Cache busting is part of the fix
+
+Production is fronted by Cloudflare, which caches `/static/*` with
+`cache-control: max-age=14400` (4 hours) and does not revalidate. The `?v=` token
+is the only thing that makes a browser request a fresh copy, so **every** edit to
+`static/styles.css`, `static/app.js` or `static/typography.css` needs a new token
+in `static/index.html` — including follow-up fixes to a change that has not
+reached users yet. Verified 2026-09-23: a follow-up CSS fix reused the first
+release's token, Cloudflare answered `cf-cache-status: HIT` with `age: 141`, and
+desktop browsers kept the older stylesheet until the token changed.
+
 ## 4. Non-goals
 
 - Legacy build for iPadOS < 16.4 (see §1).
