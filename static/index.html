@@ -49,9 +49,16 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260922-unshare-session" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260922-safari-compat" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
+    <!-- Baseline notice: CSS shows this only on engines below Safari 16.4, and the
+         checkbox dismisses it without JavaScript (see docs/safari-ipad-compatibility.md). -->
+    <div class="unsupported-browser" role="status">
+      <input type="checkbox" id="unsupported-browser-dismiss" class="unsupported-browser-dismiss" />
+      <p x-text="t('common.unsupportedBrowser')"></p>
+      <label for="unsupported-browser-dismiss" x-text="t('common.close')"></label>
+    </div>
     <div class="app-boot" x-show="!appReady" role="status" aria-live="polite">
       <div class="app-boot-brand">
         <img src="/static/oma-logo-transparent.png" alt="" />

@@ -24,6 +24,7 @@
     "user": "用户"
   },
   "common": {
+    "unsupportedBrowser": "当前浏览器低于支持基线：OMA Studio 需要 Safari 16.4 或更新版本（iPadOS 16.4+）。",
     "cancel": "取消",
     "close": "关闭",
     "save": "保存",
