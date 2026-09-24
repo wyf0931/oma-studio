@@ -49,8 +49,7 @@ def create_context() -> ApplicationContext:
             "OMA_ADMIN_PASSWORD and OMA_DEFAULT_USER_PASSWORD must be configured"
         )
     admin_user = store.ensure_default_user(settings.admin_password)
-    if not default_agent.get("user_id"):
-        store.update_agent(default_agent["id"], {"user_id": admin_user["id"]})
+    store.backfill_ownership(admin_user["id"])
 
     return ApplicationContext(
         settings=settings,

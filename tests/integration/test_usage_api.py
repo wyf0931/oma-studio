@@ -58,8 +58,10 @@ def test_usage_endpoint_scopes_normal_users_and_exposes_admin_dimensions(client)
         normal_payload = normal_response.json()
         assert normal_payload["summary"]["sessions"] == 0
         assert normal_payload["sessions"] == []
-        assert "users" not in normal_payload
-        assert "agents" not in normal_payload
+        # Admin-only dimensions stay in the payload as empty collections so the
+        # response shape is stable for every role.
+        assert normal_payload["users"] == []
+        assert normal_payload["agents"] == []
     finally:
         client.post("/api/auth/logout")
         client.post(
