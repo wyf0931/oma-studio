@@ -1,5 +1,6 @@
 """Read-only usage aggregation over the platform's Pi session transcripts."""
 
+import math
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -22,12 +23,19 @@ def empty_usage() -> dict[str, int | float]:
 
 
 def _number(value: Any, *, integer: bool = False) -> int | float:
+    # Transcript usage values come from session files, so a malformed entry can
+    # be a non-number, NaN, or +/-inf. NaN parses as a float but then raises
+    # inside int(), and any of them would poison every aggregate total.
     try:
         number = float(value)
     except (TypeError, ValueError):
         return 0
     if integer:
-        return int(number) if number >= 0 else 0
+        if not math.isfinite(number) or number < 0:
+            return 0
+        return int(number)
+    if not math.isfinite(number):
+        return 0
     return max(number, 0)
 
 
@@ -186,6 +194,9 @@ def aggregate_usage(
             _add_totals(agent_row, usage)
 
     session_rows.sort(key=lambda row: row.get("created_at") or "", reverse=True)
+    # The per-user and per-agent breakdowns are admin-only, so the aggregation
+    # loop above never collects cross-user rows for a normal user. The keys are
+    # always present (empty for normal users) to keep the payload shape stable.
     payload: dict[str, Any] = {
         "range": {
             "days": days,
@@ -195,13 +206,12 @@ def aggregate_usage(
         "summary": summary,
         "daily": list(daily.values()),
         "sessions": session_rows,
-    }
-    if admin:
-        payload["users"] = sorted(
+        "users": sorted(
             user_totals.values(), key=lambda row: (-row["sessions"], row["username"])
-        )
-        payload["agents"] = sorted(
+        ),
+        "agents": sorted(
             agent_totals.values(),
             key=lambda row: (-row["sessions"], row["agent_name"]),
-        )
+        ),
+    }
     return payload

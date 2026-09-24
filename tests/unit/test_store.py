@@ -221,3 +221,47 @@ def test_viewing_a_chat_does_not_change_ordering(tmp_path: Path):
         {"status": "running", "last_activity_at": future_activity},
     )
     assert [c["id"] for c in store.list_chats()] == [first["id"], second["id"]]
+
+
+def test_ownership_backfill_adopts_legacy_records_for_admin(tmp_path: Path):
+    store = Store(tmp_path / "platform.sqlite3")
+    admin = store.ensure_default_user("admin-password")
+    already_owned = store.create_agent("owned", "Keep its owner", user_id="someone")
+
+    legacy_agent = store.ensure_default_agent()
+    legacy_chat = store.create_chat(legacy_agent["id"])
+    legacy_autopilot = store.create_autopilot(
+        "Daily brief", "Summarize today", legacy_agent["id"], "0 9 * * *"
+    )
+    legacy_run = store.create_autopilot_run(
+        legacy_autopilot["id"], legacy_chat["id"], "session-1"
+    )
+    legacy_share = store.create_share(legacy_chat["id"])
+    legacy_artifact = store.create_artifact_share(legacy_chat["id"], "reports/one.md")
+
+    assert store.backfill_ownership(admin["id"]) == 6
+
+    adopted_agent = store.get_agent(legacy_agent["id"])
+    assert adopted_agent is not None
+    assert adopted_agent["user_id"] == admin["id"]
+    adopted_chat = store.get_chat(legacy_chat["id"])
+    assert adopted_chat is not None
+    assert adopted_chat["user_id"] == admin["id"]
+    adopted_autopilot = store.get_autopilot(legacy_autopilot["id"])
+    assert adopted_autopilot is not None
+    assert adopted_autopilot["user_id"] == admin["id"]
+    runs = store.list_autopilot_runs(legacy_autopilot["id"])
+    assert [run["id"] for run in runs] == [legacy_run["id"]]
+    assert runs[0]["user_id"] == admin["id"]
+    adopted_share = store.get_share(legacy_share["token"])
+    assert adopted_share is not None
+    assert adopted_share["user_id"] == admin["id"]
+    adopted_artifact = store.get_artifact_share(legacy_artifact["token"])
+    assert adopted_artifact is not None
+    assert adopted_artifact["user_id"] == admin["id"]
+
+    # Existing owners are never overwritten, and a second pass is a no-op.
+    untouched = store.get_agent(already_owned["id"])
+    assert untouched is not None
+    assert untouched["user_id"] == "someone"
+    assert store.backfill_ownership(admin["id"]) == 0

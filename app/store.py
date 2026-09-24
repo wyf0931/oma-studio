@@ -26,6 +26,16 @@ SUPPORTED_TOOLS = BUILTIN_TOOLS + PLATFORM_TOOLS
 NULLABLE_AGENT_FIELDS = {"provider", "model", "thinking_level", "description"}
 DEFAULT_AGENT_INSTRUCTION = "Be helpful, clear, concise and easy to follow; don't sacrifice clarity for brevity."
 LEGACY_DEFAULT_AGENT_INSTRUCTION = "Be helpful, clear, and concise."
+# User-owned platform records. Historical rows created before ownership existed
+# carry a NULL user_id and are adopted by admin on startup.
+OWNERSHIP_TABLES = (
+    "agents",
+    "chats",
+    "autopilots",
+    "autopilot_runs",
+    "shares",
+    "artifact_shares",
+)
 
 
 def now_iso() -> str:
@@ -120,6 +130,15 @@ class Store:
         }
         self._insert("users", user)
         return user
+
+    def backfill_ownership(self, admin_id: str) -> int:
+        """Adopt legacy records without an owner. Idempotent: only NULL owners move."""
+        return sum(
+            self._update(
+                table, lambda item: not item.get("user_id"), {"user_id": admin_id}
+            )
+            for table in OWNERSHIP_TABLES
+        )
 
     def list_users(self) -> list[dict]:
         return [self.public_user(user) for user in self._all("users")]

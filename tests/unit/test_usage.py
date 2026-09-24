@@ -169,3 +169,36 @@ def test_aggregate_usage_excludes_unstarted_new_conversations(tmp_path: Path):
 
     assert [row["id"] for row in payload["sessions"]] == ["started"]
     assert payload["summary"]["sessions"] == 1
+
+
+def test_usage_ignores_non_finite_transcript_numbers(tmp_path: Path):
+    # json.loads accepts the non-standard NaN/Infinity literals, so a malformed
+    # session can inject them. They must not crash aggregation or leak into
+    # totals as NaN.
+    path = tmp_path / "2026-09-04_session.jsonl"
+    _write_session(
+        path,
+        [
+            {
+                "role": "assistant",
+                "usage": {
+                    "input": float("nan"),
+                    "output": float("inf"),
+                    "cacheRead": -5,
+                    "cost": {"total": float("nan")},
+                },
+                "content": [],
+            },
+            _assistant(40),
+        ],
+    )
+
+    assert usage_for_session([path]) == {
+        "input_tokens": 40,
+        "output_tokens": 10,
+        "cached_tokens": 5,
+        "tool_calls": 0,
+        "search_calls": 0,
+        "fetch_calls": 0,
+        "cost": 0.25,
+    }
