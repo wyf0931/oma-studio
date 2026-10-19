@@ -1,31 +1,19 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useShares } from "./context";
+import { useFormat } from "../../shared/format-context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const {
-  confirmRevokeShare,
-  formatDateTime,
-  requestRevokeShare,
-  shareRecordTitle,
-  shareRecordUrl,
-  shareRecords,
-  shareRecordsLoading,
-  shareRecordsOpen,
-  shareRevokeTarget,
-  shareRevoking,
-  t,
-} = useWorkspaceScope([
-  "confirmRevokeShare",
-  "formatDateTime",
-  "requestRevokeShare",
-  "shareRecordTitle",
-  "shareRecordUrl",
-  "shareRecords",
-  "shareRecordsLoading",
-  "shareRecordsOpen",
-  "shareRevokeTarget",
-  "shareRevoking",
-  "t",
-]);
+const sharesFeature = useShares();
+const { shareRecords, shareRecordsLoading, shareRecordsOpen, shareRevokeTarget, shareRevoking } = toRefs(
+  sharesFeature.state,
+);
+const { confirmRevokeShare, requestRevokeShare, shareRecordTitle, shareRecordUrl } = sharesFeature;
+const formatFeature = useFormat();
+const { formatDateTime } = formatFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <dialog

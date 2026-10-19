@@ -1,81 +1,17 @@
-import { ApiError, asError } from "../../shared/types";
-import type { Workspace } from "../../app/workspace";
-import { nextTick } from "vue";
-
+import type { Actions as ShellActions } from "../../app/actions";
+import type { Actions as ApiActions } from "../../shared/api";
+import type { Actions as FormatActions } from "../../shared/format";
+import type { Actions as DomActions } from "../../shared/dom";
+import { validateAgentResponse } from "../../generated/validators.mjs";
+import { unwrap } from "../../shared/api";
+import { reactive, nextTick } from "vue";
 import type * as DTO from "../../shared/types";
+import { ApiError, asError } from "../../shared/types";
 
-// Explicit dependency contract for this feature; the composition root supplies it.
-type Context = Pick<
-  Workspace,
-  | "agentModelConfigPayload"
-  | "agentPickerOpen"
-  | "agentSearch"
-  | "agentSkillSearch"
-  | "agentWizardStep"
-  | "agents"
-  | "api"
-  | "avatarUrl"
-  | "chats"
-  | "confirmTarget"
-  | "createDialog"
-  | "creating"
-  | "defaultAgentTools"
-  | "defaultModelFor"
-  | "defaultResources"
-  | "defaultThinkingLevel"
-  | "dialog"
-  | "draft"
-  | "editingAgent"
-  | "escape"
-  | "generatingInstruction"
-  | "hasAgentDraft"
-  | "initials"
-  | "marketAgentAvatarUrl"
-  | "marketPublishTarget"
-  | "marketPublishVersion"
-  | "modelName"
-  | "modelsFor"
-  | "newAgentAvatarFile"
-  | "newAgentAvatarPreview"
-  | "newAgentDescription"
-  | "newAgentExtensions"
-  | "newAgentInstruction"
-  | "newAgentMcpServers"
-  | "newAgentModel"
-  | "newAgentName"
-  | "newAgentProvider"
-  | "newAgentQuickstarts"
-  | "newAgentSkills"
-  | "newAgentTags"
-  | "newAgentThinkingLevel"
-  | "newAgentTools"
-  | "newChat"
-  | "normalizeResourcePath"
-  | "page"
-  | "profileQuickstarts"
-  | "profileTags"
-  | "providerName"
-  | "refreshAgents"
-  | "refreshResources"
-  | "request"
-  | "resizeAgentTextareas"
-  | "resourcePath"
-  | "resources"
-  | "responseData"
-  | "selectedAgentId"
-  | "setAgentWizardStep"
-  | "showError"
-  | "showToast"
-  | "thinkingLevelsFor"
-  | "toolCatalog"
-  | "toolGroupState"
-  | "toolGroupStateFor"
-  | "toolGroupTools"
-  | "toolGroups"
-  | "uploadAvatarFile"
-  | "usesAutoModelConfig"
->;
+import { createAgentsState } from "./state";
+export type State = ReturnType<typeof createAgentsState>;
 export interface Actions {
+  replaceResources(resources: DTO.Resources): void;
   loadAgents(): Promise<void>;
   refreshAgents(): Promise<DTO.Agent[]>;
   agentItems(): DTO.Agent[];
@@ -90,11 +26,8 @@ export interface Actions {
   profileTags(value: string): string[];
   profileQuickstarts(value: string): string[];
   agentSkills(agent: DTO.Agent): DTO.Resource[];
-  startQuickstart(agent: DTO.Agent, prompt: string): void;
-  providerName(id: string): string;
-  modelName(providerId: string, modelId: string): string;
-  chooseAgent(id: string): void;
-  chatCount(id: string): number;
+  providerName(id: string | null | undefined): string;
+  modelName(providerId: string | null | undefined, modelId: string | null | undefined): string;
   defaultResources(kind: "extensions" | "skills" | "mcp_servers"): string[];
   newAgent(): void;
   hasAgentDraft(): boolean;
@@ -105,7 +38,7 @@ export interface Actions {
   previousAgentWizardStep(): void;
   agentSkillItems(): DTO.Resource[];
   generateAgentInstruction(): Promise<void>;
-  modelsFor(providerId?: string): DTO.Model[];
+  modelsFor(providerId?: string | null): DTO.Model[];
   thinkingLevelsFor(): string[];
   defaultThinkingLevel(): string;
   defaultAgentTools(): string[];
@@ -132,129 +65,125 @@ export interface Actions {
   uploadAgentAvatar(event: Event): Promise<void>;
   toggleResource(kind: string, path: string): void;
   deleteAgent(agent: DTO.Agent): void;
-  publishAgent(agent: DTO.Agent): void;
   confirmDelete(): Promise<void>;
   editAgent(agent: DTO.Agent): void;
 }
-export const agentsActions: Actions = {
-  async loadAgents(this: Context): Promise<void> {
+export interface Feature extends Actions {
+  state: State;
+}
+export interface Dependencies {
+  shell: Pick<ShellActions, "showError" | "showPage" | "showToast">;
+  api: Pick<ApiActions, "client" | "invalidResponse" | "request" | "responseData">;
+  format: Pick<FormatActions, "escape" | "initials">;
+  dom: Pick<DomActions, "resizeAgentTextareas">;
+}
+export function createAgents(deps: Dependencies): Feature {
+  const state = reactive(createAgentsState());
+  async function loadAgents(): Promise<void> {
     try {
-      await this.refreshAgents();
+      await refreshAgents();
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     }
-  },
-  async refreshAgents(this: Context): Promise<DTO.Agent[]> {
-    const data = await this.api<{ agents: DTO.Agent[] }>("/api/agents");
-    this.agents = data.agents || [];
-    return this.agents;
-  },
-  agentItems(this: Context): DTO.Agent[] {
-    const query = this.agentSearch.trim().toLowerCase();
-    if (!query) return this.agents;
-    return this.agents.filter((item) =>
+  }
+  async function refreshAgents(): Promise<DTO.Agent[]> {
+    const data = unwrap(await deps.api.client.GET("/api/agents"));
+    state.agents = data.agents || [];
+    return state.agents;
+  }
+  function agentItems(): DTO.Agent[] {
+    const query = state.agentSearch.trim().toLowerCase();
+    if (!query) return state.agents;
+    return state.agents.filter((item) =>
       `${item.name || ""} ${item.description || ""} ${(item.tags || []).join(" ")}`.toLowerCase().includes(query),
     );
-  },
-  async loadResources(this: Context): Promise<void> {
+  }
+  async function loadResources(): Promise<void> {
     try {
-      await this.refreshResources();
+      await refreshResources();
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     }
-  },
-  async refreshResources(this: Context): Promise<DTO.Resources> {
-    this.resources = await this.api<DTO.Resources>("/api/resources");
-    if (this.resources.tools?.length) this.toolCatalog = this.resources.tools;
-    return this.resources;
-  },
-  agentAvatarMarkup(
-    this: Context,
+  }
+  async function refreshResources(): Promise<DTO.Resources> {
+    state.resources = unwrap(await deps.api.client.GET("/api/resources"));
+    if (state.resources.tools?.length) state.toolCatalog = state.resources.tools;
+    return state.resources;
+  }
+  function agentAvatarMarkup(
     agent: Partial<DTO.Agent> | null | undefined,
     size: string = "",
     market: boolean = false,
   ): string {
     const name = String(agent?.name || "Agent");
-    const url = market ? (agent?.avatar_available ? this.marketAgentAvatarUrl(agent) : "") : this.avatarUrl(agent);
+    const url = market ? (agent?.avatar_available ? marketAgentAvatarUrl(agent) : "") : avatarUrl(agent);
     const classes = ["agent-mark", size, "agent-avatar-image"].filter(Boolean).join(" ");
     return url
-      ? `<img class="${classes}" src="${this.escape(url)}" alt="${this.escape(name)} avatar" />`
-      : `<span class="${classes}" aria-hidden="true">${this.escape(this.initials(name))}</span>`;
-  },
-  agentTagsMarkup(this: Context, tags: string[], limit: number = 4): string {
+      ? `<img class="${classes}" src="${deps.format.escape(url)}" alt="${deps.format.escape(name)} avatar" />`
+      : `<span class="${classes}" aria-hidden="true">${deps.format.escape(deps.format.initials(name))}</span>`;
+  }
+  function agentTagsMarkup(tags: string[], limit: number = 4): string {
     if (!Array.isArray(tags)) return "";
     return tags
       .slice(0, limit)
-      .map((tag) => `<span class="badge badge-ghost">${this.escape(String(tag))}</span>`)
+      .map((tag) => `<span class="badge badge-ghost">${deps.format.escape(String(tag))}</span>`)
       .join("");
-  },
-  agentName(this: Context, id: string): string {
-    return this.agents.find((a) => a.id === id)?.name || "unknown agent";
-  },
-  normalizeResourcePath(this: Context, path: string): string {
+  }
+  function agentName(id: string): string {
+    return state.agents.find((a) => a.id === id)?.name || "unknown agent";
+  }
+  function normalizeResourcePath(path: string): string {
     const normalized = String(path || "").replaceAll("\\", "/");
     const marker = "/.pi/agent";
     const index = normalized.indexOf(marker);
     return index >= 0 ? normalized.slice(index) : normalized;
-  },
-  resourcePath(this: Context, kind: string, path: string): string {
-    const catalog = kind === "extensions" ? this.resources.extensions : this.resources.skills;
-    const normalized = this.normalizeResourcePath(path);
-    return catalog.find((item) => this.normalizeResourcePath(item.path) === normalized)?.path || "";
-  },
-  resourceNames(this: Context, paths: string[], kind: string): string {
+  }
+  function resourcePath(kind: string, path: string): string {
+    const catalog = kind === "extensions" ? state.resources.extensions : state.resources.skills;
+    const normalized = normalizeResourcePath(path);
+    return catalog.find((item) => normalizeResourcePath(item.path) === normalized)?.path || "";
+  }
+  function resourceNames(paths: string[], kind: string): string {
     if (!paths?.length) return "None";
-    const catalog = kind === "extensions" ? this.resources.extensions : this.resources.skills;
+    const catalog = kind === "extensions" ? state.resources.extensions : state.resources.skills;
     return paths
       .map(
         (path) =>
-          catalog.find((item) => this.normalizeResourcePath(item.path) === this.normalizeResourcePath(path))?.name ||
+          catalog.find((item) => normalizeResourcePath(item.path) === normalizeResourcePath(path))?.name ||
           path.split(/[\\/]/).pop(),
       )
       .join(", ");
-  },
-  profileTags(this: Context, value: string): string[] {
+  }
+  function profileTags(value: string): string[] {
     return value
       .split(/[\n,]/)
       .map((tag) => tag.trim())
       .filter(Boolean)
       .slice(0, 5);
-  },
-  profileQuickstarts(this: Context, value: string): string[] {
+  }
+  function profileQuickstarts(value: string): string[] {
     return value
       .split("\n")
       .map((prompt) => prompt.trim())
       .filter(Boolean)
       .slice(0, 5);
-  },
-  agentSkills(this: Context, agent: DTO.Agent): DTO.Resource[] {
+  }
+  function agentSkills(agent: DTO.Agent): DTO.Resource[] {
     const enabled = agent?.skills || [];
-    return this.resources.skills.filter((skill) =>
-      enabled.some((path) => this.normalizeResourcePath(path) === this.normalizeResourcePath(skill.path)),
+    return state.resources.skills.filter((skill) =>
+      enabled.some((path) => normalizeResourcePath(path) === normalizeResourcePath(skill.path)),
     );
-  },
-  startQuickstart(this: Context, agent: DTO.Agent, prompt: string): void {
-    this.newChat();
-    this.selectedAgentId = agent.id;
-    this.draft = prompt;
-    nextTick(() => document.getElementById("new-chat-message")?.focus());
-  },
-  providerName(this: Context, id: string): string {
-    return this.resources.providers.find((item) => item.id === id)?.name || id || "";
-  },
-  modelName(this: Context, providerId: string, modelId: string): string {
-    return this.modelsFor(providerId).find((item) => item.id === modelId)?.name || modelId || "";
-  },
-  chooseAgent(this: Context, id: string): void {
-    this.selectedAgentId = id;
-    this.agentPickerOpen = false;
-  },
-  chatCount(this: Context, id: string): number {
-    return this.chats.filter((c) => c.agent_id === id).length;
-  },
-  defaultResources(this: Context, kind: "extensions" | "skills" | "mcp_servers"): string[] {
+  }
+  function providerName(id: string | null | undefined): string {
+    return state.resources.providers.find((item) => item.id === id)?.name || id || "";
+  }
+  function modelName(providerId: string | null | undefined, modelId: string | null | undefined): string {
+    return modelsFor(providerId).find((item) => item.id === modelId)?.name || modelId || "";
+  }
+
+  function defaultResources(kind: "extensions" | "skills" | "mcp_servers"): string[] {
     const configKey = (
       {
         extensions: "default_extensions",
@@ -263,346 +192,398 @@ export const agentsActions: Actions = {
       } as const
     )[kind];
     const valueKey = kind === "mcp_servers" ? "id" : "path";
-    const configured = this.resources[configKey] || [];
+    const configured = state.resources[configKey] || [];
     return configured
       .map((value) =>
         kind === "mcp_servers"
-          ? this.resources[kind].find((item) => [item.id, item.name, item.path].includes(value))?.[valueKey]
-          : this.resourcePath(kind, value),
+          ? state.resources[kind].find((item) => [item.id, item.name, item.path].includes(value))?.[valueKey]
+          : resourcePath(kind, value),
       )
       .filter((value): value is string => Boolean(value));
-  },
-  newAgent(this: Context): void {
-    this.editingAgent = null;
-    this.newAgentName = "";
-    this.newAgentDescription = "";
-    this.newAgentTags = "";
-    this.newAgentQuickstarts = "";
-    this.newAgentInstruction = "";
-    this.newAgentAvatarFile = null;
-    this.newAgentAvatarPreview = "";
-    this.newAgentProvider = "";
-    this.newAgentModel = "";
-    this.newAgentThinkingLevel = "";
-    this.newAgentTools = this.defaultAgentTools();
-    this.newAgentExtensions = this.defaultResources("extensions");
-    this.newAgentSkills = this.defaultResources("skills");
-    this.newAgentMcpServers = this.defaultResources("mcp_servers");
-    this.agentWizardStep = 1;
-    this.agentSkillSearch = "";
-    this.createDialog = true;
-  },
-  hasAgentDraft(this: Context): boolean {
+  }
+  function newAgent(): void {
+    state.editingAgent = null;
+    state.newAgentName = "";
+    state.newAgentDescription = "";
+    state.newAgentTags = "";
+    state.newAgentQuickstarts = "";
+    state.newAgentInstruction = "";
+    state.newAgentAvatarFile = null;
+    state.newAgentAvatarPreview = "";
+    state.newAgentProvider = "";
+    state.newAgentModel = "";
+    state.newAgentThinkingLevel = "";
+    state.newAgentTools = defaultAgentTools();
+    state.newAgentExtensions = defaultResources("extensions");
+    state.newAgentSkills = defaultResources("skills");
+    state.newAgentMcpServers = defaultResources("mcp_servers");
+    state.agentWizardStep = 1;
+    state.agentSkillSearch = "";
+    state.createDialog = true;
+  }
+  function hasAgentDraft(): boolean {
     return Boolean(
-      this.newAgentName.trim() ||
-      this.newAgentDescription.trim() ||
-      this.newAgentTags.trim() ||
-      this.newAgentQuickstarts.trim() ||
-      this.newAgentInstruction.trim() ||
-      this.newAgentAvatarFile,
+      state.newAgentName.trim() ||
+      state.newAgentDescription.trim() ||
+      state.newAgentTags.trim() ||
+      state.newAgentQuickstarts.trim() ||
+      state.newAgentInstruction.trim() ||
+      state.newAgentAvatarFile,
     );
-  },
-  dismissAgentDialogFromBackdrop(this: Context): void {
-    if (!this.hasAgentDraft()) this.createDialog = false;
-  },
-  closeAgentDialog(this: Context): void {
-    if (this.newAgentAvatarPreview) URL.revokeObjectURL(this.newAgentAvatarPreview);
-    this.createDialog = false;
-    this.editingAgent = null;
-    this.newAgentAvatarFile = null;
-    this.newAgentAvatarPreview = "";
-    this.agentWizardStep = 1;
-    this.agentSkillSearch = "";
-  },
-  setAgentWizardStep(this: Context, step: number): void {
+  }
+  function dismissAgentDialogFromBackdrop(): void {
+    if (!hasAgentDraft()) state.createDialog = false;
+  }
+  function closeAgentDialog(): void {
+    if (state.newAgentAvatarPreview) URL.revokeObjectURL(state.newAgentAvatarPreview);
+    state.createDialog = false;
+    state.editingAgent = null;
+    state.newAgentAvatarFile = null;
+    state.newAgentAvatarPreview = "";
+    state.agentWizardStep = 1;
+    state.agentSkillSearch = "";
+  }
+  function setAgentWizardStep(step: number): void {
     if (![1, 2, 3].includes(step)) return;
-    this.agentWizardStep = step;
-    nextTick(() => this.resizeAgentTextareas());
-  },
-  nextAgentWizardStep(this: Context): void {
-    this.setAgentWizardStep(Math.min(3, this.agentWizardStep + 1));
-  },
-  previousAgentWizardStep(this: Context): void {
-    this.setAgentWizardStep(Math.max(1, this.agentWizardStep - 1));
-  },
-  agentSkillItems(this: Context): DTO.Resource[] {
-    const query = this.agentSkillSearch.trim().toLowerCase();
-    if (!query) return this.resources.skills;
-    return this.resources.skills.filter((item) =>
+    state.agentWizardStep = step;
+    nextTick(() => deps.dom.resizeAgentTextareas());
+  }
+  function nextAgentWizardStep(): void {
+    setAgentWizardStep(Math.min(3, state.agentWizardStep + 1));
+  }
+  function previousAgentWizardStep(): void {
+    setAgentWizardStep(Math.max(1, state.agentWizardStep - 1));
+  }
+  function agentSkillItems(): DTO.Resource[] {
+    const query = state.agentSkillSearch.trim().toLowerCase();
+    if (!query) return state.resources.skills;
+    return state.resources.skills.filter((item) =>
       `${item.name || ""} ${item.description || ""}`.toLowerCase().includes(query),
     );
-  },
-  async generateAgentInstruction(this: Context): Promise<void> {
-    if (this.generatingInstruction) return;
-    this.generatingInstruction = true;
+  }
+  async function generateAgentInstruction(): Promise<void> {
+    if (state.generatingInstruction) return;
+    state.generatingInstruction = true;
     try {
-      const data = await this.api<DTO.Agent>("/api/agents/instruction-draft", {
-        method: "POST",
-        body: JSON.stringify({
-          name: this.newAgentName,
-          instruction: this.newAgentInstruction,
-          description: this.newAgentDescription,
-          tags: this.profileTags(this.newAgentTags),
-          quickstarts: this.profileQuickstarts(this.newAgentQuickstarts),
-          ...this.agentModelConfigPayload(),
-          tools: this.newAgentTools,
-          extensions: this.newAgentExtensions,
-          skills: this.newAgentSkills,
-          mcp_servers: this.newAgentMcpServers,
+      const data = unwrap(
+        await deps.api.client.POST("/api/agents/instruction-draft", {
+          body: {
+            name: state.newAgentName,
+            instruction: state.newAgentInstruction,
+            description: state.newAgentDescription,
+            tags: profileTags(state.newAgentTags),
+            quickstarts: profileQuickstarts(state.newAgentQuickstarts),
+            ...agentModelConfigPayload(),
+            tools: state.newAgentTools,
+            extensions: state.newAgentExtensions,
+            skills: state.newAgentSkills,
+            mcp_servers: state.newAgentMcpServers,
+          },
         }),
-      });
-      this.newAgentInstruction = data.instruction || this.newAgentInstruction;
-      this.newAgentDescription = data.description || this.newAgentDescription;
-      if (Array.isArray(data.tags) && data.tags.length) this.newAgentTags = data.tags.join(", ");
+      );
+      state.newAgentInstruction = data.instruction || state.newAgentInstruction;
+      state.newAgentDescription = data.description || state.newAgentDescription;
+      if (Array.isArray(data.tags) && data.tags.length) state.newAgentTags = data.tags.join(", ");
       if (Array.isArray(data.quickstarts) && data.quickstarts.length)
-        this.newAgentQuickstarts = data.quickstarts.join("\n");
-      nextTick(() => this.resizeAgentTextareas());
-      this.showToast("Agent profile optimized");
+        state.newAgentQuickstarts = data.quickstarts.join("\n");
+      nextTick(() => deps.dom.resizeAgentTextareas());
+      deps.shell.showToast("Agent profile optimized");
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     } finally {
-      this.generatingInstruction = false;
+      state.generatingInstruction = false;
     }
-  },
-  modelsFor(this: Context, providerId: string = this.newAgentProvider): DTO.Model[] {
-    return this.resources.providers.find((item) => item.id === providerId)?.models || [];
-  },
-  thinkingLevelsFor(this: Context): string[] {
-    if (!this.newAgentProvider || !this.newAgentModel) return [];
-    const levels = this.modelsFor().find((item) => item.id === this.newAgentModel)?.thinking_levels || [];
+  }
+  function modelsFor(providerId: string | null = state.newAgentProvider): DTO.Model[] {
+    return state.resources.providers.find((item) => item.id === providerId)?.models || [];
+  }
+  function thinkingLevelsFor(): string[] {
+    if (!state.newAgentProvider || !state.newAgentModel) return [];
+    const levels = modelsFor().find((item) => item.id === state.newAgentModel)?.thinking_levels || [];
     return levels.length ? levels : ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
-  },
-  defaultThinkingLevel(this: Context): string {
-    const levels = this.thinkingLevelsFor();
-    return levels.includes(this.resources.default_thinking_level)
-      ? this.resources.default_thinking_level
+  }
+  function defaultThinkingLevel(): string {
+    const levels = thinkingLevelsFor();
+    return levels.includes(state.resources.default_thinking_level)
+      ? state.resources.default_thinking_level
       : levels.includes("low")
         ? "low"
         : levels[0] || "off";
-  },
-  defaultAgentTools(this: Context): string[] {
-    const preferred = this.toolGroups.filter((group) => group.id !== "run_scripts").flatMap((group) => group.tools);
-    return preferred.filter((name) => this.toolCatalog.some((tool) => tool.name === name));
-  },
-  defaultModelFor(this: Context, providerId: string): string {
-    const models = this.modelsFor(providerId);
-    if (
-      providerId === this.resources.default_provider &&
-      models.some((item) => item.id === this.resources.default_model)
-    )
-      return this.resources.default_model;
+  }
+  function defaultAgentTools(): string[] {
+    const preferred = state.toolGroups.filter((group) => group.id !== "run_scripts").flatMap((group) => group.tools);
+    return preferred.filter((name) => state.toolCatalog.some((tool) => tool.name === name));
+  }
+  function defaultModelFor(providerId: string): string {
+    const models = modelsFor(providerId);
     return models[0]?.id || "";
-  },
-  changeAgentProvider(this: Context): void {
-    if (!this.newAgentProvider) {
-      this.newAgentModel = "";
-      this.newAgentThinkingLevel = "";
+  }
+  function changeAgentProvider(): void {
+    if (!state.newAgentProvider) {
+      state.newAgentModel = "";
+      state.newAgentThinkingLevel = "";
       return;
     }
-    this.newAgentModel = this.defaultModelFor(this.newAgentProvider);
-    this.newAgentThinkingLevel = this.defaultThinkingLevel();
-  },
-  changeAgentModel(this: Context): void {
-    if (!this.newAgentModel) {
-      this.newAgentThinkingLevel = "";
+    state.newAgentModel = defaultModelFor(state.newAgentProvider);
+    state.newAgentThinkingLevel = defaultThinkingLevel();
+  }
+  function changeAgentModel(): void {
+    if (!state.newAgentModel) {
+      state.newAgentThinkingLevel = "";
       return;
     }
-    if (!this.thinkingLevelsFor().includes(this.newAgentThinkingLevel))
-      this.newAgentThinkingLevel = this.defaultThinkingLevel();
-  },
-  agentModelConfigPayload(this: Context): {
+    if (!thinkingLevelsFor().includes(state.newAgentThinkingLevel))
+      state.newAgentThinkingLevel = defaultThinkingLevel();
+  }
+  function agentModelConfigPayload(): {
     provider: string | null;
     model: string | null;
     thinking_level: string | null;
   } {
     return {
-      provider: this.newAgentProvider || null,
-      model: this.newAgentModel || null,
-      thinking_level: this.newAgentThinkingLevel || null,
+      provider: state.newAgentProvider || null,
+      model: state.newAgentModel || null,
+      thinking_level: state.newAgentThinkingLevel || null,
     };
-  },
-  usesAutoModelConfig(this: Context): boolean {
-    return !this.newAgentProvider && !this.newAgentModel && !this.newAgentThinkingLevel;
-  },
-  autoModelConfigLabel(this: Context): string {
-    const provider = this.resources.default_provider || "not configured";
-    const model = this.resources.default_model || "not configured";
-    const thinking = this.resources.default_thinking_level || "not configured";
-    return `${this.providerName(provider) || provider} / ${this.modelName(provider, model) || model} / ${thinking}`;
-  },
-  async submitAgent(this: Context): Promise<void> {
+  }
+  function usesAutoModelConfig(): boolean {
+    return !state.newAgentProvider && !state.newAgentModel && !state.newAgentThinkingLevel;
+  }
+  function autoModelConfigLabel(): string {
+    const provider = "not configured";
+    const model = "not configured";
+    const thinking = state.resources.default_thinking_level || "not configured";
+    return `${providerName(provider) || provider} / ${modelName(provider, model) || model} / ${thinking}`;
+  }
+  async function submitAgent(): Promise<void> {
     const validModelConfig =
-      this.usesAutoModelConfig() || (this.newAgentProvider && this.newAgentModel && this.newAgentThinkingLevel);
-    if (!this.newAgentName.trim() || !this.newAgentInstruction.trim() || !validModelConfig) return;
-    this.creating = true;
+      usesAutoModelConfig() || (state.newAgentProvider && state.newAgentModel && state.newAgentThinkingLevel);
+    if (!state.newAgentName.trim() || !state.newAgentInstruction.trim() || !validModelConfig) return;
+    state.creating = true;
     try {
-      const editing = Boolean(this.editingAgent);
-      const avatarFile = this.newAgentAvatarFile;
+      const editing = Boolean(state.editingAgent);
+      const avatarFile = state.newAgentAvatarFile;
       const payload = {
-        name: this.newAgentName,
-        description: this.newAgentDescription.trim() || null,
-        tags: this.profileTags(this.newAgentTags),
-        quickstarts: this.profileQuickstarts(this.newAgentQuickstarts),
-        instruction: this.newAgentInstruction,
-        ...this.agentModelConfigPayload(),
-        tools: this.newAgentTools,
-        extensions: this.newAgentExtensions,
-        skills: this.newAgentSkills,
-        mcp_servers: this.newAgentMcpServers,
+        name: state.newAgentName,
+        description: state.newAgentDescription.trim() || null,
+        tags: profileTags(state.newAgentTags),
+        quickstarts: profileQuickstarts(state.newAgentQuickstarts),
+        instruction: state.newAgentInstruction,
+        ...agentModelConfigPayload(),
+        tools: state.newAgentTools,
+        extensions: state.newAgentExtensions,
+        skills: state.newAgentSkills,
+        mcp_servers: state.newAgentMcpServers,
       };
-      const agent = this.editingAgent
-        ? await this.api<DTO.Agent>(`/api/agents/${this.editingAgent.id}`, {
-            method: "PATCH",
-            body: JSON.stringify(payload),
-          })
-        : await this.api<DTO.Agent>("/api/agents", {
-            method: "POST",
-            body: JSON.stringify(payload),
-          });
-      if (!editing && avatarFile) await this.uploadAvatarFile(agent.id, avatarFile);
-      await this.refreshAgents();
-      this.createDialog = false;
-      this.dialog = null;
-      this.editingAgent = null;
-      this.page = "agents";
-      this.showToast(editing ? "Agent updated" : "Agent created");
+      const agent = state.editingAgent
+        ? unwrap(
+            await deps.api.client.PATCH("/api/agents/{agent_id}", {
+              params: { path: { agent_id: state.editingAgent.id } },
+              body: payload,
+            }),
+          )
+        : unwrap(await deps.api.client.POST("/api/agents", { body: payload }));
+      if (!editing && avatarFile) await uploadAvatarFile(agent.id, avatarFile);
+      await refreshAgents();
+      state.createDialog = false;
+      state.dialog = null;
+      state.editingAgent = null;
+      deps.shell.showPage("agents");
+      deps.shell.showToast(editing ? "Agent updated" : "Agent created");
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     } finally {
-      this.creating = false;
+      state.creating = false;
     }
-  },
-  toggleAgentTool(this: Context, name: string): void {
-    this.newAgentTools = this.newAgentTools.includes(name)
-      ? this.newAgentTools.filter((tool) => tool !== name)
-      : [...this.newAgentTools, name];
-  },
-  toolGroupTools(this: Context, group: DTO.ToolGroup): string[] {
-    return group.tools.filter((name) => this.toolCatalog.some((tool) => tool.name === name));
-  },
-  toolGroupState(this: Context, group: DTO.ToolGroup): string {
-    return this.toolGroupStateFor(group, this.newAgentTools);
-  },
-  toolGroupStateFor(this: Context, group: DTO.ToolGroup, selectedTools: string[] = []): string {
-    const tools = this.toolGroupTools(group);
+  }
+  function toggleAgentTool(name: string): void {
+    state.newAgentTools = state.newAgentTools.includes(name)
+      ? state.newAgentTools.filter((tool) => tool !== name)
+      : [...state.newAgentTools, name];
+  }
+  function toolGroupTools(group: DTO.ToolGroup): string[] {
+    return group.tools.filter((name) => state.toolCatalog.some((tool) => tool.name === name));
+  }
+  function toolGroupState(group: DTO.ToolGroup): string {
+    return toolGroupStateFor(group, state.newAgentTools);
+  }
+  function toolGroupStateFor(group: DTO.ToolGroup, selectedTools: string[] = []): string {
+    const tools = toolGroupTools(group);
     const selected = tools.filter((name) => selectedTools.includes(name)).length;
     return selected === 0 ? "none" : selected === tools.length ? "all" : "partial";
-  },
-  dialogToolGroupState(this: Context, group: DTO.ToolGroup): string {
-    return this.toolGroupStateFor(group, this.dialog?.tools || []);
-  },
-  toggleToolGroup(this: Context, group: DTO.ToolGroup): void {
-    const tools = this.toolGroupTools(group);
-    if (this.toolGroupState(group) === "all") {
-      this.newAgentTools = this.newAgentTools.filter((name) => !tools.includes(name));
+  }
+  function dialogToolGroupState(group: DTO.ToolGroup): string {
+    return toolGroupStateFor(group, state.dialog?.tools || []);
+  }
+  function toggleToolGroup(group: DTO.ToolGroup): void {
+    const tools = toolGroupTools(group);
+    if (toolGroupState(group) === "all") {
+      state.newAgentTools = state.newAgentTools.filter((name) => !tools.includes(name));
     } else {
-      this.newAgentTools = [...new Set([...this.newAgentTools, ...tools])];
+      state.newAgentTools = [...new Set([...state.newAgentTools, ...tools])];
     }
-  },
-  avatarUrl(this: Context, agent: Partial<DTO.Agent> | null | undefined): string {
+  }
+  function avatarUrl(agent: Partial<DTO.Agent> | null | undefined): string {
     if (!agent?.avatar_path || !agent.id) return "";
     return `/api/agents/${encodeURIComponent(agent.id)}/avatar?v=${encodeURIComponent(agent.updated_at || agent.avatar_path)}`;
-  },
-  marketAgentAvatarUrl(this: Context, agent: Partial<DTO.Agent> | null | undefined): string {
+  }
+  function marketAgentAvatarUrl(agent: Partial<DTO.Agent> | null | undefined): string {
     return agent?.id ? `/api/market/agents/${encodeURIComponent(agent.id)}/avatar` : "";
-  },
-  async uploadAvatarFile(this: Context, agentId: string, file: File): Promise<DTO.Agent> {
+  }
+  async function uploadAvatarFile(agentId: string, file: File): Promise<DTO.Agent> {
     const requestPath = `/api/agents/${encodeURIComponent(agentId)}/avatar`;
-    const { response, requestId } = await this.request(requestPath, {
+    const { response, requestId } = await deps.api.request(requestPath, {
       method: "PUT",
       headers: {
         "Content-Type": file.type,
       },
       body: file,
     });
-    const { data } = await this.responseData<DTO.Agent>(response, requestId, requestPath);
+    const { data } = await deps.api.responseData(response, requestId, requestPath);
+    if (!validateAgentResponse(data)) throw deps.api.invalidResponse(requestPath, requestId);
     return data;
-  },
-  async uploadAgentAvatar(this: Context, event: Event): Promise<void> {
+  }
+  async function uploadAgentAvatar(event: Event): Promise<void> {
     const input = event.target;
     if (!(input instanceof HTMLInputElement)) return;
     const file = input.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      this.showError(new ApiError("Avatar must be an image file"));
+      deps.shell.showError(new ApiError("Avatar must be an image file"));
       input.value = "";
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      this.showError(new ApiError("Avatar must be 5 MB or smaller"));
+      deps.shell.showError(new ApiError("Avatar must be 5 MB or smaller"));
       input.value = "";
       return;
     }
-    if (this.newAgentAvatarPreview) URL.revokeObjectURL(this.newAgentAvatarPreview);
-    this.newAgentAvatarFile = file;
-    this.newAgentAvatarPreview = URL.createObjectURL(file);
-    if (!this.editingAgent) return;
-    this.creating = true;
+    if (state.newAgentAvatarPreview) URL.revokeObjectURL(state.newAgentAvatarPreview);
+    state.newAgentAvatarFile = file;
+    state.newAgentAvatarPreview = URL.createObjectURL(file);
+    if (!state.editingAgent) return;
+    state.creating = true;
     try {
-      const updated = await this.uploadAvatarFile(this.editingAgent.id, file);
-      Object.assign(this.editingAgent, updated);
-      this.dialog = updated;
-      this.newAgentAvatarFile = null;
-      this.newAgentAvatarPreview = "";
+      const updated = await uploadAvatarFile(state.editingAgent.id, file);
+      Object.assign(state.editingAgent, updated);
+      state.dialog = updated;
+      state.newAgentAvatarFile = null;
+      state.newAgentAvatarPreview = "";
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     } finally {
-      this.creating = false;
+      state.creating = false;
     }
-  },
-  toggleResource(this: Context, kind: string, path: string): void {
+  }
+  function toggleResource(kind: string, path: string): void {
     const key =
       kind === "extensions" ? "newAgentExtensions" : kind === "skills" ? "newAgentSkills" : "newAgentMcpServers";
-    this[key] = this[key].includes(path) ? this[key].filter((item) => item !== path) : [...this[key], path];
-  },
-  deleteAgent(this: Context, agent: DTO.Agent): void {
-    if (!agent.protected) this.confirmTarget = agent;
-  },
-  publishAgent(this: Context, agent: DTO.Agent): void {
-    this.marketPublishTarget = agent;
-    this.marketPublishVersion = "v1.0.0";
-  },
-  async confirmDelete(this: Context): Promise<void> {
-    const agent = this.confirmTarget;
+    state[key] = state[key].includes(path) ? state[key].filter((item) => item !== path) : [...state[key], path];
+  }
+  function deleteAgent(agent: DTO.Agent): void {
+    if (!agent.protected) state.confirmTarget = agent;
+  }
+
+  async function confirmDelete(): Promise<void> {
+    const agent = state.confirmTarget;
     if (!agent) return;
     try {
-      await this.api(`/api/agents/${agent.id}`, { method: "DELETE" });
-      await this.refreshAgents();
-      if (this.dialog?.id === agent.id) this.dialog = null;
-      this.confirmTarget = null;
-      this.showToast(`Agent ${agent.name} deleted`);
+      unwrap(await deps.api.client.DELETE("/api/agents/{agent_id}", { params: { path: { agent_id: agent.id } } }));
+      await refreshAgents();
+      if (state.dialog?.id === agent.id) state.dialog = null;
+      state.confirmTarget = null;
+      deps.shell.showToast(`Agent ${agent.name} deleted`);
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     }
-  },
-  editAgent(this: Context, agent: DTO.Agent): void {
-    this.editingAgent = agent;
-    this.newAgentName = agent.name;
-    this.newAgentDescription = agent.description || "";
-    this.newAgentTags = (agent.tags || []).join(", ");
-    this.newAgentQuickstarts = (agent.quickstarts || []).join("\n");
-    this.newAgentInstruction = agent.instruction;
-    this.newAgentAvatarFile = null;
-    this.newAgentAvatarPreview = "";
-    this.newAgentProvider = agent.provider || "";
-    this.newAgentModel = agent.model || "";
-    this.newAgentThinkingLevel = agent.thinking_level || "";
-    this.newAgentTools = [...(agent.tools || [])];
-    this.newAgentExtensions = (agent.extensions || [])
-      .map((path) => this.resourcePath("extensions", path))
+  }
+  function editAgent(agent: DTO.Agent): void {
+    state.editingAgent = agent;
+    state.newAgentName = agent.name;
+    state.newAgentDescription = agent.description || "";
+    state.newAgentTags = (agent.tags || []).join(", ");
+    state.newAgentQuickstarts = (agent.quickstarts || []).join("\n");
+    state.newAgentInstruction = agent.instruction;
+    state.newAgentAvatarFile = null;
+    state.newAgentAvatarPreview = "";
+    state.newAgentProvider = agent.provider || "";
+    state.newAgentModel = agent.model || "";
+    state.newAgentThinkingLevel = agent.thinking_level || "";
+    state.newAgentTools = [...(agent.tools || [])];
+    state.newAgentExtensions = (agent.extensions || [])
+      .map((path) => resourcePath("extensions", path))
       .filter((value): value is string => Boolean(value));
-    this.newAgentSkills = (agent.skills || [])
-      .map((path) => this.resourcePath("skills", path))
+    state.newAgentSkills = (agent.skills || [])
+      .map((path) => resourcePath("skills", path))
       .filter((value): value is string => Boolean(value));
-    this.newAgentMcpServers = [...(agent.mcp_servers || [])];
-    this.agentWizardStep = 1;
-    this.agentSkillSearch = "";
-    this.dialog = null;
-    this.createDialog = true;
-    nextTick(() => this.resizeAgentTextareas());
-  },
-};
+    state.newAgentMcpServers = [...(agent.mcp_servers || [])];
+    state.agentWizardStep = 1;
+    state.agentSkillSearch = "";
+    state.dialog = null;
+    state.createDialog = true;
+    nextTick(() => deps.dom.resizeAgentTextareas());
+  }
+  function replaceResources(resources: DTO.Resources): void {
+    state.resources = resources;
+    if (resources.tools?.length) state.toolCatalog = resources.tools;
+  }
+  return {
+    state,
+    loadAgents,
+    refreshAgents,
+    agentItems,
+    loadResources,
+    refreshResources,
+    agentAvatarMarkup,
+    agentTagsMarkup,
+    agentName,
+    normalizeResourcePath,
+    resourcePath,
+    resourceNames,
+    profileTags,
+    profileQuickstarts,
+    agentSkills,
+    providerName,
+    modelName,
+    defaultResources,
+    newAgent,
+    hasAgentDraft,
+    dismissAgentDialogFromBackdrop,
+    closeAgentDialog,
+    setAgentWizardStep,
+    nextAgentWizardStep,
+    previousAgentWizardStep,
+    agentSkillItems,
+    generateAgentInstruction,
+    modelsFor,
+    thinkingLevelsFor,
+    defaultThinkingLevel,
+    defaultAgentTools,
+    defaultModelFor,
+    changeAgentProvider,
+    changeAgentModel,
+    agentModelConfigPayload,
+    usesAutoModelConfig,
+    autoModelConfigLabel,
+    submitAgent,
+    toggleAgentTool,
+    toolGroupTools,
+    toolGroupState,
+    toolGroupStateFor,
+    dialogToolGroupState,
+    toggleToolGroup,
+    avatarUrl,
+    marketAgentAvatarUrl,
+    uploadAvatarFile,
+    uploadAgentAvatar,
+    toggleResource,
+    deleteAgent,
+    confirmDelete,
+    editAgent,
+    replaceResources,
+  };
+}

@@ -1,17 +1,11 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useMarketplace } from "./context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
+const marketplaceFeature = useMarketplace();
 const {
-  addMarketMcpServers,
-  closeMarketInstall,
-  closeMarketMcpAdd,
-  confirmDeleteMarketAgent,
-  confirmInstallMarketAgent,
-  confirmMarketUninstall,
-  confirmMarketplaceAgentUpdate,
-  confirmPublishAgent,
-  installMarketExtension,
-  installMarketSkill,
   marketDeleteAgentTarget,
   marketDeletingAgent,
   marketExtensionAction,
@@ -23,7 +17,6 @@ const {
   marketMcpAction,
   marketMcpAddOpen,
   marketMcpConfig,
-  marketMcpNames,
   marketOwner,
   marketPublishTarget,
   marketPublishVersion,
@@ -32,56 +25,30 @@ const {
   marketSearchError,
   marketSearchLoading,
   marketSearchResults,
-  marketSkillGitHubSource,
-  marketSkillInstalled,
-  marketSkillResultKey,
   marketTab,
   marketUninstallTarget,
   marketUpdateAgentTarget,
   marketUpdatingAgent,
+} = toRefs(marketplaceFeature.state);
+const {
+  addMarketMcpServers,
+  closeMarketInstall,
+  closeMarketMcpAdd,
+  confirmDeleteMarketAgent,
+  confirmInstallMarketAgent,
+  confirmMarketUninstall,
+  confirmMarketplaceAgentUpdate,
+  confirmPublishAgent,
+  installMarketExtension,
+  installMarketSkill,
+  marketMcpNames,
+  marketSkillGitHubSource,
+  marketSkillInstalled,
+  marketSkillResultKey,
   searchMarketSkills,
-  t,
-} = useWorkspaceScope([
-  "addMarketMcpServers",
-  "closeMarketInstall",
-  "closeMarketMcpAdd",
-  "confirmDeleteMarketAgent",
-  "confirmInstallMarketAgent",
-  "confirmMarketUninstall",
-  "confirmMarketplaceAgentUpdate",
-  "confirmPublishAgent",
-  "installMarketExtension",
-  "installMarketSkill",
-  "marketDeleteAgentTarget",
-  "marketDeletingAgent",
-  "marketExtensionAction",
-  "marketExtensionPackage",
-  "marketInstallAgentTarget",
-  "marketInstallOpen",
-  "marketInstallingAgent",
-  "marketInstallingSkills",
-  "marketMcpAction",
-  "marketMcpAddOpen",
-  "marketMcpConfig",
-  "marketMcpNames",
-  "marketOwner",
-  "marketPublishTarget",
-  "marketPublishVersion",
-  "marketPublishing",
-  "marketSearch",
-  "marketSearchError",
-  "marketSearchLoading",
-  "marketSearchResults",
-  "marketSkillGitHubSource",
-  "marketSkillInstalled",
-  "marketSkillResultKey",
-  "marketTab",
-  "marketUninstallTarget",
-  "marketUpdateAgentTarget",
-  "marketUpdatingAgent",
-  "searchMarketSkills",
-  "t",
-]);
+} = marketplaceFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <dialog

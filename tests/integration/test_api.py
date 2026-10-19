@@ -387,7 +387,7 @@ def test_agent_instruction_generator_control_is_present():
 
     assert 'name="pencil-sparkles"' in html
     assert '@click="generateAgentInstruction"' in html
-    assert "async generateAgentInstruction(" in script
+    assert "async function generateAgentInstruction(" in script
     assert '"/api/agents/instruction-draft"' in script
     assert "Auto (system default)" in html
     assert "agentModelConfigPayload()" in script
@@ -427,9 +427,9 @@ def test_agent_editor_keeps_nonempty_draft_open_on_backdrop_click():
 
     assert '@click.self="dismissAgentDialogFromBackdrop()"' in html
     assert "hasAgentDraft()" in script
-    assert "this.newAgentDescription.trim()" in script
-    assert "this.newAgentQuickstarts.trim()" in script
-    assert "if (!this.hasAgentDraft()) this.createDialog = false;" in script
+    assert "state.newAgentDescription.trim()" in script
+    assert "state.newAgentQuickstarts.trim()" in script
+    assert "if (!hasAgentDraft()) state.createDialog = false;" in script
 
 
 def test_favicon_assets_are_explicit_and_ico_is_not_spa_html(client):
@@ -577,34 +577,27 @@ def test_chinese_agent_update_warning_uses_localized_marketplace_name():
 
 def test_frontend_request_transport_keeps_json_binary_and_streaming_paths_distinct():
     script = frontend_scripts()
-
-    assert "async request(" in script
-    assert "async responseData<" in script
-    assert 'headers.set("X-Request-ID", requestId)' in script
-    assert 'if (options.body !== undefined && !headers.has("Content-Type"))' in script
+    assert "createClient<paths>" in script
+    assert 'request.headers.set("X-Request-ID", createId())' in script
+    assert "responseValidators[" in script
     assert '"X-Upload-Filename": encodeURIComponent(file.name)' in script
     assert "response.body.getReader()" in script
     assert "new EventSource(`/api/chats/${chatId}/stream`)" in script
+    assert "data as T" not in script
 
 
 def test_chat_view_reads_are_abortable_without_cancelling_writes_or_streams():
     script = frontend_scripts()
 
     assert "chatReadController: null" in script
-    assert "this.chatReadController = new AbortController();" in script
-    assert "this.chatReadController?.abort();" in script
+    assert "state.chatReadController = new AbortController();" in script
+    assert "state.chatReadController?.abort();" in script
     assert 'return error instanceof Error && error.name === "AbortError";' in script
-    assert (
-        "return this.api<T>(path, { signal: this.chatReadController?.signal });"
-        in script
-    )
-    assert "this.beginChatReads();" in script
-    assert "this.abortChatReads();" in script
-    assert "`/api/chats/${chatId}/messages?mode=${this.mode}`" in script
-    assert (
-        "body: JSON.stringify({ content, upload_ids: uploadIds, artifact_paths: artifactPaths })"
-        in script
-    )
+    assert "return state.chatReadController?.signal;" in script
+    assert "beginChatReads();" in script
+    assert "deps.chat.abortChatReads();" in script
+    assert "/api/chats/{chat_id}/messages" in script
+    assert "body: JSON.stringify(payload)" in script
     assert "new EventSource(`/api/chats/${chatId}/stream`)" in script
 
 
@@ -621,19 +614,19 @@ def test_thought_blocks_follow_the_turn_state_and_honor_user_preference():
 
     assert 'const label = isStreaming ? "Thinking"' in script
     assert (
-        "Object.prototype.hasOwnProperty.call(this.reasoningOpen, reasoningKey)"
+        "Object.prototype.hasOwnProperty.call(state.reasoningOpen, reasoningKey)"
         in script
     )
     # No preference recorded follows the turn state; a recorded preference wins.
     assert (
-        'const checked = (hasPreference ? this.reasoningOpen[reasoningKey] : isStreaming) ? " checked" : "";'
+        'const checked = (hasPreference ? state.reasoningOpen[reasoningKey] : isStreaming) ? " checked" : "";'
         in script
     )
     assert "this.reasoningOpen[reasoningKey] : true" not in script
     # The render path is read-only: setReasoningOpen() is the only writer, so an
     # automatic transition can never be mistaken for a user choice.
-    assert script.count("this.reasoningOpen[") == 2
-    assert "if (key) this.reasoningOpen[key] = input.checked;" in script
+    assert script.count("state.reasoningOpen[") == 2
+    assert "if (key) state.reasoningOpen[key] = input.checked;" in script
     # The group's own streaming flag drives the default, one group per turn.
     assert (
         "renderReasoning(message._reasoningParts || [], message._key, message._streaming)"
@@ -658,7 +651,7 @@ def test_chat_viewport_and_composer_use_latest_message_and_seven_line_contract()
     assert "scrollMessagesToLatest()" in script
     assert "const maxHeight = lineHeight * 7 + verticalPadding" in script
     assert "chatContent.scrollTop = chatContent.scrollHeight" in script
-    assert "this.scrollMessagesToLatest();" in script
+    assert "deps.dom.scrollMessagesToLatest();" in script
     assert ".composer textarea" in styles
     assert "max-height: calc(10.5em + 24px);" in styles
 
@@ -668,7 +661,7 @@ def test_client_redirects_expired_sessions_only_for_authenticated_401_responses(
     script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
-    assert "handleUnauthorizedResponse(response, requestPath, error);" in script
+    assert "deps.onUnauthorized(response, requestPath, error);" in script
     assert "response.status !== 401" in script
     assert 'path === "/api/auth/login"' in script
     assert 'path === "/api/auth/session"' in script
@@ -682,10 +675,10 @@ def test_client_redirects_expired_sessions_only_for_authenticated_401_responses(
 def test_lucide_icons_render_after_unauthenticated_boot_and_first_login():
     script = frontend_scripts()
 
-    assert "this.observeIcons();" in script
-    assert "this.renderIconsSoon();" in script
+    assert "deps.dom.observeIcons();" in script
+    assert "deps.dom.renderIconsSoon();" in script
     assert "renderIconsSoon()" in script
-    assert "nextTick(() => requestAnimationFrame(() => this.renderIcons()));" in script
+    assert "nextTick(() => requestAnimationFrame(() => renderIcons()));" in script
 
 
 def test_agent_tools_use_product_capability_groups_with_safe_defaults():
@@ -724,7 +717,7 @@ def test_generated_images_render_as_responsive_file_artifacts_and_refresh_files(
     assert "assistantGroup._imageArtifacts.push(artifact)" in script
     assert "renderImageArtifact(" in script
     assert "refreshOpenFiles(chatId)" in script
-    assert "if (this.filesOpen && this.activeChat)" in script
+    assert "if (state.filesOpen && deps.chat.state.activeChat)" in script
     assert ".chat-image-artifact img" in styles
     assert "margin: 24px 0 30px" in styles
     assert "max-height: min(68vh, 720px)" in styles
@@ -762,8 +755,8 @@ def test_mobile_chat_truncates_tool_paths_and_keeps_composer_in_safe_area():
 
     assert "viewport-fit=cover" in html
     assert "processFileName(" in script
-    assert 'this.processLine("Read", this.processFileName(args.path))' in script
-    assert 'title="${this.escape(fullValue)}"' in script
+    assert 'processLine("Read", processFileName(args.path))' in script
+    assert 'title="${deps.format.escape(fullValue)}"' in script
     assert "flex: 1 1 0" in styles
     assert "height: 100dvh" in styles
     assert "safe-area-inset-bottom" in styles
@@ -795,7 +788,7 @@ def test_agent_profile_detail_contract_is_user_facing():
     assert "agent-quickstart" in html
     assert "agent-skill-row" in html
     assert "startQuickstart(" in script
-    assert "this.draft = prompt" in script
+    assert "state.draft = prompt" in script
     assert '<label for="new-agent-name">name' in html
     assert '<label for="new-agent-description">description' in html
     assert 'for="new-agent-tags">tags' in html
@@ -813,7 +806,7 @@ def test_frontend_i18n_resources_and_language_switch_contract():
     assert 'import i18next from "i18next"' in script
     assert "static/locales/${locale}.json" in script
     assert 'fallbackLng: "en"' in script
-    assert "document.documentElement.lang = this.language" in script
+    assert "document.documentElement.lang = state.language" in script
     assert 'value="zh-CN"' in html
     assert english["nav"]["newTask"] == "New Task"
     assert chinese["nav"]["newTask"] == "新任务"
@@ -860,9 +853,9 @@ def test_agent_profile_textareas_auto_resize_from_one_row():
 def test_agent_save_refreshes_list_without_opening_detail_dialog():
     script = frontend_scripts()
 
-    assert "await this.refreshAgents();" in script
-    assert "this.createDialog = false;" in script
-    assert "this.dialog = null;" in script
+    assert "await deps.agents.refreshAgents();" in script
+    assert "state.createDialog = false;" in script
+    assert "state.dialog = null;" in script
     assert "this.dialog = refreshedAgent;" not in script
 
 
@@ -873,7 +866,9 @@ def test_file_preview_code_blocks_offer_a_copy_action():
     chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
 
     # One code-block renderer covers every supported code file (json, yaml, txt, sh, xml…).
-    code_extensions = script.split("isCodeFile(this:", 1)[1].split("].includes", 1)[0]
+    code_extensions = script.split("function isCodeFile(", 1)[1].split("].includes", 1)[
+        0
+    ]
     for extension in ("json", "yaml", "yml", "txt", "sh", "bash", "xml"):
         assert f'"{extension}"' in code_extensions
 
@@ -882,7 +877,7 @@ def test_file_preview_code_blocks_offer_a_copy_action():
     assert 'class="code-copy-btn"' in script
     assert 'data-copy-code=""' in script
     assert 'block?.querySelector("code")?.textContent' in script
-    assert "async copyCodeBlock(" in script
+    assert "async function copyCodeBlock(" in script
     assert 'button.classList.add("copied")' in script
 
     # Pinned to the block's top-right, outside the horizontal scroller.
@@ -909,7 +904,7 @@ def test_structured_file_preview_uses_csv_table_and_code_renderer():
     assert "isCsvFile(path)" in script
     assert 'class="table table-zebra csv-table"' in script
     assert 'class="mockup-code overflow-x-auto w-full"' in script
-    assert 'class="hljs language-${this.escape(language)}"' in script
+    assert 'class="hljs language-${deps.format.escape(language)}"' in script
     assert "syncHighlightTheme()" in script
     themes = Path("frontend/src/ui/code-themes.ts").read_text(encoding="utf-8")
     assert "highlight.js/styles/github-dark.css?inline" in themes
@@ -948,7 +943,7 @@ def test_user_management_is_available_only_from_the_admin_profile_menu():
     assert "v-show=\"authUser?.role === 'admin'\"" in html
     assert "usersOpen" in script
     assert "openProfileUsers()" in script
-    assert "async openSettingsTab(" in script
+    assert "async function openSettingsTab(" in script
     assert ".users-modal-box" in styles
     assert "display: flex" in styles
     assert "flex: 1 1 auto" in styles
@@ -960,7 +955,7 @@ def test_theme_preference_defaults_to_system_and_is_managed_in_settings():
 
     assert 'themePreference: "system"' in script
     assert (
-        'localStorage.setItem("oma-theme-preference", this.themePreference)' in script
+        'localStorage.setItem("oma-theme-preference", state.themePreference)' in script
     )
     assert 'matchMedia?.("(prefers-color-scheme: dark)")' in script
     assert 'systemThemeQuery?.addEventListener("change"' in script
@@ -975,7 +970,7 @@ def test_dark_theme_uses_contrast_safe_boot_logo_and_synchronized_favicon():
 
     assert 'id="app-favicon"' in html
     assert 'rel="shortcut icon"' not in html
-    assert "this.syncFavicon();" in script
+    assert "syncFavicon();" in script
     assert 'document.querySelector<HTMLLinkElement>("#app-favicon")' in script
     assert "favicon-dark-32.png" in script
     assert '[data-theme="dark"] .app-boot-brand img,' in styles
@@ -1408,8 +1403,8 @@ def test_marketplace_agent_delete_ui_is_admin_only_and_confirmed():
     assert "deleteMarketAgent(item)" in html
     assert "confirmDeleteMarketAgent()" in html
     assert "DELETE /api/market/agents/{id}" not in html
-    assert "`/api/market/agents/${agent.id}`" in script
-    assert 'method: "DELETE"' in script
+    assert "/api/market/agents/{publication_id}" in script
+    assert "deps.api.client.DELETE(" in script
     assert "Existing installed Agents and" in html
 
 
@@ -1445,8 +1440,8 @@ def test_file_preview_offers_the_drawer_and_library_download_entry():
     assert 'v-show="!fileViewer?.isShared"' in actions
 
     # Same endpoint helper the drawer and the library already use.
-    assert "fileViewerDownloadUrl(this:" in script
-    assert "this.downloadUrl({" in script
+    assert "function fileViewerDownloadUrl(" in script
+    assert "downloadUrl({" in script
     assert 'kind: params.get("kind") === "input" ? "input" : "file"' in script
     # The two existing entry points keep their own binding.
     assert html.count(':download="file.name"') == 2
@@ -1698,10 +1693,7 @@ def test_chat_detail_files_tabs_and_mobile_markdown_boundaries_are_explicit():
     assert 'class="tabs tabs-box files-tabs"' in html
     assert "filesTab === 'outputs'" in html
     assert "filesTab === 'inputs'" in html
-    assert (
-        "this.chatRead<{ files: DTO.Artifact[] }>(`/api/chats/${this.activeChat.id}/inputs`)"
-        in script
-    )
+    assert "/api/chats/{chat_id}/inputs" in script
     assert 'wrapper.className = "markdown-table-wrap"' in script
     assert ".file-markdown .markdown-table-wrap" in styles
     assert ".file-view-page," in styles
@@ -1797,16 +1789,16 @@ def test_client_uploads_chat_files_and_limits_at_mentions_to_published_artifacts
     assert "pendingArtifacts" in script
     assert 'data-ref="uploadInput"' in html
     assert 'name="paperclip"' in html
-    assert "this.activeChat = chat;" in script
+    assert "state.activeChat = chat;" in script
     assert "uploadSelection" in script
     assert "addUploadSelection(selected)" in script
     assert "pendingAttachments()" in script
-    assert "await this.uploadFiles(this.activeChat)" in script
+    assert "await deps.artifacts.uploadFiles(state.activeChat)" in script
     assert "handleContentDragEnter($event)" in html
     assert "handleContentDragOver($event)" in html
     assert "handleContentDragLeave($event)" in html
     assert 'class="drag-upload-overlay"' in html
-    assert "this.uploadLimits" in script
+    assert "deps.artifacts.state.uploadLimits" in script
 
 
 def test_chat_at_picker_includes_inputs_and_supports_keyboard_completion():
@@ -1814,9 +1806,9 @@ def test_chat_at_picker_includes_inputs_and_supports_keyboard_completion():
     script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
-    assert "this.inputFiles.map" in script
+    assert "state.inputFiles.map" in script
     assert 'kind: "input"' in script
-    assert "this.pendingUploads.push" in script
+    assert "state.pendingUploads.push" in script
     assert "handleAttachmentKeydown($event)" in html
     assert 'event.key === "ArrowDown"' in script
     assert 'event.key === "ArrowUp"' in script
@@ -1873,7 +1865,7 @@ def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_to
     assert 'class="upload-dropzone"' not in html
     assert '@drop.prevent="handleUploadDrop($event)"' in html
     assert re.search(r'hidden\s+type="file"', html)
-    assert "async uploadFiles(" in script
+    assert "async function uploadFiles(" in script
     assert (
         """document.querySelector<HTMLInputElement>('[data-ref="uploadInput"]')?.click()"""
         in script
@@ -1918,12 +1910,11 @@ def test_system_timezone_control_is_admin_only_and_not_browser_local_storage():
 def test_opening_a_chat_refreshes_its_running_state_without_leaking_prior_loading():
     script = frontend_scripts()
 
-    assert "this.loading = false;" in script
+    assert "deps.chat.state.loading = false;" in script
     assert "const [data, currentChat] = await Promise.all" in script
-    assert 'this.loading = currentChat.status === "running";' in script
+    assert 'state.loading = currentChat.status === "running";' in script
     assert (
-        'if (this.activeChat?.status === "running") void this.watchChat(chat.id);'
-        in script
+        'if (state.activeChat?.status === "running") void watchChat(chat.id);' in script
     )
 
 
@@ -2046,16 +2037,16 @@ def test_market_skill_install(client, monkeypatch):
 
 def test_market_skill_install_keeps_dialog_open_and_tracks_each_install():
     script = frontend_scripts()
-    install_method = script.split("async installMarketSkill(", 1)[1].split(
-        "async installMarketExtension(", 1
+    install_method = script.split("async function installMarketSkill(", 1)[1].split(
+        "async function installMarketExtension(", 1
     )[0]
 
     assert "marketInstallingSkills: []" in script
-    assert "this.marketInstallingSkills.push(resultKey)" in install_method
-    assert "this.marketInstallingSkills = this.marketInstallingSkills.filter" in (
+    assert "state.marketInstallingSkills.push(resultKey)" in install_method
+    assert "state.marketInstallingSkills = state.marketInstallingSkills.filter" in (
         install_method
     )
-    assert "this.marketInstallOpen = false" not in install_method
+    assert "state.marketInstallOpen = false" not in install_method
     assert "marketSkillSourceKey(result.repo)" in script
 
 
@@ -2421,7 +2412,7 @@ def test_shared_session_page_offers_unshare_next_to_the_file_drawer():
     assert "shareRevokeTarget" in html
 
     assert "sharedCanManage: false" in script
-    assert "this.sharedCanManage = Boolean(data.can_manage)" in script
+    assert "state.sharedCanManage = Boolean(data.can_manage)" in script
     assert ".chat-unshare-toggle {" in styles
 
     assert english["share"]["revokeSession"]
@@ -2458,23 +2449,25 @@ def test_shared_session_payload_reports_owner_management(client, temporary_agent
 def test_dead_share_link_sends_anonymous_visitors_to_sign_in():
     script = frontend_scripts()
 
-    block = script.split("async openSharedChat(", 1)[1].split("cancelShare(this:", 1)[0]
+    block = script.split("async function openSharedChat(", 1)[1].split(
+        "function cancelShare(", 1
+    )[0]
     assert "e.status === 404" in block
-    assert "if (this.authUser)" in block
+    assert "if (deps.identity.state.authUser)" in block
     # Signed-in visitor: back to their own workspace with a notice.
-    assert 'this.showToast(this.t("share.linkExpiredTitle"))' in block
+    assert 'showToast(deps.i18n.t("share.linkExpiredTitle"))' in block
     assert 'location.assign("/")' in block
     # Anonymous visitor: leave shared mode so the sign-in screen renders, and drop
     # the dead token from the URL so a later login lands in the workspace.
-    assert "this.sharedMode = false" in block
+    assert "state.sharedMode = false" in block
     assert 'history.replaceState({}, "", "/")' in block
 
     # Shared views resolve the session (auth-exempt endpoint) so the branch above
     # can tell an anonymous reader from a signed-in one.
-    init = script.split("async init(", 1)[1].split(
+    init = script.split("async function init(", 1)[1].split(
         'window.addEventListener("popstate"', 1
     )[0]
-    assert "await this.loadSession()" in init
+    assert "await deps.identity.loadSession()" in init
 
 
 def test_message_stream_sends_keepalive_when_idle(client, monkeypatch, temporary_agent):
@@ -2613,8 +2606,8 @@ def test_share_records_profile_ui_uses_revoke_confirmation_and_existing_link_che
     assert "t('share.shareId')" in html
     assert 'target="_blank"' in html
     assert 'v-text="share.token"' in html
-    assert 'this.api<{ shares: DTO.Share[] }>("/api/shares")' in script
-    assert "this.api<DTO.Share>(`/api/chats/${this.activeChat.id}/share`)" in script
+    assert 'deps.api.client.GET("/api/shares")' in script
+    assert "/api/chats/{chat_id}/share" in script
     assert "shareRecordUrl(" in script
 
 
@@ -2628,9 +2621,12 @@ def test_markdown_file_preview_can_create_a_public_share_link():
     assert 'name="link-2-off"' in html
     assert "v-text=\"t('share.linkExpiredTitle')\"" in html
     assert "fileViewerExpired = true" in script
-    assert "artifact-shares?path=" in script
-    assert 'shareTarget = "artifact"' in script
-    assert "this.fileViewer!.artifactShare = await this.api<DTO.Share>(" in script
+    assert "artifact-shares" in script
+    assert (
+        'deps.shares.showCreatedLink(`${location.origin}${data.url}`, "artifact")'
+        in script
+    )
+    assert "state.fileViewer!.artifactShare = {" in script
     assert 'new URLSearchParams(location.search).has("share")' in script
 
 

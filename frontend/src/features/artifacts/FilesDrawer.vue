@@ -1,29 +1,17 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useArtifacts } from "./context";
+import { useFormat } from "../../shared/format-context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const {
-  displayedFiles,
-  downloadUrl,
-  fileCountLabel,
-  filesLoading,
-  filesOpen,
-  filesTab,
-  formatBytes,
-  formatDate,
-  openFile,
-  t,
-} = useWorkspaceScope([
-  "displayedFiles",
-  "downloadUrl",
-  "fileCountLabel",
-  "filesLoading",
-  "filesOpen",
-  "filesTab",
-  "formatBytes",
-  "formatDate",
-  "openFile",
-  "t",
-]);
+const artifactsFeature = useArtifacts();
+const { filesLoading, filesOpen, filesTab } = toRefs(artifactsFeature.state);
+const { displayedFiles, downloadUrl, openFile } = artifactsFeature;
+const formatFeature = useFormat();
+const { fileCountLabel, formatBytes, formatDate } = formatFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <aside class="files-drawer" v-show="filesOpen" :aria-label="t('chat.files')">

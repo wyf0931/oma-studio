@@ -15,6 +15,7 @@ from ...files import (
 )
 from ...pi_rpc import PiRpcError, PiRuntimeManager
 from ...store import Store
+from .. import contracts
 
 MARKDOWN_EXTENSIONS = {".md", ".markdown"}
 
@@ -35,7 +36,11 @@ def create_router(
 ) -> APIRouter:
     router = APIRouter(prefix="/api", tags=["shares"])
 
-    @router.post("/chats/{chat_id}/share")
+    @router.post(
+        "/chats/{chat_id}/share",
+        response_model=contracts.ShareLinkResponse,
+        response_model_exclude_unset=True,
+    )
     async def create_chat_share(chat_id: str, request: Request):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
         existing = store.get_chat_share(chat_id)
@@ -46,7 +51,11 @@ def create_router(
             "existing": bool(existing),
         }
 
-    @router.get("/chats/{chat_id}/share")
+    @router.get(
+        "/chats/{chat_id}/share",
+        response_model=contracts.ShareLinkResponse,
+        response_model_exclude_unset=True,
+    )
     async def get_chat_share(chat_id: str, request: Request):
         visible_or_404(store.get_chat(chat_id), request, "Chat")
         share = store.get_chat_share(chat_id)
@@ -54,7 +63,11 @@ def create_router(
             raise HTTPException(404, "Share not found")
         return {"token": share["token"], "url": f"/share/{share['token']}"}
 
-    @router.get("/chats/{chat_id}/artifact-shares")
+    @router.get(
+        "/chats/{chat_id}/artifact-shares",
+        response_model=contracts.ArtifactShareResponse,
+        response_model_exclude_unset=True,
+    )
     async def get_chat_artifact_share(chat_id: str, path: str, request: Request):
         visible_or_404(store.get_chat(chat_id), request, "Chat")
         share = store.get_chat_artifact_share(chat_id, path)
@@ -67,7 +80,11 @@ def create_router(
             "url": artifact_share_url(share["token"], share["path"]),
         }
 
-    @router.post("/chats/{chat_id}/artifact-shares")
+    @router.post(
+        "/chats/{chat_id}/artifact-shares",
+        response_model=contracts.ArtifactShareResponse,
+        response_model_exclude_unset=True,
+    )
     async def create_chat_artifact_share(chat_id: str, path: str, request: Request):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
         if Path(path).suffix.lower() not in MARKDOWN_EXTENSIONS:
@@ -92,7 +109,11 @@ def create_router(
             "existing": bool(existing),
         }
 
-    @router.get("/shares")
+    @router.get(
+        "/shares",
+        response_model=contracts.SharesResponse,
+        response_model_exclude_unset=True,
+    )
     async def list_shares(request: Request):
         records = []
         for share in store.list_shares(user_id(request)):
@@ -126,7 +147,11 @@ def create_router(
         records.sort(key=lambda item: item.get("created_at", ""), reverse=True)
         return {"shares": records}
 
-    @router.delete("/shares/{token}")
+    @router.delete(
+        "/shares/{token}",
+        response_model=contracts.DeletedShareResponse,
+        response_model_exclude_unset=True,
+    )
     async def delete_share(token: str, request: Request):
         deleted = store.delete_share(
             token, user_id(request)
@@ -135,7 +160,11 @@ def create_router(
             raise HTTPException(404, "Share not found")
         return {"ok": True, "token": token}
 
-    @router.get("/share/{token}")
+    @router.get(
+        "/share/{token}",
+        response_model=contracts.SharedChatResponse,
+        response_model_exclude_unset=True,
+    )
     async def get_shared_chat(token: str, request: Request):
         share = store.get_share(token)
         if not share:
@@ -164,7 +193,11 @@ def create_router(
             "can_manage": bool(viewer) and share.get("user_id") == viewer["id"],
         }
 
-    @router.get("/share/{token}/files")
+    @router.get(
+        "/share/{token}/files",
+        response_model=contracts.FilesResponse,
+        response_model_exclude_unset=True,
+    )
     async def list_shared_chat_files(token: str):
         share = store.get_share(token)
         if not share:
@@ -180,7 +213,11 @@ def create_router(
         )
         return {"files": files}
 
-    @router.get("/share/{token}/files/content")
+    @router.get(
+        "/share/{token}/files/content",
+        response_model=contracts.ContentResponse,
+        response_model_exclude_unset=True,
+    )
     async def get_shared_chat_file(token: str, path: str):
         artifact_share = store.get_artifact_share(token)
         if artifact_share:

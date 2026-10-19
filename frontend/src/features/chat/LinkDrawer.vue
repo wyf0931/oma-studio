@@ -1,13 +1,16 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { usePresentation } from "./presentation-context";
+import { useFormat } from "../../shared/format-context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const { linkDrawerItems, linkDrawerOpen, linkDrawerTitle, resourceCountLabel, t } = useWorkspaceScope([
-  "linkDrawerItems",
-  "linkDrawerOpen",
-  "linkDrawerTitle",
-  "resourceCountLabel",
-  "t",
-]);
+const presentationFeature = usePresentation();
+const { linkDrawerItems, linkDrawerOpen, linkDrawerTitle } = toRefs(presentationFeature.state);
+const formatFeature = useFormat();
+const { resourceCountLabel } = formatFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <aside class="files-drawer link-drawer" v-show="linkDrawerOpen" :aria-label="t('dialogs.webResults')">

@@ -1,9 +1,11 @@
-import type { Workspace } from "../app/workspace";
-import { nextTick } from "vue";
+import { reactive, nextTick } from "vue";
 
-// Explicit dependency contract for this feature; the composition root supplies it.
-type Context = Pick<Workspace, "cleanups" | "_iconObserver" | "renderIcons" | "resizeAgentTextarea">;
+import { createIcons, icons } from "lucide";
+import { createDomState } from "./dom-state";
+export type State = ReturnType<typeof createDomState>;
 export interface Actions {
+  renderIcons(): void;
+  renderIconsSoon(): void;
   observeIcons(): void;
   observeImageArtifacts(): void;
   resizeStartInput(event: Event): void;
@@ -13,10 +15,23 @@ export interface Actions {
   resizeAgentTextareas(): void;
   scrollMessagesToLatest(): void;
 }
-export const domActions: Actions = {
-  observeIcons(this: Context): void {
+export interface Feature extends Actions {
+  state: State;
+}
+export interface Dependencies {
+  onCleanup(cleanup: () => void): void;
+}
+export function createDom(deps: Dependencies): Feature {
+  const state = reactive(createDomState());
+  function renderIcons(): void {
+    document.querySelectorAll<HTMLElement>("[data-rendered-content]").forEach((root) => createIcons({ icons, root }));
+  }
+  function renderIconsSoon(): void {
+    nextTick(() => requestAnimationFrame(() => renderIcons()));
+  }
+  function observeIcons(): void {
     if (!window.MutationObserver) return;
-    if (this._iconObserver) return;
+    if (state._iconObserver) return;
     const observer = new MutationObserver((mutations) => {
       const hasIcons = mutations.some((mutation) =>
         [...mutation.addedNodes].some(
@@ -26,14 +41,15 @@ export const domActions: Actions = {
             (node.matches?.("[data-lucide]") || node.querySelector?.("[data-lucide]")),
         ),
       );
-      if (hasIcons) this.renderIcons();
+      if (hasIcons) renderIcons();
     });
     // Keep a reference: an unreferenced MutationObserver is garbage-collected
     // even while observing, which silently killed icon conversion after init.
-    this._iconObserver = observer;
+    state._iconObserver = observer;
     observer.observe(document.body, { childList: true, subtree: true });
-  },
-  observeImageArtifacts(this: Context): void {
+    deps.onCleanup(() => observer.disconnect());
+  }
+  function observeImageArtifacts(): void {
     const onImage = (event: Event) => {
       const image = event.target;
       if (!(image instanceof HTMLImageElement)) return;
@@ -45,18 +61,18 @@ export const domActions: Actions = {
     };
     document.addEventListener("load", onImage, true);
     document.addEventListener("error", onImage, true);
-    this.cleanups.push(() => {
+    deps.onCleanup(() => {
       document.removeEventListener("load", onImage, true);
       document.removeEventListener("error", onImage, true);
     });
-  },
-  resizeStartInput(this: Context, event: Event): void {
+  }
+  function resizeStartInput(event: Event): void {
     const input = event.target;
     if (!(input instanceof HTMLTextAreaElement)) return;
     input.style.height = "auto";
     input.style.height = `${Math.min(input.scrollHeight, 320)}px`;
-  },
-  resizeConversationInput(this: Context, event: Event): void {
+  }
+  function resizeConversationInput(event: Event): void {
     const input = event.target;
     if (!(input instanceof HTMLTextAreaElement)) return;
     const styles = window.getComputedStyle(input);
@@ -66,16 +82,16 @@ export const domActions: Actions = {
     input.style.height = "auto";
     input.style.height = `${Math.min(input.scrollHeight, maxHeight)}px`;
     input.style.overflowY = input.scrollHeight > maxHeight ? "auto" : "hidden";
-  },
-  resetConversationInput(this: Context): void {
+  }
+  function resetConversationInput(): void {
     nextTick(() => {
       const input = document.querySelector<HTMLTextAreaElement>('[data-ref="conversationInput"]');
       if (!input) return;
       input.style.height = "";
       input.style.overflowY = "hidden";
     });
-  },
-  resizeAgentTextarea(this: Context, target: Event | HTMLTextAreaElement): void {
+  }
+  function resizeAgentTextarea(target: Event | HTMLTextAreaElement): void {
     const textarea = target instanceof Event ? target.target : target;
     if (!(textarea instanceof HTMLTextAreaElement)) return;
     if (!textarea) return;
@@ -87,14 +103,14 @@ export const domActions: Actions = {
     textarea.style.height = "auto";
     textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
     textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
-  },
-  resizeAgentTextareas(this: Context): void {
+  }
+  function resizeAgentTextareas(): void {
     ["new-agent-description", "new-agent-quickstarts", "new-agent-instruction"].forEach((id) => {
       const textarea = document.querySelector<HTMLTextAreaElement>(`#${id}`);
-      if (textarea) this.resizeAgentTextarea(textarea);
+      if (textarea) resizeAgentTextarea(textarea);
     });
-  },
-  scrollMessagesToLatest(this: Context): void {
+  }
+  function scrollMessagesToLatest(): void {
     nextTick(() => {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -103,5 +119,18 @@ export const domActions: Actions = {
         });
       });
     });
-  },
-};
+  }
+  return {
+    state,
+    renderIcons,
+    renderIconsSoon,
+    observeIcons,
+    observeImageArtifacts,
+    resizeStartInput,
+    resizeConversationInput,
+    resetConversationInput,
+    resizeAgentTextarea,
+    resizeAgentTextareas,
+    scrollMessagesToLatest,
+  };
+}

@@ -1,29 +1,16 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useIdentity } from "./context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const {
-  confirmDeleteUser,
-  confirmLogout,
-  createManagedUser,
-  logoutConfirmOpen,
-  newUserEmail,
-  newUserUsername,
-  t,
-  userAddOpen,
-  userCreating,
-  userDeleteTarget,
-} = useWorkspaceScope([
-  "confirmDeleteUser",
-  "confirmLogout",
-  "createManagedUser",
-  "logoutConfirmOpen",
-  "newUserEmail",
-  "newUserUsername",
-  "t",
-  "userAddOpen",
-  "userCreating",
-  "userDeleteTarget",
-]);
+const identityFeature = useIdentity();
+const { logoutConfirmOpen, newUserEmail, newUserUsername, userAddOpen, userCreating, userDeleteTarget } = toRefs(
+  identityFeature.state,
+);
+const { confirmDeleteUser, confirmLogout, createManagedUser } = identityFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <dialog

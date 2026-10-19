@@ -1,57 +1,37 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useChat } from "./context";
+import { useAgents } from "../agents/context";
+import { useIdentity } from "../identity/context";
+import { useShell } from "../../app/context";
+import { useFormat } from "../../shared/format-context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
+const chatFeature = useChat();
+const { activeChat, chats } = toRefs(chatFeature.state);
+const { deleteChat, newChat, openChat, openChatSearch } = chatFeature;
+const agentsFeature = useAgents();
+const { agentName } = agentsFeature;
+const identityFeature = useIdentity();
+const { authUser, profileMenuOpen } = toRefs(identityFeature.state);
 const {
-  activeChat,
-  agentName,
-  authUser,
-  brandClick,
-  chats,
-  deleteChat,
-  go,
-  mobileSidebarOpen,
-  newChat,
-  openChat,
-  openChatSearch,
   openProfileLogout,
   openProfileSettings,
   openProfileShares,
   openProfileUsage,
   openProfileUsers,
-  page,
   profileAvatarInitials,
   profileDisplayName,
-  profileMenuOpen,
   profileRoleLabel,
-  relativeTime,
-  sidebarCollapsed,
-  t,
-} = useWorkspaceScope([
-  "activeChat",
-  "agentName",
-  "authUser",
-  "brandClick",
-  "chats",
-  "deleteChat",
-  "go",
-  "mobileSidebarOpen",
-  "newChat",
-  "openChat",
-  "openChatSearch",
-  "openProfileLogout",
-  "openProfileSettings",
-  "openProfileShares",
-  "openProfileUsage",
-  "openProfileUsers",
-  "page",
-  "profileAvatarInitials",
-  "profileDisplayName",
-  "profileMenuOpen",
-  "profileRoleLabel",
-  "relativeTime",
-  "sidebarCollapsed",
-  "t",
-]);
+} = identityFeature;
+const shellFeature = useShell();
+const { mobileSidebarOpen, page, sidebarCollapsed } = toRefs(shellFeature.state);
+const { brandClick, go } = shellFeature;
+const formatFeature = useFormat();
+const { relativeTime } = formatFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <aside class="history-panel">

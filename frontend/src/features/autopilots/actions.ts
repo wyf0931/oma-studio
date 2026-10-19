@@ -1,43 +1,16 @@
-import { asError } from "../../shared/types";
-import type { Workspace } from "../../app/workspace";
-
+import type { State as AgentsState } from "../agents/actions";
+import type { Actions as ApiActions } from "../../shared/api";
+import type { Actions as ShellActions } from "../../app/actions";
+import { unwrap } from "../../shared/api";
+import { reactive } from "vue";
 import type * as DTO from "../../shared/types";
+import { asError } from "../../shared/types";
 
-// Explicit dependency contract for this feature; the composition root supplies it.
-type Context = Pick<
-  Workspace,
-  | "agents"
-  | "api"
-  | "autopilotAgentFilter"
-  | "autopilotAgentId"
-  | "autopilotCron"
-  | "autopilotDeleteTarget"
-  | "autopilotDialog"
-  | "autopilotEditing"
-  | "autopilotEndsAt"
-  | "autopilotInstruction"
-  | "autopilotLoading"
-  | "autopilotName"
-  | "autopilotRuns"
-  | "autopilotRunsItem"
-  | "autopilotRunsOpen"
-  | "autopilotSaving"
-  | "autopilotSearch"
-  | "autopilotStartsAt"
-  | "autopilots"
-  | "buildCron"
-  | "cronBuilderOpen"
-  | "cronDay"
-  | "cronDayOfMonth"
-  | "cronFrequency"
-  | "cronHour"
-  | "cronMinute"
-  | "cronMonth"
-  | "loadAutopilotRuns"
-  | "showError"
-  | "syncCronBuilder"
->;
+import { createAutopilotsState } from "./state";
+export type State = ReturnType<typeof createAutopilotsState>;
 export interface Actions {
+  selectAutopilotAgent(agentId: string): void;
+  selectAutopilotEditAgent(agentId: string): void;
   openCronBuilder(): void;
   syncCronBuilder(): void;
   setCronFrequency(value: string): void;
@@ -57,175 +30,233 @@ export interface Actions {
   runAutopilot(item: DTO.Autopilot): Promise<void>;
   loadAutopilotRuns(item: DTO.Autopilot): Promise<void>;
 }
-export const autopilotsActions: Actions = {
-  openCronBuilder(this: Context): void {
-    this.syncCronBuilder();
-    this.cronBuilderOpen = true;
-  },
-  syncCronBuilder(this: Context): void {
-    const parts = this.autopilotCron.trim().split(/\s+/);
+export interface Feature extends Actions {
+  state: State;
+}
+export interface Dependencies {
+  agents: { state: Readonly<Pick<AgentsState, "agents">> };
+  api: Pick<ApiActions, "client">;
+  shell: Pick<ShellActions, "showError">;
+}
+export function createAutopilots(deps: Dependencies): Feature {
+  const state = reactive(createAutopilotsState());
+  function selectAutopilotAgent(agentId: string): void {
+    state.autopilotAgentFilter = agentId;
+    state.autopilotAgentPickerOpen = false;
+    loadAutopilots();
+  }
+  function selectAutopilotEditAgent(agentId: string): void {
+    state.autopilotAgentId = agentId;
+    state.autopilotEditAgentPickerOpen = false;
+  }
+  function openCronBuilder(): void {
+    syncCronBuilder();
+    state.cronBuilderOpen = true;
+  }
+  function syncCronBuilder(): void {
+    const parts = state.autopilotCron.trim().split(/\s+/);
     if (parts.length !== 5) return;
     const [minute = "*", hour = "*", dom = "*", month = "*", dow = "*"] = parts;
-    this.cronMinute = minute === "*" ? "0" : minute;
-    this.cronHour = hour === "*" ? "9" : hour;
-    this.cronDay = dow === "*" ? ["1"] : dow.split(",");
-    this.cronDayOfMonth = dom === "*" ? "1" : dom;
-    this.cronMonth = month === "*" ? "1" : month;
-    if (minute !== "*" && hour === "*") this.cronFrequency = "hourly";
-    else if (dow !== "*") this.cronFrequency = "weekly";
-    else if (dom !== "*" && month === "*") this.cronFrequency = "monthly";
-    else if (dom !== "*" && month !== "*") this.cronFrequency = "yearly";
-    else this.cronFrequency = "daily";
-  },
-  setCronFrequency(this: Context, value: string): void {
-    this.cronFrequency = value;
-    this.autopilotCron = this.buildCron();
-  },
-  toggleCronDay(this: Context, day: string): void {
-    this.cronDay = this.cronDay.includes(day)
-      ? this.cronDay.length > 1
-        ? this.cronDay.filter((item) => item !== day)
-        : this.cronDay
-      : [...this.cronDay, day];
-    this.autopilotCron = this.buildCron();
-  },
-  cronHours(this: Context): string[] {
+    state.cronMinute = minute === "*" ? "0" : minute;
+    state.cronHour = hour === "*" ? "9" : hour;
+    state.cronDay = dow === "*" ? ["1"] : dow.split(",");
+    state.cronDayOfMonth = dom === "*" ? "1" : dom;
+    state.cronMonth = month === "*" ? "1" : month;
+    if (minute !== "*" && hour === "*") state.cronFrequency = "hourly";
+    else if (dow !== "*") state.cronFrequency = "weekly";
+    else if (dom !== "*" && month === "*") state.cronFrequency = "monthly";
+    else if (dom !== "*" && month !== "*") state.cronFrequency = "yearly";
+    else state.cronFrequency = "daily";
+  }
+  function setCronFrequency(value: string): void {
+    state.cronFrequency = value;
+    state.autopilotCron = buildCron();
+  }
+  function toggleCronDay(day: string): void {
+    state.cronDay = state.cronDay.includes(day)
+      ? state.cronDay.length > 1
+        ? state.cronDay.filter((item) => item !== day)
+        : state.cronDay
+      : [...state.cronDay, day];
+    state.autopilotCron = buildCron();
+  }
+  function cronHours(): string[] {
     return Array.from({ length: 24 }, (_, index) => String(index));
-  },
-  cronDaysOfMonth(this: Context): string[] {
+  }
+  function cronDaysOfMonth(): string[] {
     return Array.from({ length: 31 }, (_, index) => String(index + 1));
-  },
-  cronMonths(this: Context): string[] {
+  }
+  function cronMonths(): string[] {
     return Array.from({ length: 12 }, (_, index) => String(index + 1));
-  },
-  buildCron(this: Context): string {
-    const m = this.cronMinute,
-      h = this.cronHour;
-    if (this.cronFrequency === "hourly") return `${m} * * * *`;
-    if (this.cronFrequency === "weekly")
-      return `${m} ${h} * * ${this.cronDay
+  }
+  function buildCron(): string {
+    const m = state.cronMinute,
+      h = state.cronHour;
+    if (state.cronFrequency === "hourly") return `${m} * * * *`;
+    if (state.cronFrequency === "weekly")
+      return `${m} ${h} * * ${state.cronDay
         .slice()
         .sort((a, b) => Number(a) - Number(b))
         .join(",")}`;
-    if (this.cronFrequency === "monthly") return `${m} ${h} ${this.cronDayOfMonth} * *`;
-    if (this.cronFrequency === "yearly") return `${m} ${h} ${this.cronDayOfMonth} ${this.cronMonth} *`;
+    if (state.cronFrequency === "monthly") return `${m} ${h} ${state.cronDayOfMonth} * *`;
+    if (state.cronFrequency === "yearly") return `${m} ${h} ${state.cronDayOfMonth} ${state.cronMonth} *`;
     return `${m} ${h} * * *`;
-  },
-  applyCronBuilder(this: Context): void {
-    this.autopilotCron = this.buildCron();
-    this.cronBuilderOpen = false;
-  },
-  async loadAutopilots(this: Context): Promise<void> {
-    this.autopilotLoading = true;
+  }
+  function applyCronBuilder(): void {
+    state.autopilotCron = buildCron();
+    state.cronBuilderOpen = false;
+  }
+  async function loadAutopilots(): Promise<void> {
+    state.autopilotLoading = true;
     try {
       const params = new URLSearchParams();
-      if (this.autopilotSearch.trim()) params.set("search", this.autopilotSearch.trim());
-      if (this.autopilotAgentFilter) params.set("agent_id", this.autopilotAgentFilter);
-      this.autopilots = (await this.api<{ autopilots: DTO.Autopilot[] }>(`/api/autopilots?${params}`)).autopilots;
+      if (state.autopilotSearch.trim()) params.set("search", state.autopilotSearch.trim());
+      if (state.autopilotAgentFilter) params.set("agent_id", state.autopilotAgentFilter);
+      state.autopilots = unwrap(
+        await deps.api.client.GET("/api/autopilots", {
+          params: {
+            query: { search: state.autopilotSearch.trim(), agent_id: state.autopilotAgentFilter || undefined },
+          },
+        }),
+      ).autopilots;
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     } finally {
-      this.autopilotLoading = false;
+      state.autopilotLoading = false;
     }
-  },
-  newAutopilot(this: Context): void {
-    this.autopilotEditing = null;
-    this.autopilotName = "";
-    this.autopilotInstruction = "";
-    this.autopilotAgentId = this.agents[0]?.id || "";
-    this.autopilotCron = "0 * * * *";
-    this.autopilotStartsAt = "";
-    this.autopilotEndsAt = "";
-    this.autopilotDialog = true;
-  },
-  editAutopilot(this: Context, item: DTO.Autopilot): void {
-    this.autopilotEditing = item;
-    this.autopilotName = item.name;
-    this.autopilotInstruction = item.instruction;
-    this.autopilotAgentId = item.agent_id;
-    this.autopilotCron = item.cron;
-    this.autopilotStartsAt = item.starts_at || "";
-    this.autopilotEndsAt = item.ends_at || "";
-    this.autopilotDialog = true;
-  },
-  async saveAutopilot(this: Context): Promise<void> {
-    if (!this.autopilotName.trim() || !this.autopilotInstruction.trim() || !this.autopilotAgentId) return;
-    this.autopilotSaving = true;
+  }
+  function newAutopilot(): void {
+    state.autopilotEditing = null;
+    state.autopilotName = "";
+    state.autopilotInstruction = "";
+    state.autopilotAgentId = deps.agents.state.agents[0]?.id || "";
+    state.autopilotCron = "0 * * * *";
+    state.autopilotStartsAt = "";
+    state.autopilotEndsAt = "";
+    state.autopilotDialog = true;
+  }
+  function editAutopilot(item: DTO.Autopilot): void {
+    state.autopilotEditing = item;
+    state.autopilotName = item.name;
+    state.autopilotInstruction = item.instruction;
+    state.autopilotAgentId = item.agent_id;
+    state.autopilotCron = item.cron;
+    state.autopilotStartsAt = item.starts_at || "";
+    state.autopilotEndsAt = item.ends_at || "";
+    state.autopilotDialog = true;
+  }
+  async function saveAutopilot(): Promise<void> {
+    if (!state.autopilotName.trim() || !state.autopilotInstruction.trim() || !state.autopilotAgentId) return;
+    state.autopilotSaving = true;
     try {
       const payload = {
-        name: this.autopilotName,
-        instruction: this.autopilotInstruction,
-        agent_id: this.autopilotAgentId,
-        cron: this.autopilotCron,
-        starts_at: this.autopilotStartsAt || null,
-        ends_at: this.autopilotEndsAt || null,
+        name: state.autopilotName,
+        instruction: state.autopilotInstruction,
+        agent_id: state.autopilotAgentId,
+        cron: state.autopilotCron,
+        starts_at: state.autopilotStartsAt || null,
+        ends_at: state.autopilotEndsAt || null,
       };
-      const item = this.autopilotEditing
-        ? await this.api<DTO.Autopilot>(`/api/autopilots/${this.autopilotEditing.id}`, {
-            method: "PATCH",
-            body: JSON.stringify(payload),
-          })
-        : await this.api<DTO.Autopilot>("/api/autopilots", {
-            method: "POST",
-            body: JSON.stringify(payload),
-          });
-      const index = this.autopilots.findIndex((row) => row.id === item.id);
-      if (index >= 0) this.autopilots[index] = item;
-      else this.autopilots.unshift(item);
-      this.autopilotDialog = false;
+      const item = state.autopilotEditing
+        ? unwrap(
+            await deps.api.client.PATCH("/api/autopilots/{autopilot_id}", {
+              params: { path: { autopilot_id: state.autopilotEditing.id } },
+              body: payload,
+            }),
+          )
+        : unwrap(await deps.api.client.POST("/api/autopilots", { body: payload }));
+      const index = state.autopilots.findIndex((row) => row.id === item.id);
+      if (index >= 0) state.autopilots[index] = item;
+      else state.autopilots.unshift(item);
+      state.autopilotDialog = false;
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     } finally {
-      this.autopilotSaving = false;
+      state.autopilotSaving = false;
     }
-  },
-  async toggleAutopilot(this: Context, item: DTO.Autopilot): Promise<void> {
+  }
+  async function toggleAutopilot(item: DTO.Autopilot): Promise<void> {
     try {
-      const updated = await this.api<DTO.Autopilot>(`/api/autopilots/${item.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ enabled: !item.enabled }),
-      });
+      const updated = unwrap(
+        await deps.api.client.PATCH("/api/autopilots/{autopilot_id}", {
+          params: { path: { autopilot_id: item.id } },
+          body: { enabled: !item.enabled },
+        }),
+      );
       Object.assign(item, updated);
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     }
-  },
-  deleteAutopilot(this: Context, item: DTO.Autopilot): void {
-    this.autopilotDeleteTarget = item;
-  },
-  async confirmDeleteAutopilot(this: Context): Promise<void> {
-    const item = this.autopilotDeleteTarget;
+  }
+  function deleteAutopilot(item: DTO.Autopilot): void {
+    state.autopilotDeleteTarget = item;
+  }
+  async function confirmDeleteAutopilot(): Promise<void> {
+    const item = state.autopilotDeleteTarget;
     if (!item) return;
     try {
-      await this.api(`/api/autopilots/${item.id}`, { method: "DELETE" });
-      this.autopilots = this.autopilots.filter((row) => row.id !== item.id);
-      this.autopilotDeleteTarget = null;
+      unwrap(
+        await deps.api.client.DELETE("/api/autopilots/{autopilot_id}", { params: { path: { autopilot_id: item.id } } }),
+      );
+      state.autopilots = state.autopilots.filter((row) => row.id !== item.id);
+      state.autopilotDeleteTarget = null;
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     }
-  },
-  async runAutopilot(this: Context, item: DTO.Autopilot): Promise<void> {
+  }
+  async function runAutopilot(item: DTO.Autopilot): Promise<void> {
     try {
-      await this.api(`/api/autopilots/${item.id}/run`, { method: "POST" });
-      this.loadAutopilotRuns(item);
+      unwrap(
+        await deps.api.client.POST("/api/autopilots/{autopilot_id}/run", {
+          params: { path: { autopilot_id: item.id } },
+        }),
+      );
+      loadAutopilotRuns(item);
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     }
-  },
-  async loadAutopilotRuns(this: Context, item: DTO.Autopilot): Promise<void> {
-    this.autopilotRunsOpen = true;
-    this.autopilotRuns = [];
-    this.autopilotRunsItem = item;
+  }
+  async function loadAutopilotRuns(item: DTO.Autopilot): Promise<void> {
+    state.autopilotRunsOpen = true;
+    state.autopilotRuns = [];
+    state.autopilotRunsItem = item;
     try {
-      this.autopilotRuns = (await this.api<{ runs: DTO.Run[] }>(`/api/autopilots/${item.id}/runs`)).runs;
+      state.autopilotRuns = unwrap(
+        await deps.api.client.GET("/api/autopilots/{autopilot_id}/runs", {
+          params: { path: { autopilot_id: item.id } },
+        }),
+      ).runs;
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     }
-  },
-};
+  }
+  return {
+    state,
+    selectAutopilotAgent,
+    selectAutopilotEditAgent,
+    openCronBuilder,
+    syncCronBuilder,
+    setCronFrequency,
+    toggleCronDay,
+    cronHours,
+    cronDaysOfMonth,
+    cronMonths,
+    buildCron,
+    applyCronBuilder,
+    loadAutopilots,
+    newAutopilot,
+    editAutopilot,
+    saveAutopilot,
+    toggleAutopilot,
+    deleteAutopilot,
+    confirmDeleteAutopilot,
+    runAutopilot,
+    loadAutopilotRuns,
+  };
+}

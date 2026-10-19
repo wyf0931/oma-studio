@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from ...config import Settings
 from ...store import Store
+from .. import contracts
 
 
 class SystemTimezoneUpdate(BaseModel):
@@ -22,12 +23,18 @@ def create_router(
     def system_timezone() -> str:
         return store.get_system_setting("timezone", settings.system_timezone)
 
-    @router.get("")
+    @router.get(
+        "", response_model=contracts.SettingsResponse, response_model_exclude_unset=True
+    )
     async def get_system_settings(request: Request):
         require_admin(request)
         return {"timezone": system_timezone()}
 
-    @router.patch("/timezone")
+    @router.patch(
+        "/timezone",
+        response_model=contracts.SettingsResponse,
+        response_model_exclude_unset=True,
+    )
     async def update_system_timezone(payload: SystemTimezoneUpdate, request: Request):
         require_admin(request)
         try:

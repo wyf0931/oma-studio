@@ -1,4 +1,5 @@
 import type * as DTO from "../../shared/types";
+
 export function createAgentsState() {
   return {
     agents: [] as DTO.Agent[],
@@ -26,9 +27,7 @@ export function createAgentsState() {
     agentWizardStep: 1,
     agentSkillSearch: "",
     resources: {
-      default_provider: "",
-      default_model: "",
-      tools: [] as { name: string; description: string }[],
+      tools: [] as DTO.Resources["tools"],
       extensions: [] as DTO.Resource[],
       skills: [] as DTO.Resource[],
       mcp_servers: [] as DTO.Resource[],

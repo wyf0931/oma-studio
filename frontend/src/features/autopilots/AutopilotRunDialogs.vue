@@ -1,27 +1,17 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useAutopilots } from "./context";
+import { useFormat } from "../../shared/format-context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const {
-  autopilotDeleteTarget,
-  autopilotRuns,
-  autopilotRunsItem,
-  autopilotRunsOpen,
-  confirmDeleteAutopilot,
-  formatDateTime,
-  runAutopilot,
-  statusLabel,
-  t,
-} = useWorkspaceScope([
-  "autopilotDeleteTarget",
-  "autopilotRuns",
-  "autopilotRunsItem",
-  "autopilotRunsOpen",
-  "confirmDeleteAutopilot",
-  "formatDateTime",
-  "runAutopilot",
-  "statusLabel",
-  "t",
-]);
+const autopilotsFeature = useAutopilots();
+const { autopilotDeleteTarget, autopilotRuns, autopilotRunsItem, autopilotRunsOpen } = toRefs(autopilotsFeature.state);
+const { confirmDeleteAutopilot, runAutopilot } = autopilotsFeature;
+const formatFeature = useFormat();
+const { formatDateTime, statusLabel } = formatFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <dialog

@@ -1,142 +1,84 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useChat } from "./context";
+import { useAgents } from "../agents/context";
+import { useArtifacts } from "../artifacts/context";
+import { useShares } from "../shares/context";
+import { useFormat } from "../../shared/format-context";
+import { usePresentation } from "./presentation-context";
+import { useShell } from "../../app/context";
+import { useDom } from "../../shared/dom-context";
+import { useI18n } from "../../shared/i18n-context";
+
 import { vOutside } from "../../ui/events";
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
+const chatFeature = useChat();
 const {
-  abort,
   activeChat,
-  agentName,
   agentPickerOpen,
-  agents,
-  attachmentCommandIndex,
-  attachmentCommandItems,
-  attachmentCommandVisible,
-  avatarUrl,
-  cancelEditingChatTitle,
-  cancelShare,
   chatTitleDraft,
-  chooseAgent,
-  chooseFileAttachment,
-  chooseSkillCommand,
   copiedKey,
-  copyMessage,
-  createShare,
-  creatingShare,
   draft,
   editingChatTitle,
+  loading,
+  messages,
+  messagesLoading,
+  selectedAgentId,
+  skillCommandIndex,
+} = toRefs(chatFeature.state);
+const {
+  abort,
+  cancelEditingChatTitle,
+  chooseSkillCommand,
+  copyMessage,
+  handleSkillCommandKeydown,
+  isActionableAssistant,
+  saveChatTitle,
+  sendFirst,
+  sendMessage,
+  skillCommandHighlightHtml,
+  skillCommandItems,
+  skillCommandVisible,
+  startEditingChatTitle,
+  syncSkillCommandScroll,
+  updateSkillCommandState,
+} = chatFeature;
+const agentsFeature = useAgents();
+const { agents } = toRefs(agentsFeature.state);
+const { agentName, avatarUrl } = agentsFeature;
+const artifactsFeature = useArtifacts();
+const { attachmentCommandIndex, uploadDragActive, uploadingFiles } = toRefs(artifactsFeature.state);
+const {
+  attachmentCommandItems,
+  attachmentCommandVisible,
+  chooseFileAttachment,
   handleAttachmentKeydown,
   handleContentDragEnter,
   handleContentDragLeave,
   handleContentDragOver,
   handlePaste,
-  handleSkillCommandKeydown,
   handleUploadDrop,
   handleUploadSelection,
-  initials,
-  isActionableAssistant,
-  loading,
-  messageVisible,
-  messages,
-  messagesLoading,
   openUploadPicker,
-  page,
   pendingAttachments,
   removePendingAttachment,
-  renderMessage,
-  requestRevokeShare,
-  resizeConversationInput,
-  resizeStartInput,
-  runError,
-  saveChatTitle,
-  selectedAgentId,
-  sendFirst,
-  sendMessage,
-  sessionUsageMarkup,
-  shareMode,
-  sharedCanManage,
-  sharedMode,
-  sharedToken,
-  skillCommandHighlightHtml,
-  skillCommandIndex,
-  skillCommandItems,
-  skillCommandVisible,
-  startEditingChatTitle,
-  startShare,
-  syncSkillCommandScroll,
-  t,
   toggleFiles,
   updateAttachmentCommandState,
-  updateSkillCommandState,
-  uploadDragActive,
-  uploadingFiles,
-} = useWorkspaceScope([
-  "abort",
-  "activeChat",
-  "agentName",
-  "agentPickerOpen",
-  "agents",
-  "attachmentCommandIndex",
-  "attachmentCommandItems",
-  "attachmentCommandVisible",
-  "avatarUrl",
-  "cancelEditingChatTitle",
-  "cancelShare",
-  "chatTitleDraft",
-  "chooseAgent",
-  "chooseFileAttachment",
-  "chooseSkillCommand",
-  "copiedKey",
-  "copyMessage",
-  "createShare",
-  "creatingShare",
-  "draft",
-  "editingChatTitle",
-  "handleAttachmentKeydown",
-  "handleContentDragEnter",
-  "handleContentDragLeave",
-  "handleContentDragOver",
-  "handlePaste",
-  "handleSkillCommandKeydown",
-  "handleUploadDrop",
-  "handleUploadSelection",
-  "initials",
-  "isActionableAssistant",
-  "loading",
-  "messageVisible",
-  "messages",
-  "messagesLoading",
-  "openUploadPicker",
-  "page",
-  "pendingAttachments",
-  "removePendingAttachment",
-  "renderMessage",
-  "requestRevokeShare",
-  "resizeConversationInput",
-  "resizeStartInput",
-  "runError",
-  "saveChatTitle",
-  "selectedAgentId",
-  "sendFirst",
-  "sendMessage",
-  "sessionUsageMarkup",
-  "shareMode",
-  "sharedCanManage",
-  "sharedMode",
-  "sharedToken",
-  "skillCommandHighlightHtml",
-  "skillCommandIndex",
-  "skillCommandItems",
-  "skillCommandVisible",
-  "startEditingChatTitle",
-  "startShare",
-  "syncSkillCommandScroll",
-  "t",
-  "toggleFiles",
-  "updateAttachmentCommandState",
-  "updateSkillCommandState",
-  "uploadDragActive",
-  "uploadingFiles",
-]);
+} = artifactsFeature;
+const sharesFeature = useShares();
+const { creatingShare, shareMode, sharedCanManage, sharedMode, sharedToken } = toRefs(sharesFeature.state);
+const { cancelShare, createShare, requestRevokeShare, startShare } = sharesFeature;
+const formatFeature = useFormat();
+const { initials } = formatFeature;
+const presentationFeature = usePresentation();
+const { messageVisible, renderMessage, sessionUsageMarkup } = presentationFeature;
+const shellFeature = useShell();
+const { page, runError } = toRefs(shellFeature.state);
+const domFeature = useDom();
+const { resizeConversationInput, resizeStartInput } = domFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
+const { chooseAgent } = chatFeature;
 </script>
 <template>
   <section

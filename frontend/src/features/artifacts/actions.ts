@@ -1,92 +1,30 @@
-import { ApiError, asError } from "../../shared/types";
-import type { Workspace } from "../../app/workspace";
-import { nextTick } from "vue";
-
-import mermaid from "mermaid";
-
+import type { Actions as ChatActions, State as ChatState } from "../chat/actions";
+import type { Actions as SharesActions, State as SharesState } from "../shares/actions";
+import type { Actions as PresentationActions } from "../chat/presentation";
+import type { Actions as ApiActions } from "../../shared/api";
+import type { Actions as ShellActions } from "../../app/actions";
+import type { Actions as I18nActions } from "../../shared/i18n";
+import type { Actions as ContentActions } from "../../shared/content";
+import { validateUploadResponse } from "../../generated/validators.mjs";
+import { unwrap } from "../../shared/api";
+import { reactive, nextTick } from "vue";
 import type * as DTO from "../../shared/types";
+import { ApiError, asError } from "../../shared/types";
 
-// Explicit dependency contract for this feature; the composition root supplies it.
-type Context = Pick<
-  Workspace,
-  | "activeChat"
-  | "addUploadSelection"
-  | "api"
-  | "attachmentCommandDismissed"
-  | "attachmentCommandIndex"
-  | "attachmentCommandItems"
-  | "attachmentCommandMatch"
-  | "attachmentCommandVisible"
-  | "autopilotAgentFilter"
-  | "autopilotAgentId"
-  | "autopilotAgentPickerOpen"
-  | "autopilotEditAgentPickerOpen"
-  | "browserViewUrl"
-  | "chatRead"
-  | "chooseFileAttachment"
-  | "copiedShare"
-  | "downloadUrl"
-  | "draft"
-  | "fileViewer"
-  | "fileViewerExpired"
-  | "files"
-  | "filesLoading"
-  | "filesOpen"
-  | "filesTab"
-  | "inputBrowserViewUrl"
-  | "inputFiles"
-  | "isAbortError"
-  | "libraryAgentFilter"
-  | "libraryAgentPickerOpen"
-  | "libraryFiles"
-  | "libraryLoading"
-  | "libraryPage"
-  | "libraryPages"
-  | "librarySearch"
-  | "libraryTotal"
-  | "linkDrawerOpen"
-  | "loadArtifactShare"
-  | "loadAutopilots"
-  | "loadChatFiles"
-  | "loadLibrary"
-  | "loadSharedFiles"
-  | "openInternalTab"
-  | "opensInNativeBrowser"
-  | "pendingArtifacts"
-  | "pendingAttachments"
-  | "pendingUploads"
-  | "removePendingArtifact"
-  | "removePendingUpload"
-  | "removeUploadSelection"
-  | "renderMermaidDiagrams"
-  | "request"
-  | "resetUploadDragState"
-  | "responseData"
-  | "shareStep"
-  | "shareTarget"
-  | "shareUrl"
-  | "sharedMode"
-  | "sharedToken"
-  | "sharingViewedFile"
-  | "showError"
-  | "t"
-  | "theme"
-  | "uploadDragActive"
-  | "uploadDragDepth"
-  | "uploadLimits"
-  | "uploadSelection"
-  | "uploadingFiles"
->;
+import { createArtifactsState } from "./state";
+export type State = ReturnType<typeof createArtifactsState>;
 export interface Actions {
+  closeFiles(): void;
+  resetFilePanel(): void;
+  clearAttachments(includeLocal?: boolean): void;
+  restoreUploads(uploads: DTO.Upload[]): void;
+  clearFileShare(token: string): void;
   toggleFiles(): Promise<void>;
   refreshOpenFiles(chatId?: string | undefined): Promise<void>;
   loadSharedFiles(): Promise<void>;
   loadChatFiles(): Promise<void>;
   loadLibrary(page?: number): Promise<void>;
   selectLibraryAgent(agentId: string): void;
-  selectAutopilotAgent(agentId: string): void;
-  selectAutopilotEditAgent(agentId: string): void;
-  statusLabel(status: string): string;
   openFile(file: DTO.Artifact): void;
   displayedFiles(): DTO.Artifact[];
   pendingAttachments(): DTO.Attachment[];
@@ -108,7 +46,7 @@ export interface Actions {
   uploadSelectionTotalBytes(): number;
   removeUploadSelection(file: File, force?: boolean): void;
   formatFileSize(bytes: number): string;
-  uploadFiles(chat: DTO.Chat): Promise<DTO.Artifact[]>;
+  uploadFiles(chat: Pick<DTO.Chat, "id">): Promise<DTO.Upload[]>;
   removePendingAttachment(file: DTO.Attachment): void;
   removePendingUpload(upload: Pick<DTO.Attachment, "id">): Promise<void>;
   removePendingArtifact(artifact: Pick<DTO.Attachment, "path">): void;
@@ -125,217 +63,239 @@ export interface Actions {
   loadFileViewer(): Promise<void>;
   loadArtifactShare(chatId: string, path: string): Promise<void>;
   shareViewedFile(): Promise<void>;
-  renderMermaidDiagrams(): void;
+  renderFilePreview(): string;
 }
-export const artifactsActions: Actions = {
-  async toggleFiles(this: Context): Promise<void> {
-    this.filesOpen = !this.filesOpen;
-    if (this.filesOpen) this.linkDrawerOpen = false;
-    if (this.filesOpen && this.activeChat) {
-      if (this.sharedMode) await this.loadSharedFiles();
-      else await this.loadChatFiles();
+export interface Feature extends Actions {
+  state: State;
+}
+export interface Dependencies {
+  chat: Pick<ChatActions, "clearAttachmentCommand" | "isAbortError" | "readSignal"> & {
+    state: Readonly<Pick<ChatState, "activeChat" | "draft">>;
+  };
+  shares: Pick<SharesActions, "showCreatedLink"> & { state: Readonly<Pick<SharesState, "sharedMode" | "sharedToken">> };
+  presentation: Pick<PresentationActions, "closeLinkDrawer">;
+  api: Pick<ApiActions, "client" | "invalidResponse" | "request" | "responseData">;
+  shell: Pick<ShellActions, "showError">;
+  i18n: Pick<I18nActions, "t">;
+  content: Pick<
+    ContentActions,
+    | "fileExtension"
+    | "isCodeFile"
+    | "isCsvFile"
+    | "renderCodeFile"
+    | "renderCsv"
+    | "renderMarkdown"
+    | "renderMermaidDiagrams"
+  >;
+}
+export function createArtifacts(deps: Dependencies): Feature {
+  const state = reactive(createArtifactsState());
+  async function toggleFiles(): Promise<void> {
+    state.filesOpen = !state.filesOpen;
+    if (state.filesOpen) deps.presentation.closeLinkDrawer();
+    if (state.filesOpen && deps.chat.state.activeChat) {
+      if (deps.shares.state.sharedMode) await loadSharedFiles();
+      else await loadChatFiles();
     }
-  },
-  async refreshOpenFiles(this: Context, chatId: string | undefined = this.activeChat?.id): Promise<void> {
-    if (!this.filesOpen || !chatId || this.activeChat?.id !== chatId) return;
-    if (this.sharedMode) await this.loadSharedFiles();
-    else await this.loadChatFiles();
-  },
-  async loadSharedFiles(this: Context): Promise<void> {
-    this.filesLoading = true;
+  }
+  async function refreshOpenFiles(chatId: string | undefined = deps.chat.state.activeChat?.id): Promise<void> {
+    if (!state.filesOpen || !chatId || deps.chat.state.activeChat?.id !== chatId) return;
+    if (deps.shares.state.sharedMode) await loadSharedFiles();
+    else await loadChatFiles();
+  }
+  async function loadSharedFiles(): Promise<void> {
+    state.filesLoading = true;
     try {
-      this.files = (await this.api<{ files: DTO.Artifact[] }>(`/api/share/${this.sharedToken}/files`)).files;
-      this.inputFiles = [];
+      state.files = unwrap(
+        await deps.api.client.GET("/api/share/{token}/files", {
+          params: { path: { token: deps.shares.state.sharedToken } },
+        }),
+      ).files;
+      state.inputFiles = [];
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     } finally {
-      this.filesLoading = false;
+      state.filesLoading = false;
     }
-  },
-  async loadChatFiles(this: Context): Promise<void> {
-    if (!this.activeChat) return;
-    this.filesLoading = true;
+  }
+  async function loadChatFiles(): Promise<void> {
+    if (!deps.chat.state.activeChat) return;
+    state.filesLoading = true;
     try {
       const [outputs, inputs] = await Promise.all([
-        this.chatRead<{ files: DTO.Artifact[] }>(`/api/chats/${this.activeChat.id}/files`),
-        this.chatRead<{ files: DTO.Artifact[] }>(`/api/chats/${this.activeChat.id}/inputs`),
+        deps.api.client
+          .GET("/api/chats/{chat_id}/files", {
+            params: { path: { chat_id: deps.chat.state.activeChat.id } },
+            signal: deps.chat.readSignal(),
+          })
+          .then(unwrap),
+        deps.api.client
+          .GET("/api/chats/{chat_id}/inputs", {
+            params: { path: { chat_id: deps.chat.state.activeChat.id } },
+            signal: deps.chat.readSignal(),
+          })
+          .then(unwrap),
       ]);
-      this.files = outputs.files;
-      this.inputFiles = inputs.files;
+      state.files = outputs.files;
+      state.inputFiles = inputs.files;
     } catch (cause) {
       const e = asError(cause);
-      if (!this.isAbortError(e)) this.showError(e);
+      if (!deps.chat.isAbortError(e)) deps.shell.showError(e);
     } finally {
-      this.filesLoading = false;
+      state.filesLoading = false;
     }
-  },
-  async loadLibrary(this: Context, page: number = this.libraryPage): Promise<void> {
-    this.libraryLoading = true;
-    this.libraryPage = Math.max(1, page);
+  }
+  async function loadLibrary(page: number = state.libraryPage): Promise<void> {
+    state.libraryLoading = true;
+    state.libraryPage = Math.max(1, page);
     try {
-      const params = new URLSearchParams({
-        page: String(this.libraryPage),
-        page_size: "20",
-      });
-      if (this.librarySearch.trim()) params.set("search", this.librarySearch.trim());
-      if (this.libraryAgentFilter) params.set("agent_id", this.libraryAgentFilter);
-      const data = await this.api<{ files: DTO.Artifact[]; pages: number; total: number }>(
-        `/api/library/files?${params}`,
+      const data = unwrap(
+        await deps.api.client.GET("/api/library/files", {
+          params: {
+            query: {
+              page: state.libraryPage,
+              page_size: 20,
+              search: state.librarySearch.trim(),
+              agent_id: state.libraryAgentFilter || undefined,
+            },
+          },
+        }),
       );
-      this.libraryFiles = data.files;
-      this.libraryPages = data.pages;
-      this.libraryTotal = data.total;
+      state.libraryFiles = data.files;
+      state.libraryPages = data.pages;
+      state.libraryTotal = data.total;
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     } finally {
-      this.libraryLoading = false;
+      state.libraryLoading = false;
     }
-  },
-  selectLibraryAgent(this: Context, agentId: string): void {
-    this.libraryAgentFilter = agentId;
-    this.libraryAgentPickerOpen = false;
-    this.loadLibrary(1);
-  },
-  selectAutopilotAgent(this: Context, agentId: string): void {
-    this.autopilotAgentFilter = agentId;
-    this.autopilotAgentPickerOpen = false;
-    this.loadAutopilots();
-  },
-  selectAutopilotEditAgent(this: Context, agentId: string): void {
-    this.autopilotAgentId = agentId;
-    this.autopilotEditAgentPickerOpen = false;
-  },
-  statusLabel(this: Context, status: string): string {
-    const key = {
-      active: "status.active",
-      disabled: "status.disabled",
-      enabled: "status.enabled",
-      running: "status.running",
-      paused: "status.paused",
-      success: "status.success",
-      error: "status.error",
-      cancelled: "status.cancelled",
-    }[
-      String(status || "")
-        .trim()
-        .toLowerCase()
-    ];
-    return key ? this.t(key) : status;
-  },
-  openFile(this: Context, file: DTO.Artifact): void {
-    if (!this.activeChat) return;
+  }
+  function selectLibraryAgent(agentId: string): void {
+    state.libraryAgentFilter = agentId;
+    state.libraryAgentPickerOpen = false;
+    loadLibrary(1);
+  }
+  function openFile(file: DTO.Artifact): void {
+    if (!deps.chat.state.activeChat) return;
     const input = file.kind === "input";
-    if (this.opensInNativeBrowser(file)) {
-      const url = this.sharedMode
-        ? `/api/share/${encodeURIComponent(this.sharedToken)}/files/view?path=${encodeURIComponent(file.path)}`
+    if (opensInNativeBrowser(file)) {
+      const url = deps.shares.state.sharedMode
+        ? `/api/share/${encodeURIComponent(deps.shares.state.sharedToken)}/files/view?path=${encodeURIComponent(file.path)}`
         : input
-          ? this.inputBrowserViewUrl(this.activeChat.id, file.path)
-          : this.browserViewUrl(this.activeChat.id, file.path);
-      this.openInternalTab(url);
+          ? inputBrowserViewUrl(deps.chat.state.activeChat.id, file.path)
+          : browserViewUrl(deps.chat.state.activeChat.id, file.path);
+      openInternalTab(url);
       return;
     }
-    const query = this.sharedMode
-      ? new URLSearchParams({ share: this.sharedToken, path: file.path, from: "chat" })
+    const query = deps.shares.state.sharedMode
+      ? new URLSearchParams({ share: deps.shares.state.sharedToken, path: file.path, from: "chat" })
       : new URLSearchParams({
-          chat_id: this.activeChat.id,
+          chat_id: deps.chat.state.activeChat.id,
           path: file.path,
           from: "chat",
           ...(input ? { kind: "input" } : {}),
         });
-    this.openInternalTab(`/file-view?${query.toString()}`);
-  },
-  displayedFiles(this: Context): DTO.Artifact[] {
-    return this.filesTab === "inputs" ? this.inputFiles : this.files;
-  },
-  pendingAttachments(this: Context): DTO.Attachment[] {
+    openInternalTab(`/file-view?${query.toString()}`);
+  }
+  function displayedFiles(): DTO.Artifact[] {
+    return state.filesTab === "inputs" ? state.inputFiles : state.files;
+  }
+  function pendingAttachments(): DTO.Attachment[] {
     return [
-      ...this.pendingUploads,
-      ...this.uploadSelection.map((file) => ({
+      ...state.pendingUploads,
+      ...state.uploadSelection.map((file) => ({
         _localFile: file,
         id: `local:${file.name}:${file.lastModified}:${file.size}`,
         filename: file.name,
         media_type: file.type || "application/octet-stream",
         size: file.size,
       })),
-      ...this.pendingArtifacts,
+      ...state.pendingArtifacts,
     ];
-  },
-  attachmentCommandMatch(this: Context): { query: string } | null {
-    if (!this.activeChat || this.sharedMode) return null;
-    const match = this.draft.match(/(?:^|\s)@([^\s]*)$/);
+  }
+  function attachmentCommandMatch(): { query: string } | null {
+    if (!deps.chat.state.activeChat || deps.shares.state.sharedMode) return null;
+    const match = deps.chat.state.draft.match(/(?:^|\s)@([^\s]*)$/);
     return match ? { query: (match[1] || "").toLowerCase() } : null;
-  },
-  attachmentCommandItems(this: Context): DTO.Artifact[] {
-    const match = this.attachmentCommandMatch();
+  }
+  function attachmentCommandItems(): DTO.Artifact[] {
+    const match = attachmentCommandMatch();
     if (!match) return [];
-    const selectedOutputs = new Set(this.pendingArtifacts.map((file) => file.path));
-    const selectedInputs = new Set(this.pendingUploads.map((file) => file.id));
+    const selectedOutputs = new Set(state.pendingArtifacts.map((file) => file.path));
+    const selectedInputs = new Set(state.pendingUploads.map((file) => file.id));
     const candidates = [
-      ...this.files.map((file) => ({ ...file, kind: "output" })),
-      ...this.inputFiles.map((file) => ({ ...file, kind: "input" })),
+      ...state.files.map((file) => ({ ...file, kind: "output" })),
+      ...state.inputFiles.map((file) => ({ ...file, kind: "input" })),
     ];
     return candidates
       .filter((file) => (file.kind === "input" ? !selectedInputs.has(file.id) : !selectedOutputs.has(file.path)))
       .filter((file) => file.name.toLowerCase().includes(match.query))
       .slice(0, 8);
-  },
-  attachmentCommandVisible(this: Context): boolean {
+  }
+  function attachmentCommandVisible(): boolean {
     return (
-      Boolean(this.attachmentCommandMatch()) &&
-      !this.attachmentCommandDismissed &&
-      this.attachmentCommandItems().length > 0
+      Boolean(attachmentCommandMatch()) && !state.attachmentCommandDismissed && attachmentCommandItems().length > 0
     );
-  },
-  updateAttachmentCommandState(this: Context): void {
-    this.attachmentCommandIndex = 0;
-    this.attachmentCommandDismissed = false;
-    if (this.attachmentCommandMatch() && !this.filesLoading && !this.files.length && !this.inputFiles.length)
-      void this.loadChatFiles();
-  },
-  handleAttachmentKeydown(this: Context, event: KeyboardEvent): void {
-    if (!this.attachmentCommandVisible()) return;
-    const items = this.attachmentCommandItems();
+  }
+  function updateAttachmentCommandState(): void {
+    state.attachmentCommandIndex = 0;
+    state.attachmentCommandDismissed = false;
+    if (attachmentCommandMatch() && !state.filesLoading && !state.files.length && !state.inputFiles.length)
+      void loadChatFiles();
+  }
+  function handleAttachmentKeydown(event: KeyboardEvent): void {
+    if (!attachmentCommandVisible()) return;
+    const items = attachmentCommandItems();
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      this.attachmentCommandIndex = (this.attachmentCommandIndex + 1) % items.length;
+      state.attachmentCommandIndex = (state.attachmentCommandIndex + 1) % items.length;
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      this.attachmentCommandIndex = (this.attachmentCommandIndex - 1 + items.length) % items.length;
+      state.attachmentCommandIndex = (state.attachmentCommandIndex - 1 + items.length) % items.length;
     } else if (event.key === "Tab") {
       event.preventDefault();
-      this.chooseFileAttachment(items[this.attachmentCommandIndex]!);
+      chooseFileAttachment(items[state.attachmentCommandIndex]!);
     } else if (event.key === "Escape") {
       event.preventDefault();
-      this.attachmentCommandDismissed = true;
+      state.attachmentCommandDismissed = true;
     }
-  },
-  chooseFileAttachment(this: Context, file: DTO.Artifact): void {
+  }
+  function chooseFileAttachment(file: DTO.Artifact): void {
     if (file.kind === "input") {
-      this.pendingUploads.push({
-        ...file,
+      if (!file.chat_id || !file.created_at || !file.media_type) {
+        deps.shell.showError(new ApiError("Incomplete input-file metadata"));
+        return;
+      }
+      state.pendingUploads.push({
+        id: file.id,
+        chat_id: file.chat_id,
+        created_at: file.created_at,
         filename: file.name,
+        path: file.path,
+        media_type: file.media_type,
+        size: file.size,
       });
     } else {
-      this.pendingArtifacts.push(file);
+      state.pendingArtifacts.push(file);
     }
-    this.draft = this.draft.replace(/(?:^|\s)@[^\s]*$/, (value) => (value.startsWith(" ") ? " " : ""));
-    this.attachmentCommandIndex = 0;
-    this.attachmentCommandDismissed = false;
+    deps.chat.clearAttachmentCommand();
+    state.attachmentCommandIndex = 0;
+    state.attachmentCommandDismissed = false;
     nextTick(() => document.getElementById("conversation-message")?.focus());
-  },
-  openUploadPicker(this: Context): void {
-    if (!this.uploadingFiles) document.querySelector<HTMLInputElement>('[data-ref="uploadInput"]')?.click();
-  },
-  async handleUploadSelection(this: Context, event: Event): Promise<void> {
+  }
+  function openUploadPicker(): void {
+    if (!state.uploadingFiles) document.querySelector<HTMLInputElement>('[data-ref="uploadInput"]')?.click();
+  }
+  async function handleUploadSelection(event: Event): Promise<void> {
     if (!(event.target instanceof HTMLInputElement)) return;
     const selected = [...(event.target.files || [])];
     event.target.value = "";
-    this.addUploadSelection(selected);
-  },
-  handlePaste(this: Context, event: ClipboardEvent): void {
-    if (this.uploadingFiles) return;
+    addUploadSelection(selected);
+  }
+  function handlePaste(event: ClipboardEvent): void {
+    if (state.uploadingFiles) return;
     const items = [...(event.clipboardData?.items || [])];
     const images = items
       .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
@@ -343,77 +303,78 @@ export const artifactsActions: Actions = {
       .filter((file): file is File => file !== null);
     if (!images.length) return;
     event.preventDefault();
-    this.addUploadSelection(images);
-  },
-  async handleUploadDrop(this: Context, event: DragEvent): Promise<void> {
-    this.resetUploadDragState();
-    if (this.uploadingFiles) return;
-    this.addUploadSelection([...(event.dataTransfer?.files || [])]);
-  },
-  handleContentDragEnter(this: Context, event: DragEvent): void {
-    if (this.uploadingFiles || !event.dataTransfer?.types?.includes("Files")) return;
-    this.uploadDragDepth += 1;
-    this.uploadDragActive = true;
-  },
-  handleContentDragOver(this: Context, event: DragEvent): void {
-    if (!this.uploadingFiles && event.dataTransfer?.types?.includes("Files")) this.uploadDragActive = true;
-  },
-  handleContentDragLeave(this: Context, event: DragEvent): void {
+    addUploadSelection(images);
+  }
+  async function handleUploadDrop(event: DragEvent): Promise<void> {
+    resetUploadDragState();
+    if (state.uploadingFiles) return;
+    addUploadSelection([...(event.dataTransfer?.files || [])]);
+  }
+  function handleContentDragEnter(event: DragEvent): void {
+    if (state.uploadingFiles || !event.dataTransfer?.types?.includes("Files")) return;
+    state.uploadDragDepth += 1;
+    state.uploadDragActive = true;
+  }
+  function handleContentDragOver(event: DragEvent): void {
+    if (!state.uploadingFiles && event.dataTransfer?.types?.includes("Files")) state.uploadDragActive = true;
+  }
+  function handleContentDragLeave(event: DragEvent): void {
     if (
       event.currentTarget instanceof Element &&
       (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget))
     )
-      this.resetUploadDragState();
-  },
-  resetUploadDragState(this: Context): void {
-    this.uploadDragDepth = 0;
-    this.uploadDragActive = false;
-  },
-  addUploadSelection(this: Context, selected: File[]): void {
-    if (!selected.length || this.uploadingFiles) return;
-    const maxFiles = Number(this.uploadLimits.max_files) || 100;
-    const maxBytes = Number(this.uploadLimits.max_bytes) || 100 * 1024 * 1024;
-    const currentFiles = this.pendingUploads.length + this.pendingArtifacts.length + this.uploadSelection.length;
+      resetUploadDragState();
+  }
+  function resetUploadDragState(): void {
+    state.uploadDragDepth = 0;
+    state.uploadDragActive = false;
+  }
+  function addUploadSelection(selected: File[]): void {
+    if (!selected.length || state.uploadingFiles) return;
+    const maxFiles = Number(state.uploadLimits.max_files) || 100;
+    const maxBytes = Number(state.uploadLimits.max_bytes) || 100 * 1024 * 1024;
+    const currentFiles = state.pendingUploads.length + state.pendingArtifacts.length + state.uploadSelection.length;
     const availableFiles = maxFiles - currentFiles;
     if (selected.length > availableFiles) {
-      this.showError(new ApiError(`You can attach at most ${maxFiles} files to one message`));
+      deps.shell.showError(new ApiError(`You can attach at most ${maxFiles} files to one message`));
     }
-    let availableBytes =
-      maxBytes - this.pendingAttachments().reduce((total, file) => total + (Number(file.size) || 0), 0);
+    let availableBytes = maxBytes - pendingAttachments().reduce((total, file) => total + (Number(file.size) || 0), 0);
     const files = [];
     for (const file of selected.slice(0, Math.max(0, availableFiles))) {
       if (file.size > availableBytes) {
-        this.showError(new ApiError(`Selected files exceed the ${Math.ceil(maxBytes / 1024 / 1024)} MiB upload limit`));
+        deps.shell.showError(
+          new ApiError(`Selected files exceed the ${Math.ceil(maxBytes / 1024 / 1024)} MiB upload limit`),
+        );
         break;
       }
       files.push(file);
       availableBytes -= file.size;
     }
-    this.uploadSelection.push(...files);
-  },
-  uploadSelectionTotalBytes(this: Context): number {
-    return this.uploadSelection.reduce((total, file) => total + (Number(file.size) || 0), 0);
-  },
-  removeUploadSelection(this: Context, file: File, force: boolean = false): void {
-    if (force || !this.uploadingFiles) {
-      this.uploadSelection = this.uploadSelection.filter((item) => item !== file);
+    state.uploadSelection.push(...files);
+  }
+  function uploadSelectionTotalBytes(): number {
+    return state.uploadSelection.reduce((total, file) => total + (Number(file.size) || 0), 0);
+  }
+  function removeUploadSelection(file: File, force: boolean = false): void {
+    if (force || !state.uploadingFiles) {
+      state.uploadSelection = state.uploadSelection.filter((item) => item !== file);
     }
-  },
-  formatFileSize(this: Context, bytes: number): string {
+  }
+  function formatFileSize(bytes: number): string {
     const size = Number(bytes) || 0;
     if (size < 1024) return `${size} B`;
     if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-  },
-  async uploadFiles(this: Context, chat: DTO.Chat): Promise<DTO.Artifact[]> {
-    if (!this.uploadSelection.length) return [];
-    if (this.uploadingFiles) return [];
-    this.uploadingFiles = true;
+  }
+  async function uploadFiles(chat: Pick<DTO.Chat, "id">): Promise<DTO.Upload[]> {
+    if (!state.uploadSelection.length) return [];
+    if (state.uploadingFiles) return [];
+    state.uploadingFiles = true;
     const uploaded = [];
     try {
-      for (const file of [...this.uploadSelection]) {
+      for (const file of [...state.uploadSelection]) {
         const requestPath = `/api/chats/${chat.id}/uploads`;
-        const { response, requestId } = await this.request(requestPath, {
+        const { response, requestId } = await deps.api.request(requestPath, {
           method: "POST",
           headers: {
             "Content-Type": file.type || "application/octet-stream",
@@ -421,42 +382,47 @@ export const artifactsActions: Actions = {
           },
           body: file,
         });
-        const { data } = await this.responseData<DTO.Artifact>(response, requestId, requestPath);
-        this.pendingUploads.push(data);
+        const { data } = await deps.api.responseData(response, requestId, requestPath);
+        if (!validateUploadResponse(data)) throw deps.api.invalidResponse(requestPath, requestId);
+        state.pendingUploads.push(data);
         uploaded.push(data);
-        this.removeUploadSelection(file, true);
+        removeUploadSelection(file, true);
       }
       return uploaded;
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
       throw error;
     } finally {
-      this.uploadingFiles = false;
+      state.uploadingFiles = false;
     }
-  },
-  removePendingAttachment(this: Context, file: DTO.Attachment): void {
-    if (file._localFile) return this.removeUploadSelection(file._localFile);
-    if (file.filename) return void this.removePendingUpload(file);
-    this.removePendingArtifact(file);
-  },
-  async removePendingUpload(this: Context, upload: Pick<DTO.Attachment, "id">): Promise<void> {
-    const chat = this.activeChat;
+  }
+  function removePendingAttachment(file: DTO.Attachment): void {
+    if (file._localFile) return removeUploadSelection(file._localFile);
+    if (file.filename) return void removePendingUpload(file);
+    removePendingArtifact(file);
+  }
+  async function removePendingUpload(upload: Pick<DTO.Attachment, "id">): Promise<void> {
+    const chat = deps.chat.state.activeChat;
     if (!chat) return;
     try {
-      await this.api(`/api/chats/${chat.id}/uploads/${upload.id}`, { method: "DELETE" });
-      this.pendingUploads = this.pendingUploads.filter((item) => item.id !== upload.id);
+      unwrap(
+        await deps.api.client.DELETE("/api/chats/{chat_id}/uploads/{upload_id}", {
+          params: { path: { chat_id: chat.id, upload_id: upload.id } },
+        }),
+      );
+      state.pendingUploads = state.pendingUploads.filter((item) => item.id !== upload.id);
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     }
-  },
-  removePendingArtifact(this: Context, artifact: Pick<DTO.Attachment, "path">): void {
-    this.pendingArtifacts = this.pendingArtifacts.filter((item) => item.path !== artifact.path);
-  },
-  openLibraryFile(this: Context, file: DTO.Artifact): void {
-    if (this.opensInNativeBrowser(file)) {
-      this.openInternalTab(this.browserViewUrl(file.chat_id || "", file.path));
+  }
+  function removePendingArtifact(artifact: Pick<DTO.Attachment, "path">): void {
+    state.pendingArtifacts = state.pendingArtifacts.filter((item) => item.path !== artifact.path);
+  }
+  function openLibraryFile(file: DTO.Artifact): void {
+    if (opensInNativeBrowser(file)) {
+      openInternalTab(browserViewUrl(file.chat_id || "", file.path));
       return;
     }
     const query = new URLSearchParams({
@@ -464,12 +430,12 @@ export const artifactsActions: Actions = {
       path: file.path,
       from: "library",
     });
-    this.openInternalTab(`/file-view?${query.toString()}`);
-  },
-  openLibraryChat(this: Context, file: DTO.Artifact): void {
-    this.openInternalTab(`/chat/${encodeURIComponent(file.chat_id || "")}`);
-  },
-  openInternalTab(this: Context, url: string): void {
+    openInternalTab(`/file-view?${query.toString()}`);
+  }
+  function openLibraryChat(file: DTO.Artifact): void {
+    openInternalTab(`/chat/${encodeURIComponent(file.chat_id || "")}`);
+  }
+  function openInternalTab(url: string): void {
     if (typeof url !== "string" || !url.startsWith("/")) return;
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -478,19 +444,19 @@ export const artifactsActions: Actions = {
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
-  },
-  opensInNativeBrowser(this: Context, file: Partial<DTO.Artifact>): boolean {
+  }
+  function opensInNativeBrowser(file: Partial<DTO.Artifact>): boolean {
     return ["avif", "bmp", "gif", "htm", "html", "ico", "jpeg", "jpg", "pdf", "png", "svg", "webp"].includes(
       String(file?.extension || "").toLowerCase(),
     );
-  },
-  browserViewUrl(this: Context, chatId: string, path: string): string {
+  }
+  function browserViewUrl(chatId: string, path: string): string {
     return `/api/chats/${encodeURIComponent(chatId || "")}/files/view?path=${encodeURIComponent(path)}`;
-  },
-  inputBrowserViewUrl(this: Context, chatId: string, path: string): string {
+  }
+  function inputBrowserViewUrl(chatId: string, path: string): string {
     return `/api/chats/${encodeURIComponent(chatId || "")}/inputs/view?path=${encodeURIComponent(path)}`;
-  },
-  leaveFileViewer(this: Context): void {
+  }
+  function leaveFileViewer(): void {
     const params = new URLSearchParams(location.search);
     if (document.referrer.startsWith(location.origin) && history.length > 1) {
       history.back();
@@ -499,52 +465,62 @@ export const artifactsActions: Actions = {
     } else {
       location.assign("/library");
     }
-  },
-  downloadUrl(this: Context, file: Pick<DTO.Artifact, "chat_id" | "kind" | "path">): string {
+  }
+  function downloadUrl(file: Pick<DTO.Artifact, "chat_id" | "kind" | "path">): string {
     const resource = file.kind === "input" ? "inputs" : "files";
     return `/api/chats/${encodeURIComponent(file.chat_id || "")}/${resource}/download?path=${encodeURIComponent(file.path)}`;
-  },
-  fileViewerDownloadUrl(this: Context): string {
-    const viewer = this.fileViewer;
+  }
+  function fileViewerDownloadUrl(): string {
+    const viewer = state.fileViewer;
     if (!viewer || viewer.isShared) return "";
-    return this.downloadUrl({
+    return downloadUrl({
       chat_id: viewer.chatId,
       kind: viewer.kind,
       path: viewer.path,
     });
-  },
-  fileViewerDownloadName(this: Context): string {
+  }
+  function fileViewerDownloadName(): string {
     return (
-      String(this.fileViewer?.path || "")
+      String(state.fileViewer?.path || "")
         .split("/")
         .pop() || "file"
     );
-  },
-  async loadFileViewer(this: Context): Promise<void> {
+  }
+  async function loadFileViewer(): Promise<void> {
     const params = new URLSearchParams(location.search);
     const share = params.get("share");
     const chatId = params.get("chat_id");
     const path = params.get("path");
-    this.fileViewer = null;
-    this.fileViewerExpired = false;
+    state.fileViewer = null;
+    state.fileViewerExpired = false;
     if ((!chatId && !share) || !path) {
       if (share) {
-        this.fileViewerExpired = true;
-        document.title = this.t("share.linkExpiredTitle");
+        state.fileViewerExpired = true;
+        document.title = deps.i18n.t("share.linkExpiredTitle");
         return;
       }
-      this.showError(new ApiError("File reference is incomplete"));
+      deps.shell.showError(new ApiError("File reference is incomplete"));
       return;
     }
     try {
       const data = share
-        ? await this.api<{ content: string }>(
-            `/api/share/${encodeURIComponent(share || "")}/files/content?path=${encodeURIComponent(path)}`,
+        ? unwrap(
+            await deps.api.client.GET("/api/share/{token}/files/content", {
+              params: { path: { token: share || "" }, query: { path: path } },
+            }),
           )
-        : await this.api<{ content: string }>(
-            `/api/chats/${encodeURIComponent(chatId || "")}/${params.get("kind") === "input" ? "inputs" : "files"}/content?path=${encodeURIComponent(path)}`,
-          );
-      this.fileViewer = {
+        : params.get("kind") === "input"
+          ? unwrap(
+              await deps.api.client.GET("/api/chats/{chat_id}/inputs/content", {
+                params: { path: { chat_id: chatId || "" }, query: { path } },
+              }),
+            )
+          : unwrap(
+              await deps.api.client.GET("/api/chats/{chat_id}/files/content", {
+                params: { path: { chat_id: chatId || "" }, query: { path } },
+              }),
+            );
+      state.fileViewer = {
         chatId: chatId || `share:${share}`,
         kind: params.get("kind") === "input" ? "input" : "file",
         isShared: Boolean(share),
@@ -558,70 +534,138 @@ export const artifactsActions: Actions = {
         path,
         content: data.content,
       };
-      if (this.fileViewer.canManageShare) await this.loadArtifactShare(chatId || "", path);
+      if (state.fileViewer.canManageShare) await loadArtifactShare(chatId || "", path);
       document.title = path.split("/").pop() || "File";
-      setTimeout(() => this.renderMermaidDiagrams(), 0);
+      setTimeout(() => deps.content.renderMermaidDiagrams(), 0);
     } catch (cause) {
       const error = asError(cause);
       if (share && error.status === 404) {
-        this.fileViewer = null;
-        this.fileViewerExpired = true;
-        document.title = this.t("share.linkExpiredTitle");
+        state.fileViewer = null;
+        state.fileViewerExpired = true;
+        document.title = deps.i18n.t("share.linkExpiredTitle");
       } else {
-        this.showError(error);
+        deps.shell.showError(error);
       }
     }
-  },
-  async loadArtifactShare(this: Context, chatId: string, path: string): Promise<void> {
+  }
+  async function loadArtifactShare(chatId: string, path: string): Promise<void> {
     try {
-      this.fileViewer!.artifactShare = await this.api<DTO.Share>(
-        `/api/chats/${encodeURIComponent(chatId || "")}/artifact-shares?path=${encodeURIComponent(path)}`,
-      );
-      this.fileViewer!.artifactShare!.kind = "artifact";
+      state.fileViewer!.artifactShare = {
+        ...unwrap(
+          await deps.api.client.GET("/api/chats/{chat_id}/artifact-shares", {
+            params: { path: { chat_id: chatId || "" }, query: { path: path } },
+          }),
+        ),
+        kind: "artifact",
+      };
     } catch (cause) {
       const error = asError(cause);
-      if (error.status !== 404) this.showError(error);
+      if (error.status !== 404) deps.shell.showError(error);
     }
-  },
-  async shareViewedFile(this: Context): Promise<void> {
+  }
+  async function shareViewedFile(): Promise<void> {
     const params = new URLSearchParams(location.search);
     const chatId = params.get("chat_id");
-    const path = this.fileViewer?.path;
-    if (!chatId || !path || this.sharingViewedFile) return;
-    this.sharingViewedFile = true;
+    const path = state.fileViewer?.path;
+    if (!chatId || !path || state.sharingViewedFile) return;
+    state.sharingViewedFile = true;
     try {
-      const data = await this.api<DTO.Share>(
-        `/api/chats/${encodeURIComponent(chatId || "")}/artifact-shares?path=${encodeURIComponent(path)}`,
-        {
-          method: "POST",
-        },
+      const data = unwrap(
+        await deps.api.client.POST("/api/chats/{chat_id}/artifact-shares", {
+          params: { path: { chat_id: chatId || "" }, query: { path: path } },
+        }),
       );
-      this.fileViewer!.artifactShare = {
+      state.fileViewer!.artifactShare = {
         ...data,
         kind: "artifact",
-        title: this.activeChat?.title || "",
+        title: deps.chat.state.activeChat?.title || "",
       };
-      this.shareTarget = "artifact";
-      this.shareUrl = `${location.origin}${data.url}`;
-      this.shareStep = "created";
-      this.copiedShare = false;
+      deps.shares.showCreatedLink(`${location.origin}${data.url}`, "artifact");
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     } finally {
-      this.sharingViewedFile = false;
+      state.sharingViewedFile = false;
     }
-  },
-  renderMermaidDiagrams(this: Context): void {
-    if (!mermaid) return;
-    try {
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: this.theme === "dark" ? "dark" : "default",
-      });
-      mermaid.run({
-        nodes: [...document.querySelectorAll<HTMLElement>(".file-markdown .mermaid")],
-      });
-    } catch {}
-  },
-};
+  }
+  function renderFilePreview(): string {
+    const path = state.fileViewer?.path || "";
+    const content = state.fileViewer?.content || "";
+    if (deps.content.isCsvFile(path)) return deps.content.renderCsv(content);
+    if (deps.content.isCodeFile(path)) return deps.content.renderCodeFile(content, deps.content.fileExtension(path));
+    return deps.content.renderMarkdown(content);
+  }
+  function closeFiles(): void {
+    state.filesOpen = false;
+  }
+  function resetFilePanel(): void {
+    state.files = [];
+    state.inputFiles = [];
+    state.filesOpen = false;
+    state.filesTab = "outputs";
+  }
+  function clearAttachments(includeLocal: boolean = true): void {
+    state.pendingUploads = [];
+    state.pendingArtifacts = [];
+    if (includeLocal) state.uploadSelection = [];
+  }
+  function restoreUploads(uploads: DTO.Upload[]): void {
+    state.pendingUploads = uploads;
+  }
+  function clearFileShare(token: string): void {
+    if (state.fileViewer?.artifactShare?.token === token) state.fileViewer.artifactShare = null;
+  }
+  return {
+    state,
+    toggleFiles,
+    refreshOpenFiles,
+    loadSharedFiles,
+    loadChatFiles,
+    loadLibrary,
+    selectLibraryAgent,
+    openFile,
+    displayedFiles,
+    pendingAttachments,
+    attachmentCommandMatch,
+    attachmentCommandItems,
+    attachmentCommandVisible,
+    updateAttachmentCommandState,
+    handleAttachmentKeydown,
+    chooseFileAttachment,
+    openUploadPicker,
+    handleUploadSelection,
+    handlePaste,
+    handleUploadDrop,
+    handleContentDragEnter,
+    handleContentDragOver,
+    handleContentDragLeave,
+    resetUploadDragState,
+    addUploadSelection,
+    uploadSelectionTotalBytes,
+    removeUploadSelection,
+    formatFileSize,
+    uploadFiles,
+    removePendingAttachment,
+    removePendingUpload,
+    removePendingArtifact,
+    openLibraryFile,
+    openLibraryChat,
+    openInternalTab,
+    opensInNativeBrowser,
+    browserViewUrl,
+    inputBrowserViewUrl,
+    leaveFileViewer,
+    downloadUrl,
+    fileViewerDownloadUrl,
+    fileViewerDownloadName,
+    loadFileViewer,
+    loadArtifactShare,
+    shareViewedFile,
+    renderFilePreview,
+    closeFiles,
+    resetFilePanel,
+    clearAttachments,
+    restoreUploads,
+    clearFileShare,
+  };
+}

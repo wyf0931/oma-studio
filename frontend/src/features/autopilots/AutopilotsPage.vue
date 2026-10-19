@@ -1,53 +1,39 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useAgents } from "../agents/context";
+import { useAutopilots } from "./context";
+import { useFormat } from "../../shared/format-context";
+import { useShell } from "../../app/context";
+import { useI18n } from "../../shared/i18n-context";
+
 import { useDebouncedCallback } from "../../ui/events";
 import { vOutside } from "../../ui/events";
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
+const agentsFeature = useAgents();
+const { agents } = toRefs(agentsFeature.state);
+const { agentName } = agentsFeature;
+const autopilotsFeature = useAutopilots();
+const { autopilotAgentFilter, autopilotAgentPickerOpen, autopilotLoading, autopilotSearch, autopilots } = toRefs(
+  autopilotsFeature.state,
+);
 const {
-  agentName,
-  agents,
-  autopilotAgentFilter,
-  autopilotAgentPickerOpen,
-  autopilotLoading,
-  autopilotSearch,
-  autopilots,
   deleteAutopilot,
   editAutopilot,
-  formatDateTime,
-  initials,
   loadAutopilotRuns,
   loadAutopilots,
   newAutopilot,
-  page,
   runAutopilot,
   selectAutopilotAgent,
-  statusLabel,
-  t,
   toggleAutopilot,
-} = useWorkspaceScope([
-  "agentName",
-  "agents",
-  "autopilotAgentFilter",
-  "autopilotAgentPickerOpen",
-  "autopilotLoading",
-  "autopilotSearch",
-  "autopilots",
-  "deleteAutopilot",
-  "editAutopilot",
-  "formatDateTime",
-  "initials",
-  "loadAutopilotRuns",
-  "loadAutopilots",
-  "newAutopilot",
-  "page",
-  "runAutopilot",
-  "selectAutopilotAgent",
-  "statusLabel",
-  "t",
-  "toggleAutopilot",
-]);
+} = autopilotsFeature;
+const formatFeature = useFormat();
+const { formatDateTime, initials, statusLabel } = formatFeature;
+const shellFeature = useShell();
+const { page } = toRefs(shellFeature.state);
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 const debounceSearch = useDebouncedCallback(() => {
-  void loadAutopilots.value();
+  void loadAutopilots();
 });
 </script>
 <template>

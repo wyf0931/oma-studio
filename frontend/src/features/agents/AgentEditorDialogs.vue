@@ -1,24 +1,19 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useAgents } from "./context";
+import { useDom } from "../../shared/dom-context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
+const agentsFeature = useAgents();
 const {
-  agentSkillItems,
   agentSkillSearch,
   agentWizardStep,
-  autoModelConfigLabel,
-  avatarUrl,
-  changeAgentModel,
-  changeAgentProvider,
-  closeAgentDialog,
-  confirmDelete,
   confirmTarget,
   createDialog,
   creating,
-  dismissAgentDialogFromBackdrop,
   editingAgent,
-  generateAgentInstruction,
   generatingInstruction,
-  modelsFor,
   newAgentAvatarPreview,
   newAgentDescription,
   newAgentExtensions,
@@ -31,65 +26,35 @@ const {
   newAgentSkills,
   newAgentTags,
   newAgentThinkingLevel,
+  resources,
+  toolGroups,
+} = toRefs(agentsFeature.state);
+const {
+  agentSkillItems,
+  autoModelConfigLabel,
+  avatarUrl,
+  changeAgentModel,
+  changeAgentProvider,
+  closeAgentDialog,
+  confirmDelete,
+  dismissAgentDialogFromBackdrop,
+  generateAgentInstruction,
+  modelsFor,
   nextAgentWizardStep,
   previousAgentWizardStep,
-  resizeAgentTextarea,
-  resources,
   setAgentWizardStep,
   submitAgent,
-  t,
   thinkingLevelsFor,
   toggleResource,
   toggleToolGroup,
   toolGroupState,
-  toolGroups,
   uploadAgentAvatar,
   usesAutoModelConfig,
-} = useWorkspaceScope([
-  "agentSkillItems",
-  "agentSkillSearch",
-  "agentWizardStep",
-  "autoModelConfigLabel",
-  "avatarUrl",
-  "changeAgentModel",
-  "changeAgentProvider",
-  "closeAgentDialog",
-  "confirmDelete",
-  "confirmTarget",
-  "createDialog",
-  "creating",
-  "dismissAgentDialogFromBackdrop",
-  "editingAgent",
-  "generateAgentInstruction",
-  "generatingInstruction",
-  "modelsFor",
-  "newAgentAvatarPreview",
-  "newAgentDescription",
-  "newAgentExtensions",
-  "newAgentInstruction",
-  "newAgentMcpServers",
-  "newAgentModel",
-  "newAgentName",
-  "newAgentProvider",
-  "newAgentQuickstarts",
-  "newAgentSkills",
-  "newAgentTags",
-  "newAgentThinkingLevel",
-  "nextAgentWizardStep",
-  "previousAgentWizardStep",
-  "resizeAgentTextarea",
-  "resources",
-  "setAgentWizardStep",
-  "submitAgent",
-  "t",
-  "thinkingLevelsFor",
-  "toggleResource",
-  "toggleToolGroup",
-  "toolGroupState",
-  "toolGroups",
-  "uploadAgentAvatar",
-  "usesAutoModelConfig",
-]);
+} = agentsFeature;
+const domFeature = useDom();
+const { resizeAgentTextarea } = domFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <dialog class="modal" :open="Boolean(!!confirmTarget)" v-show="confirmTarget" @click.self="confirmTarget = null">

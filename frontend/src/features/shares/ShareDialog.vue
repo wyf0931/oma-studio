@@ -1,15 +1,14 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useShares } from "./context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const { closeShareDialog, copiedShare, copyShareLink, shareStep, shareTarget, shareUrl, t } = useWorkspaceScope([
-  "closeShareDialog",
-  "copiedShare",
-  "copyShareLink",
-  "shareStep",
-  "shareTarget",
-  "shareUrl",
-  "t",
-]);
+const sharesFeature = useShares();
+const { copiedShare, shareStep, shareTarget, shareUrl } = toRefs(sharesFeature.state);
+const { closeShareDialog, copyShareLink } = sharesFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <dialog

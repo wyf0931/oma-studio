@@ -1,7 +1,6 @@
 import type { Page } from "../shared/types";
 export function createAppState() {
   return {
-    _iconObserver: null as MutationObserver | null,
     healthTimer: null as ReturnType<typeof setInterval> | null,
     cleanups: [] as (() => void)[],
     runError: "",

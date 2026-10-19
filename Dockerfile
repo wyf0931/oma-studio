@@ -8,7 +8,10 @@ FROM node:24.20.0-bookworm-slim AS frontend-build
 WORKDIR /frontend
 COPY package.json package-lock.json ./
 RUN npm ci
-COPY vite.config.js .browserslistrc ./
+COPY vite.config.js .browserslistrc tsconfig.json uv.lock ./
+COPY app ./app
+COPY schemas/openapi.json ./schemas/openapi.json
+COPY bin/generate-api.mjs ./bin/generate-api.mjs
 COPY frontend ./frontend
 COPY static ./static
 RUN npm run build

@@ -1,33 +1,24 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useArtifacts } from "./context";
+import { useShell } from "../../app/context";
+import { useShares } from "../shares/context";
+import { useI18n } from "../../shared/i18n-context";
+import { useSettings } from "../settings/context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const {
-  fileViewer,
-  fileViewerDownloadName,
-  fileViewerDownloadUrl,
-  fileViewerExpired,
-  leaveFileViewer,
-  page,
-  renderFilePreview,
-  requestRevokeShare,
-  shareViewedFile,
-  sharingViewedFile,
-  t,
-  theme,
-} = useWorkspaceScope([
-  "fileViewer",
-  "fileViewerDownloadName",
-  "fileViewerDownloadUrl",
-  "fileViewerExpired",
-  "leaveFileViewer",
-  "page",
-  "renderFilePreview",
-  "requestRevokeShare",
-  "shareViewedFile",
-  "sharingViewedFile",
-  "t",
-  "theme",
-]);
+const artifactsFeature = useArtifacts();
+const { fileViewer, fileViewerExpired, sharingViewedFile } = toRefs(artifactsFeature.state);
+const { fileViewerDownloadName, fileViewerDownloadUrl, leaveFileViewer, renderFilePreview, shareViewedFile } =
+  artifactsFeature;
+const shellFeature = useShell();
+const { page } = toRefs(shellFeature.state);
+const sharesFeature = useShares();
+const { requestRevokeShare } = sharesFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
+const settingsFeature = useSettings();
+const { theme } = toRefs(settingsFeature.state);
 </script>
 <template>
   <section class="content-panel file-view-page" v-show="page === 'file'">

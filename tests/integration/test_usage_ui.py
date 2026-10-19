@@ -12,7 +12,7 @@ def test_usage_statistics_has_a_single_sidebar_entry_and_dialog():
     assert '@click="openProfileUsage()"' in html
     assert 'class="modal modal-middle usage-dialog"' in html
     assert "usageOpen" in script
-    assert "`/api/usage?days=${encodeURIComponent(this.usageRange)}`" in script
+    assert "/api/usage" in script
     assert "t('usage.trend')" in html
     assert "t('usage.today')" in html
     assert "t('usage.last30Days')" in html
@@ -23,7 +23,7 @@ def test_usage_statistics_has_a_single_sidebar_entry_and_dialog():
     assert "usageData.sessions" in html
     assert "usageData.users" in html
     assert "usageData.agents" in html
-    assert "return `¥${this.usageNumber(value).toFixed(4)}`" in script
+    assert "return `¥${usageNumber(value).toFixed(4)}`" in script
     assert "`¥${(Number(usage.cost) || 0).toFixed(2)}`" in script
     assert "resourceCountLabel(linkDrawerItems.length)" in html
     assert "fileCountLabel(displayedFiles().length)" in html

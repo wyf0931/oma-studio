@@ -1,133 +1,25 @@
+import type { components } from "../generated/api";
 export type Page = "chat" | "library" | "file" | "agents" | "market" | "autopilots";
-export interface User {
-  id: string;
-  username: string;
-  nickname: string;
-  email: string;
-  role: string;
-  status: string;
-  created_at: string;
-  last_login_at: string | null;
-}
-export interface Agent {
-  id: string;
-  name: string;
-  description: string;
-  instruction: string;
-  tags: string[];
-  quickstarts: string[];
-  provider: string;
-  model: string;
-  thinking_level: string;
-  tools: string[];
-  extensions: string[];
-  skills: string[];
-  mcp_servers: string[];
-  protected: boolean;
-  avatar: string;
-  avatar_url: string;
-  created_at: string;
-  updated_at: string;
-  marketplace_update_available: boolean;
-  installed_agent_ids: string[];
-  version: string;
-  avatar_available: boolean;
-  avatar_path: string;
-  author: string;
-  marketplace_latest_version: string;
-  installation_status: string;
-  install_count: number;
-}
-export interface Chat {
-  id: string;
-  agent_id: string;
-  title: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  last_activity_at: string;
-}
+export type User = components["schemas"]["UserResponse"];
+export type Agent = components["schemas"]["AgentResponse"];
+export type Chat = components["schemas"]["ChatResponse"];
 export interface Attachment {
   id: string;
   name?: string;
   filename?: string;
   path?: string;
-  media_type?: string;
+  media_type?: string | null;
   size: number;
   _localFile?: File;
 }
-export interface Artifact extends Attachment {
-  path: string;
-  name: string;
-  filename?: string;
-  media_type?: string;
-  chat_id?: string;
-  agent_id?: string;
-  created_at?: string;
-  kind?: string;
-  url?: string;
-  extension?: string;
-  generated_at?: string;
-  agent_name?: string;
-}
+export type Artifact = components["schemas"]["ArtifactResponse"];
 
-export interface Resource {
-  id: string;
-  name: string;
-  path: string;
-  description: string;
-  source: string;
-  author: string;
-}
-export interface Model {
-  id: string;
-  name: string;
-  reasoning: boolean;
-  thinking_levels: string[];
-}
-export interface Provider {
-  id: string;
-  name: string;
-  models: Model[];
-}
-export interface Share {
-  token: string;
-  url: string;
-  title: string;
-  chat_title: string;
-  target: string;
-  created_at: string;
-  expires_at: string;
-  kind: string;
-  revoked_at: string | null;
-  path: string;
-}
-export interface Autopilot {
-  id: string;
-  name: string;
-  instruction: string;
-  agent_id: string;
-  cron: string;
-  starts_at: string;
-  ends_at: string;
-  enabled: boolean;
-  status: string;
-  created_at: string;
-  next_run_at: string;
-  last_run_at: string;
-  last_status: string;
-  agent_name: string;
-}
-export interface Run {
-  id: string;
-  chat_id: string;
-  status: string;
-  error: string;
-  started_at: string;
-  finished_at: string;
-  trigger: string;
-  duration_ms: number | null;
-}
+export type Resource = components["schemas"]["ResourceResponse"];
+export type Model = components["schemas"]["ModelResponse"];
+export type Provider = components["schemas"]["ProviderResponse"];
+export type Share = components["schemas"]["ShareRecordResponse"];
+export type Autopilot = components["schemas"]["AutopilotResponse"];
+export type Run = components["schemas"]["AutopilotRunResponse"];
 export interface WebItem {
   title: string;
   url: string;
@@ -155,23 +47,14 @@ export interface UsageRow extends UsageSummary {
   agent_id: string;
   username: string;
 }
-export interface SkillResult {
-  repo: string;
-  skill: string;
-  name: string;
-  description: string;
-  source: string;
-  url: string;
-  installs: number;
-  owner: string;
-}
+export type SkillResult = components["schemas"]["SkillResultResponse"];
 export interface FileViewer {
   chatId: string;
   path: string;
   kind: string;
   isShared: boolean;
   canManageShare: boolean;
-  artifactShare: Share | null;
+  artifactShare: ArtifactShare | null;
   content: string;
 }
 export interface UploadSelection {
@@ -213,7 +96,7 @@ export interface Message {
   _thinkingBoundary?: boolean;
   _usage?: unknown;
   display_content?: string;
-  _skill_invocation?: { command: string; name?: string };
+  _skill_invocation?: { command?: string; name?: string };
   toolName?: string;
   toolCallId?: string;
   details?: { path?: string; imageArtifact?: { path: string } };
@@ -242,23 +125,10 @@ export class ApiError extends Error {
   params: Record<string, string | number> = {};
   sessionExpired = false;
 }
-export interface Resources {
-  extensions: Resource[];
-  skills: Resource[];
-  mcp_servers: Resource[];
-  providers: Provider[];
-  default_tools: string[];
-  default_extensions: string[];
-  default_skills: string[];
-  default_mcp_servers: string[];
-  mode: string;
-  default_thinking_level: string;
-  default_provider: string;
-  default_model: string;
-  tools: { name: string; description: string }[];
-}
+export type Resources = components["schemas"]["ResourcesResponse"];
 
 export interface ToolArgs {
+  [key: string]: unknown;
   path?: string;
   pattern?: string;
   command?: string;
@@ -270,15 +140,8 @@ export interface ToolArgs {
   webResult?: ToolResult;
   arguments?: string;
 }
-export type TurnEvent =
-  | { type: "delta" | "thinking_delta"; delta: string }
-  | { type: "assistant_message_end" }
-  | { type: "final"; text: string }
-  | { type: "tool"; name?: string; arguments?: ToolArgs };
-export type StreamEvent =
-  | TurnEvent
-  | { type: "error"; error: string }
-  | { type: "complete"; chat: Chat; messages?: Message[]; assistant?: string };
+export type StreamEvent = components["schemas"]["StreamEnvelope"];
+export type TurnEvent = Exclude<StreamEvent, { type: "error" | "complete" }>;
 export interface TranslationTree {
   [key: string]: string | TranslationTree;
 }
@@ -292,3 +155,17 @@ export function asError(value: unknown): ApiError {
 export function toRecord(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
+
+export interface SharedChat {
+  id: string;
+  status: "ready";
+  title: string;
+  agent_id: string;
+  created_at: string;
+  updated_at: string;
+}
+export type ActiveChat = Chat | SharedChat;
+export type ArtifactShare = components["schemas"]["ArtifactShareResponse"] & { kind: "artifact"; title?: string };
+export type Upload = components["schemas"]["UploadResponse"];
+
+export type MessageRequest = components["schemas"]["MessageCreate"];
