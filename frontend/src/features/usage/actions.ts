@@ -31,6 +31,7 @@ export interface Dependencies {
 }
 export function createUsage(deps: Dependencies): Feature {
   const state = reactive(createUsageState());
+  let read: AbortController | null = null;
   async function openUsage(): Promise<void> {
     state.usageOpen = true;
     state.usageTab = "overview";
@@ -42,19 +43,29 @@ export function createUsage(deps: Dependencies): Feature {
     await loadUsage();
   }
   async function loadUsage(): Promise<void> {
-    if (state.usageLoading) return;
+    read?.abort();
+    const current = new AbortController();
+    read = current;
     state.usageLoading = true;
     state.usageError = "";
     try {
       const payload = unwrap(
-        await deps.api.client.GET("/api/usage", { params: { query: { days: Number(state.usageRange) } } }),
+        await deps.api.client.GET("/api/usage", {
+          params: { query: { days: Number(state.usageRange) } },
+          signal: current.signal,
+        }),
       );
+      if (read !== current || current.signal.aborted) return;
       state.usageData = normalizeUsageData(payload);
     } catch (cause) {
+      if (read !== current || current.signal.aborted) return;
       const error = asError(cause);
       state.usageError = error.message || "Unable to load usage statistics.";
     } finally {
-      state.usageLoading = false;
+      if (read === current) {
+        state.usageLoading = false;
+        read = null;
+      }
     }
   }
   function usageNumber(value: unknown): number {
@@ -167,6 +178,8 @@ export function createUsage(deps: Dependencies): Feature {
     return `¥${usageNumber(value).toFixed(4)}`;
   }
   function resetSession(): void {
+    read?.abort();
+    read = null;
     Object.assign(state, createUsageState());
   }
   return {

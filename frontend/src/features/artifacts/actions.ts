@@ -92,6 +92,9 @@ export interface Dependencies {
 }
 export function createArtifacts(deps: Dependencies): Feature {
   const state = reactive(createArtifactsState());
+  let libraryRead: AbortController | null = null;
+  let viewerRead: AbortController | null = null;
+  let filesRead: AbortController | null = null;
   async function toggleFiles(): Promise<void> {
     state.filesOpen = !state.filesOpen;
     if (state.filesOpen) deps.presentation.closeLinkDrawer();
@@ -106,54 +109,81 @@ export function createArtifacts(deps: Dependencies): Feature {
     else await loadChatFiles();
   }
   async function loadSharedFiles(): Promise<void> {
+    filesRead?.abort();
+    const current = new AbortController();
+    filesRead = current;
     state.filesLoading = true;
     try {
-      state.files = unwrap(
+      const data = unwrap(
         await deps.api.client.GET("/api/share/{token}/files", {
           params: { path: { token: deps.shares.state.sharedToken } },
+          signal: current.signal,
         }),
-      ).files;
+      );
+      if (filesRead !== current || current.signal.aborted) return;
+      state.files = data.files;
       state.inputFiles = [];
     } catch (cause) {
+      if (filesRead !== current || current.signal.aborted) return;
       const e = asError(cause);
       deps.shell.showError(e);
     } finally {
-      state.filesLoading = false;
+      if (filesRead === current) {
+        state.filesLoading = false;
+        filesRead = null;
+      }
     }
   }
   async function loadChatFiles(): Promise<void> {
     if (!deps.chat.state.activeChat) return;
+    filesRead?.abort();
+    const current = new AbortController();
+    filesRead = current;
     state.filesLoading = true;
+    const viewSignal = deps.chat.readSignal();
+    const abort = () => current.abort();
+    if (viewSignal?.aborted) abort();
+    viewSignal?.addEventListener("abort", abort, { once: true });
     try {
       const [outputs, inputs] = await Promise.all([
         deps.api.client
           .GET("/api/chats/{chat_id}/files", {
             params: { path: { chat_id: deps.chat.state.activeChat.id } },
-            signal: deps.chat.readSignal(),
+            signal: current.signal,
           })
           .then(unwrap),
         deps.api.client
           .GET("/api/chats/{chat_id}/inputs", {
             params: { path: { chat_id: deps.chat.state.activeChat.id } },
-            signal: deps.chat.readSignal(),
+            signal: current.signal,
           })
           .then(unwrap),
       ]);
+      if (filesRead !== current || current.signal.aborted) return;
       state.files = outputs.files;
       state.inputFiles = inputs.files;
     } catch (cause) {
+      if (filesRead !== current || current.signal.aborted) return;
       const e = asError(cause);
       if (!deps.chat.isAbortError(e)) deps.shell.showError(e);
     } finally {
-      state.filesLoading = false;
+      viewSignal?.removeEventListener("abort", abort);
+      if (filesRead === current) {
+        state.filesLoading = false;
+        filesRead = null;
+      }
     }
   }
   async function loadLibrary(page: number = state.libraryPage): Promise<void> {
+    libraryRead?.abort();
+    const current = new AbortController();
+    libraryRead = current;
     state.libraryLoading = true;
     state.libraryPage = Math.max(1, page);
     try {
       const data = unwrap(
         await deps.api.client.GET("/api/library/files", {
+          signal: current.signal,
           params: {
             query: {
               page: state.libraryPage,
@@ -164,14 +194,19 @@ export function createArtifacts(deps: Dependencies): Feature {
           },
         }),
       );
+      if (libraryRead !== current || current.signal.aborted) return;
       state.libraryFiles = data.files;
       state.libraryPages = data.pages;
       state.libraryTotal = data.total;
     } catch (cause) {
+      if (libraryRead !== current || current.signal.aborted) return;
       const e = asError(cause);
       deps.shell.showError(e);
     } finally {
-      state.libraryLoading = false;
+      if (libraryRead === current) {
+        state.libraryLoading = false;
+        libraryRead = null;
+      }
     }
   }
   function selectLibraryAgent(agentId: string): void {
@@ -489,11 +524,15 @@ export function createArtifacts(deps: Dependencies): Feature {
     );
   }
   async function loadFileViewer(): Promise<void> {
+    viewerRead?.abort();
+    const current = new AbortController();
+    viewerRead = current;
     const params = new URLSearchParams(location.search);
     const share = params.get("share");
     const chatId = params.get("chat_id");
     const path = params.get("path");
     state.fileViewer = null;
+    state.sharingViewedFile = false;
     state.fileViewerExpired = false;
     if ((!chatId && !share) || !path) {
       if (share) {
@@ -508,20 +547,24 @@ export function createArtifacts(deps: Dependencies): Feature {
       const data = share
         ? unwrap(
             await deps.api.client.GET("/api/share/{token}/files/content", {
+              signal: current.signal,
               params: { path: { token: share || "" }, query: { path: path } },
             }),
           )
         : params.get("kind") === "input"
           ? unwrap(
               await deps.api.client.GET("/api/chats/{chat_id}/inputs/content", {
+                signal: current.signal,
                 params: { path: { chat_id: chatId || "" }, query: { path } },
               }),
             )
           : unwrap(
               await deps.api.client.GET("/api/chats/{chat_id}/files/content", {
+                signal: current.signal,
                 params: { path: { chat_id: chatId || "" }, query: { path } },
               }),
             );
+      if (viewerRead !== current || current.signal.aborted) return;
       state.fileViewer = {
         chatId: chatId || `share:${share}`,
         kind: params.get("kind") === "input" ? "input" : "file",
@@ -537,9 +580,13 @@ export function createArtifacts(deps: Dependencies): Feature {
         content: data.content,
       };
       if (state.fileViewer.canManageShare) await loadArtifactShare(chatId || "", path);
+      if (viewerRead !== current || current.signal.aborted) return;
       document.title = path.split("/").pop() || "File";
-      setTimeout(() => deps.content.renderMermaidDiagrams(), 0);
+      setTimeout(() => {
+        if (viewerRead === current) deps.content.renderMermaidDiagrams();
+      }, 0);
     } catch (cause) {
+      if (viewerRead !== current || current.signal.aborted) return;
       const error = asError(cause);
       if (share && error.status === 404) {
         state.fileViewer = null;
@@ -551,16 +598,18 @@ export function createArtifacts(deps: Dependencies): Feature {
     }
   }
   async function loadArtifactShare(chatId: string, path: string): Promise<void> {
+    const viewer = state.fileViewer;
+    if (!viewer) return;
     try {
-      state.fileViewer!.artifactShare = {
-        ...unwrap(
-          await deps.api.client.GET("/api/chats/{chat_id}/artifact-shares", {
-            params: { path: { chat_id: chatId || "" }, query: { path: path } },
-          }),
-        ),
-        kind: "artifact",
-      };
+      const share = unwrap(
+        await deps.api.client.GET("/api/chats/{chat_id}/artifact-shares", {
+          params: { path: { chat_id: chatId || "" }, query: { path: path } },
+        }),
+      );
+      if (state.fileViewer !== viewer) return;
+      viewer.artifactShare = { ...share, kind: "artifact" };
     } catch (cause) {
+      if (state.fileViewer !== viewer) return;
       const error = asError(cause);
       if (error.status !== 404) deps.shell.showError(error);
     }
@@ -570,6 +619,7 @@ export function createArtifacts(deps: Dependencies): Feature {
     const chatId = params.get("chat_id");
     const path = state.fileViewer?.path;
     if (!chatId || !path || state.sharingViewedFile) return;
+    const viewer = state.fileViewer;
     state.sharingViewedFile = true;
     try {
       const data = unwrap(
@@ -577,17 +627,19 @@ export function createArtifacts(deps: Dependencies): Feature {
           params: { path: { chat_id: chatId || "" }, query: { path: path } },
         }),
       );
-      state.fileViewer!.artifactShare = {
+      if (state.fileViewer !== viewer || !viewer) return;
+      viewer.artifactShare = {
         ...data,
         kind: "artifact",
         title: deps.chat.state.activeChat?.title || "",
       };
       deps.shares.showCreatedLink(`${location.origin}${data.url}`, "artifact");
     } catch (cause) {
+      if (state.fileViewer !== viewer) return;
       const error = asError(cause);
       deps.shell.showError(error);
     } finally {
-      state.sharingViewedFile = false;
+      if (state.fileViewer === viewer) state.sharingViewedFile = false;
     }
   }
   function renderFilePreview(): string {
@@ -601,6 +653,9 @@ export function createArtifacts(deps: Dependencies): Feature {
     state.filesOpen = false;
   }
   function resetFilePanel(): void {
+    filesRead?.abort();
+    filesRead = null;
+    state.filesLoading = false;
     state.files = [];
     state.inputFiles = [];
     state.filesOpen = false;
@@ -618,6 +673,12 @@ export function createArtifacts(deps: Dependencies): Feature {
     if (state.fileViewer?.artifactShare?.token === token) state.fileViewer.artifactShare = null;
   }
   function resetSession(): void {
+    libraryRead?.abort();
+    viewerRead?.abort();
+    filesRead?.abort();
+    libraryRead = null;
+    viewerRead = null;
+    filesRead = null;
     Object.assign(state, createArtifactsState());
   }
   return {

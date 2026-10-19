@@ -89,6 +89,8 @@ export interface Dependencies {
 }
 export function createChat(deps: Dependencies): Feature {
   const state = reactive(createChatState());
+  let pollController: AbortController | null = null;
+  let pollVersion = 0;
   let sendController: AbortController | null = null;
   function leaveView(): void {
     stopWatching();
@@ -661,31 +663,46 @@ export function createChat(deps: Dependencies): Feature {
   }
   function startPolling(chatId: string, viewToken: number = state.chatViewToken): void {
     stopPolling();
-    state.pollTimer = setInterval(async () => {
-      if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) {
-        stopPolling();
-        return;
-      }
+    const version = pollVersion;
+    const controller = new AbortController();
+    pollController = controller;
+    let failures = 0;
+    const current = () =>
+      version === pollVersion &&
+      !controller.signal.aborted &&
+      viewToken === state.chatViewToken &&
+      state.activeChat?.id === chatId;
+    const schedule = () => {
+      if (current())
+        state.pollTimer = setTimeout(
+          () => {
+            void tick();
+          },
+          3000 * Math.max(1, failures),
+        );
+    };
+    async function tick(): Promise<void> {
+      if (!current()) return;
+      state.pollTimer = null;
       try {
         const chat = unwrap(
           await deps.api.client.GET("/api/chats/{chat_id}", {
             params: { path: { chat_id: chatId } },
-            signal: state.chatReadController?.signal,
+            signal: controller.signal,
           }),
         );
-        if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) {
-          stopPolling();
-          return;
-        }
-        if (chat.status !== "running") {
-          const data = unwrap(
-            await deps.api.client.GET("/api/chats/{chat_id}/messages", {
-              params: { path: { chat_id: chatId }, query: { mode: deps.shell.state.mode } },
-              signal: state.chatReadController?.signal,
-            }),
-          );
-          if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
-          setMessagesIfChanged(data.messages);
+        if (!current()) return;
+        const data = unwrap(
+          await deps.api.client.GET("/api/chats/{chat_id}/messages", {
+            params: { path: { chat_id: chatId }, query: { mode: deps.shell.state.mode } },
+            signal: controller.signal,
+          }),
+        );
+        if (!current()) return;
+        const normalized = setMessagesIfChanged(data.messages);
+        const last = normalized[normalized.length - 1];
+        failures = 0;
+        if (chat.status !== "running" || (last?.role === "assistant" && !last._streaming)) {
           state.activeChat = chat;
           const found = state.chats.find((c) => c.id === chatId);
           if (found) Object.assign(found, chat);
@@ -694,28 +711,25 @@ export function createChat(deps: Dependencies): Feature {
           await deps.artifacts.refreshOpenFiles(chatId);
           return;
         }
-        const data = unwrap(
-          await deps.api.client.GET("/api/chats/{chat_id}/messages", {
-            params: { path: { chat_id: chatId }, query: { mode: deps.shell.state.mode } },
-            signal: state.chatReadController?.signal,
-          }),
-        );
-        if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
-        const normalized = setMessagesIfChanged(data.messages);
-        const last = normalized[normalized.length - 1];
-        if (last?.role === "assistant" && !last._streaming) {
-          state.loading = false;
+      } catch (cause) {
+        if (!current() || isAbortError(cause)) return;
+        failures += 1;
+        if (failures >= 3) {
           stopPolling();
-          await deps.artifacts.refreshOpenFiles(chatId);
+          failCurrentTurn(cause);
+          return;
         }
-      } catch {}
-    }, 3000);
+      }
+      schedule();
+    }
+    schedule();
   }
   function stopPolling(): void {
-    if (state.pollTimer) {
-      clearInterval(state.pollTimer);
-      state.pollTimer = null;
-    }
+    pollVersion += 1;
+    pollController?.abort();
+    pollController = null;
+    if (state.pollTimer) clearTimeout(state.pollTimer);
+    state.pollTimer = null;
   }
   function stopWatching(): void {
     if (state.streamSource) {
