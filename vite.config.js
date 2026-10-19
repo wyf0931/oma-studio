@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
+import vue from "@vitejs/plugin-vue";
 import legacy from "@vitejs/plugin-legacy";
 import browserslist from "browserslist";
 import { browserslistToTargets } from "lightningcss";
@@ -13,6 +14,7 @@ export default defineConfig({
   publicDir: "../static",
   base: "/static/",
   plugins: [
+    vue(),
     tailwindcss(),
     legacy({
       modernTargets: targets,

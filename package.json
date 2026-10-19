@@ -2,32 +2,40 @@
   "name": "oma-studio-ui",
   "private": true,
   "scripts": {
-    "build": "vite build",
+    "build": "npm run typecheck && vite build",
     "dev": "vite build --watch",
     "build:css": "npm run build",
-    "format": "prettier --write frontend/index.html \"frontend/src/**/*.js\" vite.config.js playwright.config.js eslint.config.js \"tests/frontend/**/*.js\" tests/frontend-config.test.mjs",
-    "format:check": "prettier --check frontend/index.html \"frontend/src/**/*.js\" vite.config.js playwright.config.js eslint.config.js \"tests/frontend/**/*.js\" tests/frontend-config.test.mjs",
+    "format": "prettier --write frontend/index.html \"frontend/src/**/*.{js,ts,vue}\" vite.config.js playwright.config.js eslint.config.js \"tests/frontend/**/*.js\" tests/frontend-config.test.mjs tests/frontend-types.test.mjs",
+    "format:check": "prettier --check frontend/index.html \"frontend/src/**/*.{js,ts,vue}\" vite.config.js playwright.config.js eslint.config.js \"tests/frontend/**/*.js\" tests/frontend-config.test.mjs tests/frontend-types.test.mjs",
     "test:frontend": "playwright test",
     "test:frontend:install": "playwright install --only-shell chromium firefox webkit",
     "lint": "eslint frontend/src",
-    "test:compatibility:policy": "node --test tests/frontend-config.test.mjs"
+    "test:compatibility:policy": "node --test tests/frontend-config.test.mjs",
+    "typecheck": "vue-tsc --noEmit",
+    "test:typecheck:policy": "node --test tests/frontend-types.test.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "4.3.3",
+    "@types/node": "26.6.5",
     "@vitejs/plugin-legacy": "8.2.3",
+    "@vitejs/plugin-vue": "6.0.10",
     "browserslist": "4.29.3",
     "eslint": "10.13.0",
     "eslint-plugin-compat": "7.0.2",
+    "eslint-plugin-vue": "10.11.1",
     "lightningcss": "1.33.0",
     "prettier": "^3.9.6",
     "tailwindcss": "4.3.3",
     "terser": "5.51.2",
-    "vite": "8.3.4"
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2",
+    "vite": "8.3.4",
+    "vue-tsc": "3.3.13"
   },
   "dependencies": {
-    "alpinejs": "3.17.4",
+    "@lucide/vue": "1.59.0",
     "clipboard-polyfill": "4.1.1",
     "core-js": "3.50.0",
     "daisyui": "5.7.50",
@@ -37,7 +45,8 @@
     "lucide": "1.59.0",
     "marked": "15.0.7",
     "mermaid": "11.17.2",
-    "uuid": "14.0.3"
+    "uuid": "14.0.3",
+    "vue": "3.5.44"
   },
   "type": "module",
   "engines": {

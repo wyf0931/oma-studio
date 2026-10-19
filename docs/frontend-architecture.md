@@ -2,134 +2,129 @@
 
 ## One frontend, one production server
 
-OMA Studio keeps Alpine.js for interaction, DaisyUI 5 for components, Lucide for
-icons and the existing OMA theme/custom styles. Vite builds them; FastAPI serves
-the generated HTML and `/static` resources. There is no runtime Node/Vite server
-and no framework/UI redesign in this migration.
+Vue 3 SFCs and strict TypeScript implement the OMA interface. DaisyUI 5/Tailwind 4
+and existing OMA styles define appearance; Lucide is the only icon system. Vite
+builds the app and FastAPI serves the generated HTML and `/static` resources.
+There is no production Node/Vite server, SSR or separate frontend service.
 
 ```text
-frontend/index.html             existing Alpine templates
-frontend/src/platform.js        existing application state and interactions
-frontend/src/main.js            one explicit dependency/Alpine boot sequence
-frontend/src/browser.js         shared UUID/clipboard integration
-frontend/src/ui/code-themes.js  locally bundled highlight.js themes
-frontend/input.css              Tailwind + DaisyUI + typography entry
-frontend/src/styles.css         existing OMA tokens/layouts/touch styles
-static/                        public images and locale JSON
-.browserslistrc                  shared JS/polyfill/CSS targets
-vite.config.js                  production build
-          ↓ npm ci && npm run build
-dist/                          complete generated frontend (gitignored)
+frontend/index.html        static shell and share metadata markers
+frontend/src/main.ts       Vue/bootstrap and CSS entry
+frontend/src/app/          composition, scoped reactive bindings, lifecycle
+frontend/src/features/     feature views, state factories, typed actions
+frontend/src/shared/       transport, rendering, i18n, DOM helpers and DTOs
+frontend/src/ui/           Lucide Vue wrapper and content event adapters
+frontend/src/styles.css    existing OMA tokens/layouts/touch styles
+frontend/input.css         Tailwind + DaisyUI + typography entry
+static/                    public images and locale JSON
+.browserslistrc             shared JS/polyfill/CSS targets
+          ↓ npm ci && npm run build (vue-tsc, then Vite)
+dist/                      complete generated frontend (gitignored)
           ↓ app/frontend.py + FastAPI
-/chat, /agents, /share/*        generated SPA shell + escaped social metadata
-/static/assets/*               immutable content-hashed build dependencies
-/static/locales/*, images       revalidated public files
+/chat, /agents, /share/*    generated SPA shell + escaped social metadata
+/static/assets/*           immutable content-hashed dependencies
 ```
 
-Always deploy a complete build. `dist/` contains no credentials; it is created
-in Docker's Node build stage and copied into the runtime image. An absent build
-fails startup with the required setup command. Share metadata markers remain in
-the generated shell. The server re-reads the shell/build manifest when they
-change, so the build watcher works with the same FastAPI process.
+Always deploy a complete build. Docker's Node stage builds `dist/`; the runtime
+image serves it through FastAPI. An absent build fails startup with the required
+setup command. The backend re-reads the shell/build manifest when they change,
+so the watcher works with the same FastAPI process.
 
-## Commands
+## Feature boundaries
 
-Node >=22.12 and Python >=3.11 are required. The Docker build pins Node 24.
+Identity, chat, agents, marketplace, artifacts, autopilots, shares, settings and
+usage have separate state/action modules and Vue views. Rendering, transport,
+localization, formatting and DOM integration are separate reusable capabilities.
+
+Each mount constructs fresh feature state. The initial migration binds typed
+feature actions at a private composition root to preserve existing orchestration;
+there is no `window.omaPlatform` or singleton application store. Actions declare
+explicit dependency contracts, and views request named reactive references.
+Add behavior to its owning module rather than adding an unrelated root method.
+Prefer concrete interfaces and props/emits when extracting reusable components;
+do not pass the entire workspace to components or expose it on window.
+
+The current History API routes remain in the application module. Pinia, Vue
+Router and SSR are not required for this migration. They need a concrete use case
+before introduction.
+
+## Commands and checks
+
+Node >=22.12 and Python >=3.11 are required. Docker pins Node 24.
 
 ```sh
 npm ci
+npm run typecheck
+npm run lint
+npm run test:typecheck:policy
+npm run test:compatibility:policy
 npm run build
 uv sync
 uv run uvicorn app.main:app --env-file .env --reload
-# Separate terminal: rebuild assets on source edits, still served by FastAPI.
+# Separate terminal: rebuild assets on edits; FastAPI continues serving them.
 npm run dev
-```
-
-`npm run dev` is intentionally `vite build --watch`: browser tests and local
-Safari use the same generated syntax/polyfill/CSS pipeline as production. The
-legacy plugin's production polyfills are not silently omitted by a second dev
-server. Refresh after an asset rebuild. `build:css` is a compatibility alias for
-the complete build; never hand-edit generated CSS or commit `dist/`.
-
-```sh
 npm run format
 npm run format:check
-npm run lint
-npm run build
 uv run pytest -q
 npm run test:frontend:install
 npm run test:frontend
 ```
 
-Browser tests launch an isolated FastAPI instance with temporary SQLite,
-sessions/workspace/logs and disposable credentials. They do not send prompts to
-Pi or mutate production. Failure traces/screenshots live in ignored
-`test-results/` and `playwright-report/`; CI uploads them on failure.
+`build` runs `vue-tsc --noEmit` before Vite. Vite only transpiles TypeScript;
+its successful build alone does not prove type correctness. Strict templates and
+strict TS (including checked indexed access) cover scripts and component bindings.
+The typecheck policy test demonstrates failure for broken templates, props, API
+fields and imports. DTOs currently describe local endpoint contracts; they do not
+validate arbitrary network JSON or replace backend response validation.
+
+`npm run dev` remains `vite build --watch`, preserving the production compatibility
+pipeline. For continuous type feedback, run `npm run typecheck -- --watch` in
+another terminal. The publishing build always checks types. Refresh after rebuild;
+do not hand-edit generated CSS or commit `dist/`.
 
 ## Browser policy
 
-The current minimum is Safari / iOS / iPadOS 16.4, Chrome / Edge 111 and Firefox
-128, expressed in **one** `.browserslistrc`. Keep it consistent with the explicit
-unsupported-browser notice. Changing the floor requires checking the component
-and CSS stack, not just the JavaScript compiler.
+The minimum remains Safari/iOS/iPadOS 16.4, Chrome/Edge 111 and Firefox 128,
+expressed in one `.browserslistrc`. Keep the unsupported-browser notice consistent.
+Vite handles syntax, the official legacy plugin emits modern core-js polyfills,
+and Lightning CSS processes Tailwind/DaisyUI output for the same targets.
+No IE/SystemJS bundle or browser-time Tailwind compiler is shipped.
 
-ESLint's compatibility rule reads the same Browserslist and flags known unsupported Web API calls in application source. Its API/receiver-analysis coverage is not complete; it complements compilation and browser tests rather than certifying every DOM call. Standard-library polyfills do not make an unsupported DOM API available.
+ESLint compatibility rules cover authored TS and Vue scripts. Their receiver/API
+analysis is incomplete; policy probes and real browser tests complement them.
+Use the shared browser adapter for UUIDs and clipboard writes; avoid independent
+fallbacks or browser-name sniffing. OS permissions, keyboard behavior and engine
+bugs cannot be solved by ECMAScript polyfills.
 
-Three distinct layers are handled centrally:
+Playwright starts an isolated FastAPI instance with temporary data/workspace/logs
+and disposable credentials. Tests do not send prompts to Pi. Failure evidence is
+stored in ignored `test-results/` and `playwright-report/`. Chromium, Firefox,
+desktop WebKit and mobile WebKit cover boot, settings, navigation, rendering,
+clipboard, Agent editing and fixture streaming. Latest WebKit does not certify
+historical Safari 16.4 or real iOS keyboards/file pickers; retain the device checklist
+in safari-ipad-compatibility.md.
 
-1. Vite compiles JavaScript syntax for the configured targets.
-2. Official `@vitejs/plugin-legacy` modern-polyfill mode scans the final graph
-   (application plus dependencies) and emits required core-js polyfills before
-   the entry point. Explicit targets prevent an arbitrary bleeding-edge
-   polyfill bundle. No IE/SystemJS bundle is shipped.
-3. Tailwind's Vite plugin compiles DaisyUI, typography and utilities ahead of
-   time; Lightning CSS processes styles for the same targets. No browser-time
-   Tailwind compiler or external script/style CDN is required.
+## Rendering and dependency rules
 
-For browser/OS APIs outside ECMAScript, use `browser.js`: UUIDs come from the
-maintained `uuid` implementation and clipboard writes from `clipboard-polyfill`.
-Provider code should not reintroduce browser-name checks or independent copy/ID
-fallbacks. Secure contexts, OS permissions, keyboard/viewport behavior and
-engine bugs are not solved by core-js. Retain existing touch/safe-area rules and
-real-device checks.
+- DaisyUI is the sole CSS component library. Preserve OMA colors, layout and
+  interactions. Use literal Tailwind class names in scanned `.vue`/`.ts` sources.
+- Vue templates use the shared `OmaIcon` wrapper around official `@lucide/vue`.
+  Dynamic HTML uses `data-lucide` with the single scoped post-render helper.
+  Imperative icon replacement must not touch Vue-owned SVG nodes.
+- Dynamic HTML is not compiled as Vue templates. Retain DOMPurify, structured
+  state and short markup keys. Delegate only known content controls; never embed
+  raw JSON in attributes or window application callbacks in generated HTML.
+- Scope Mermaid/icon processing to content containers. Release streams, timers,
+  observers and listeners at the lifecycle boundary that owns them.
+- Keep import dependencies explicit, avoid `any` and broad suppression, and use
+  unknown at untyped external boundaries. Type assertions do not validate JSON.
+- Keep global CSS order stable while migrating. Do not apply scoped styles to
+  the entire old stylesheet or introduce a replacement component library.
+- Lock dependencies, rebuild, run cross-engine tests and inspect screenshots
+  before publishing. Vite hashes replace manual JS/CSS cache tokens; HTML remains
+  no-cache and public images/locale JSON remain revalidated.
 
-Chromium, Firefox, desktop WebKit and mobile WebKit projects validate boot with
-external scripts/styles blocked, missing native randomUUID, dynamic Lucide icons,
-settings/theme/language flows, file-input hiding, sanitized Markdown/highlighting,
-Mermaid chunks, request IDs, deep links and cache behavior. Latest Playwright
-WebKit **does not certify historical Safari 16.4 or real iOS keyboard/file-picker
-behavior**. Use the device checklist in safari-ipad-compatibility.md before
-claiming a specific older device is verified.
-
-## Component and dependency rules
-
-- DaisyUI is the single CSS component library. Preserve the existing markup,
-  light/dark OMA tokens, layouts and interactions. Use existing semantic colors
-  and component classes instead of adding another visual library.
-- Use Lucide `data-lucide` attributes everywhere, including dynamic markup. The
-  existing `renderIcons`/observer remains the single render path; npm replaces
-  the former UMD CDN global behind that boundary.
-- Put Tailwind utility names in complete literal strings in scanned HTML/JS.
-  Do not construct names such as `bg-${color}`; map states to full class names.
-- Alpine evaluates directive expressions from HTML at runtime; Vite does not
-  transpile JavaScript stored in HTML strings. Keep those expressions simple and
-  within the support baseline, and put complex/new-language logic in compiled
-  modules.
-- Keep shared browser integrations and boot wiring outside platform state;
-  avoid adding a new framework or splitting unrelated feature logic during
-  compatibility work.
-- Markdown and generated highlights remain DOMPurify-sanitized. Do not inject
-  untrusted HTML to bypass rendering incompatibilities.
-- Dependencies and npm lockfile define the deployed versions. Update them
-  deliberately, rebuild, run the cross-engine suite and compare existing UI
-  before publishing. Never reintroduce floating CDN majors.
-- Vite hashes replace manual `?v=` increments for compiled JS/CSS. Public locale
-  and image files are revalidated. No-cache HTML avoids referencing an obsolete
-  build from a browser's shell cache.
-
-## References
-
-- Vite build and polyfill boundary: https://vite.dev/guide/build.html
-- Official legacy plugin: https://github.com/vitejs/vite/tree/main/packages/plugin-legacy
-- Tailwind CSS compatibility: https://tailwindcss.com/docs/compatibility
-- Alpine npm boot sequence: https://alpinejs.dev/essentials/installation
+References: [Vue TypeScript](https://vuejs.org/guide/typescript/overview),
+[Vite build](https://vite.dev/guide/build.html),
+[DaisyUI Vue](https://daisyui.com/docs/install/vue/),
+[Lucide v1](https://lucide.dev/guide/version-1).

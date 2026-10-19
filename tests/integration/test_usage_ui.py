@@ -1,12 +1,14 @@
 from pathlib import Path
 
+from frontend_sources import frontend_scripts, frontend_templates
+
 
 def test_usage_statistics_has_a_single_sidebar_entry_and_dialog():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
-    assert 'data-lucide="chart-pie"' in html
+    assert 'name="chart-pie"' in html
     assert '@click="openProfileUsage()"' in html
     assert 'class="modal modal-middle usage-dialog"' in html
     assert "usageOpen" in script
@@ -33,7 +35,7 @@ def test_usage_statistics_has_a_single_sidebar_entry_and_dialog():
     assert '"resourceCount": "{{count}} 条"' in Path(
         "static/locales/zh-CN.json"
     ).read_text(encoding="utf-8")
-    assert "x-show=\"authUser?.role === 'admin'\"" in html
+    assert "v-show=\"authUser?.role === 'admin'\"" in html
     assert "usageTab === 'users' && authUser?.role === 'admin'" in html
     assert "usageTab === 'agents' && authUser?.role === 'admin'" in html
     assert "badge-warning" in html
@@ -54,7 +56,7 @@ def test_usage_statistics_has_a_single_sidebar_entry_and_dialog():
 
 
 def test_usage_statistics_normalizes_pi_usage_field_variants():
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    script = frontend_scripts()
 
     assert '"input_tokens", "inputTokens"' in script
     assert '"cache_read", "cache_read_tokens", "cached_tokens"' in script
@@ -63,8 +65,8 @@ def test_usage_statistics_normalizes_pi_usage_field_variants():
 
 
 def test_users_are_managed_in_a_dedicated_dialog_not_settings_tab():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "usersOpen" in script
