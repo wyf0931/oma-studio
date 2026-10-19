@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, field_validator
 
-from ...auth import verify_password
+from ...auth_limits import AuthRateLimits
 from ...config import Settings
 from ...store import Store
 
@@ -12,7 +12,7 @@ SESSION_COOKIE = "oma_session"
 
 class LoginPayload(BaseModel):
     username: str = Field(min_length=1, max_length=80)
-    password: str = Field(min_length=1, max_length=200)
+    password: SecretStr = Field(min_length=1, max_length=200)
 
 
 class UserCreate(BaseModel):
@@ -52,17 +52,18 @@ def _require_admin(request: Request) -> dict:
 
 def create_router(settings: Settings, store: Store) -> APIRouter:
     router = APIRouter(prefix="/api", tags=["identity"])
+    rate_limits = AuthRateLimits()
 
     @router.post("/auth/login")
     async def login(payload: LoginPayload, request: Request, response: Response):
-        user = store.get_user_by_username(payload.username.strip())
-        if (
-            not user
-            or user.get("status") != "active"
-            or not verify_password(payload.password, user.get("password_hash", ""))
-        ):
+        username = payload.username.strip()
+        client = request.client.host if request.client else "unknown"
+        rate_limits.begin_login(client, username)
+        user = store.authenticate_user(username, payload.password.get_secret_value())
+        if not user:
+            rate_limits.failed(client)
             raise HTTPException(401, "Invalid username or password")
-        updated = store.mark_user_login(user["id"]) or user
+        rate_limits.login_succeeded(client, username)
         expires_at = datetime.now(UTC) + timedelta(hours=24)
         token = store.create_session(user["id"], expires_at.isoformat())
         response.set_cookie(
@@ -74,7 +75,7 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
             secure=request.headers.get("x-forwarded-proto", request.url.scheme)
             == "https",
         )
-        return store.public_user(updated)
+        return store.public_user(user)
 
     @router.get("/auth/session")
     async def auth_session(request: Request):
@@ -107,9 +108,13 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
             raise HTTPException(401, "Authentication required")
         current = payload.current_password.get_secret_value()
         new = payload.new_password.get_secret_value()
+        client = request.client.host if request.client else "unknown"
+        rate_limits.begin_password_change(client, user["id"])
         if not store.change_user_password(user["id"], current, new, token):
+            rate_limits.failed(client)
             # A wrong current password must not trigger the client's expired-session flow.
             raise HTTPException(403, "Current password is incorrect")
+        rate_limits.password_changed(user["id"])
         return {"ok": True}
 
     @router.get("/users")

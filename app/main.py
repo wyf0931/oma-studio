@@ -3,6 +3,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -51,6 +52,23 @@ async def handle_http_exception(request: Request, exc: HTTPException):
         error_payload(exc.detail, exc.status_code),
         status_code=exc.status_code,
         headers=exc.headers,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def handle_validation_exception(request: Request, exc: RequestValidationError):
+    del request
+    # Pydantic's input/ctx may contain passwords even when the field is SecretStr.
+    return JSONResponse(
+        {
+            "detail": [
+                {key: error[key] for key in ("type", "loc", "msg")}
+                for error in exc.errors()
+            ],
+            "code": "request.invalid",
+            "params": {},
+        },
+        status_code=422,
     )
 
 

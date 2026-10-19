@@ -21,6 +21,9 @@ ERROR_CODES: dict[str, ErrorDefinition] = {
     "auth.invalidCredentials": ErrorDefinition(
         "auth.invalidCredentials", "Invalid username or password"
     ),
+    "auth.rateLimited": ErrorDefinition(
+        "auth.rateLimited", "Too many attempts. Try again in {{seconds}} seconds."
+    ),
     "account.currentPasswordIncorrect": ErrorDefinition(
         "account.currentPasswordIncorrect", "Current password is incorrect"
     ),
@@ -82,6 +85,11 @@ ERROR_CODES: dict[str, ErrorDefinition] = {
 
 _EXACT_CODES = {definition.message: code for code, definition in ERROR_CODES.items()}
 _DYNAMIC_PATTERNS: tuple[tuple[re.Pattern[str], str, tuple[str, ...]], ...] = (
+    (
+        re.compile(r"^Too many attempts\. Try again in (\d+) seconds\.$"),
+        "auth.rateLimited",
+        ("seconds",),
+    ),
     (
         re.compile(r"^Skill (.+) is already installed$"),
         "market.skillExists",

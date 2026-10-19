@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
+from .config import subprocess_environment
 from .resources import discover_resources, resolve_extension_path
 from .store import IMAGE_TOOLS, WEB_TOOLS, pi_terminal_failure
 
@@ -477,7 +478,7 @@ class PiRuntimeManager:
         return value
 
     def _environment(self) -> dict[str, str]:
-        environment = os.environ.copy()
+        environment = subprocess_environment()
         for name, value in {
             "JINA_API_KEY": getattr(self.settings, "jina_api_key", None),
             "BAIDU_SEARCH_API_KEY": getattr(

@@ -4,6 +4,14 @@ from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
+def subprocess_environment() -> dict[str, str]:
+    """Retain tool/provider configuration without forwarding platform passwords."""
+    environment = os.environ.copy()
+    for name in ("OMA_ADMIN_PASSWORD", "OMA_DEFAULT_USER_PASSWORD"):
+        environment.pop(name, None)
+    return environment
+
+
 def _env_file_values() -> dict[str, str]:
     """Read simple dotenv values so reload workers pick up local configuration."""
     path = Path.cwd() / ".env"
