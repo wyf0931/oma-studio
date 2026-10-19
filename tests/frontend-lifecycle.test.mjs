@@ -144,6 +144,29 @@ test("session lifecycle owns initialization, cleanup and stale response isolatio
     assert.equal(signal.aborted, true);
     pending.resolve(new Response("{}", { headers: { "content-type": "application/json" } }));
     await assert.rejects(request, { name: "AbortError" });
+    let bodySignal;
+    const streamingApi = createApi({
+      baseUrl: "http://localhost",
+      fetch: async (request) => {
+        bodySignal = request.signal;
+        return new Response(
+          new ReadableStream({
+            start(stream) {
+              request.signal.addEventListener("abort", () => stream.error(new DOMException("Aborted", "AbortError")), {
+                once: true,
+              });
+            },
+          }),
+        );
+      },
+      i18n: { t: (x) => x },
+      onUnauthorized() {},
+    });
+    const { response } = await streamingApi.request("/api/chats/c/messages");
+    const bodyRead = response.text();
+    streamingApi.resetSession();
+    assert.equal(bodySignal.aborted, true, "logout must abort a body after headers have arrived");
+    await assert.rejects(bodyRead, { name: "AbortError" });
   } finally {
     Object.assign(globalThis, old);
     rmSync(output, { recursive: true, force: true });

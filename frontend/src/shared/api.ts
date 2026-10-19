@@ -41,13 +41,46 @@ export function createApi(deps: Dependencies): Feature {
     request.signal.addEventListener("abort", abort, { once: true });
     pending.add(controller);
     request.headers.set("X-Request-ID", createId());
+    const release = () => {
+      pending.delete(controller);
+      request.signal.removeEventListener("abort", abort);
+    };
     try {
       const response = await deps.fetch(new Request(request, { cache: "no-store", signal: controller.signal }));
       if (current !== generation) throw new DOMException("Session changed", "AbortError");
-      return response;
-    } finally {
-      pending.delete(controller);
-      // Keep caller cancellation linked while a returned streaming body is being read.
+      if (!response.body) {
+        release();
+        return response;
+      }
+      const reader = response.body.getReader();
+      // Fetch resolves at headers. Retain cancellation until the body is consumed,
+      // including JSON validation and POST streaming, rather than only until headers.
+      const body = new ReadableStream<Uint8Array>({
+        async pull(stream) {
+          try {
+            const chunk = await reader.read();
+            if (chunk.done) {
+              release();
+              stream.close();
+            } else stream.enqueue(chunk.value);
+          } catch (cause) {
+            release();
+            stream.error(cause);
+          }
+        },
+        cancel(reason) {
+          release();
+          return reader.cancel(reason);
+        },
+      });
+      return new Response(body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    } catch (cause) {
+      release();
+      throw cause;
     }
   }
   async function request(path: string, options: RequestInit = {}): Promise<{ response: Response; requestId: string }> {
