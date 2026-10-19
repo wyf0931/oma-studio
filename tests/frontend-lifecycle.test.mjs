@@ -83,10 +83,11 @@ test("session lifecycle owns initialization, cleanup and stale response isolatio
           },
         },
       },
-      onSessionEnded: () => {
+      onSessionEnded: (expired) => {
         ended++;
         chat.resetSession();
         identity.state.authUser = null;
+        identity.state.sessionExpired = expired;
       },
     });
     await shell.init();
@@ -115,6 +116,17 @@ test("session lifecycle owns initialization, cleanup and stale response isolatio
     assert.equal(ended, 1);
     assert.equal(chat.state.messages.length, 0);
     assert.equal(shell.state.healthTimer, null);
+    identity.state.authUser = { id: "test" };
+    await shell.startSession();
+    chat.state.messages = [{ role: "assistant", content: [{ type: "text", text: "private" }] }];
+    const expiredError = new Error("unauthorized");
+    shell.handleUnauthorizedResponse(new Response("", { status: 401 }), "/api/agents", expiredError);
+    assert.equal(ended, 2);
+    assert.equal(expiredError.sessionExpired, true);
+    assert.equal(identity.state.sessionExpired, true);
+    assert.equal(chat.state.messages.length, 0);
+    assert.equal(shell.state.healthTimer, null);
+    shell.stopSession();
     for (const cleanup of shell.state.cleanups) cleanup();
     const pending = deferred();
     let signal;
@@ -132,6 +144,29 @@ test("session lifecycle owns initialization, cleanup and stale response isolatio
     assert.equal(signal.aborted, true);
     pending.resolve(new Response("{}", { headers: { "content-type": "application/json" } }));
     await assert.rejects(request, { name: "AbortError" });
+    let bodySignal;
+    const streamingApi = createApi({
+      baseUrl: "http://localhost",
+      fetch: async (request) => {
+        bodySignal = request.signal;
+        return new Response(
+          new ReadableStream({
+            start(stream) {
+              request.signal.addEventListener("abort", () => stream.error(new DOMException("Aborted", "AbortError")), {
+                once: true,
+              });
+            },
+          }),
+        );
+      },
+      i18n: { t: (x) => x },
+      onUnauthorized() {},
+    });
+    const { response } = await streamingApi.request("/api/chats/c/messages");
+    const bodyRead = response.text();
+    streamingApi.resetSession();
+    assert.equal(bodySignal.aborted, true, "logout must abort a body after headers have arrived");
+    await assert.rejects(bodyRead, { name: "AbortError" });
   } finally {
     Object.assign(globalThis, old);
     rmSync(output, { recursive: true, force: true });

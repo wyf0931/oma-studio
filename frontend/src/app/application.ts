@@ -88,6 +88,7 @@ export function createApplication() {
   });
   const content = createContent({
     getTheme: () => settings.state.theme,
+    onRenderError: () => shell.showError(new Error("Unable to render diagram.")),
     get format() {
       return format;
     },
