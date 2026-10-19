@@ -11,6 +11,7 @@ import { ApiError, asError } from "../../shared/types";
 import { createMarketplaceState } from "./state";
 export type State = ReturnType<typeof createMarketplaceState>;
 export interface Actions {
+  resetSession(): void;
   publishAgent(agent: DTO.Agent): void;
   loadMarketAgents(): Promise<void>;
   marketAgentItems(): DTO.Agent[];
@@ -392,7 +393,11 @@ export function createMarketplace(deps: Dependencies): Feature {
     state.marketPublishTarget = agent;
     state.marketPublishVersion = "v1.0.0";
   }
+  function resetSession(): void {
+    Object.assign(state, createMarketplaceState());
+  }
   return {
+    resetSession,
     state,
     loadMarketAgents,
     marketAgentItems,

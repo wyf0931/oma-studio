@@ -3,7 +3,6 @@ export function createAppState() {
   return {
     healthTimer: null as ReturnType<typeof setInterval> | null,
     cleanups: [] as (() => void)[],
-    runError: "",
     mobileSidebarOpen: false,
     page: "chat" as Page,
     sidebarCollapsed: false,

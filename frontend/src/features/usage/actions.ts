@@ -7,6 +7,7 @@ import { asError, toRecord } from "../../shared/types";
 import { createUsageState } from "./state";
 export type State = ReturnType<typeof createUsageState>;
 export interface Actions {
+  resetSession(): void;
   openUsage(): Promise<void>;
   setUsageRange(range: string): Promise<void>;
   loadUsage(): Promise<void>;
@@ -165,7 +166,11 @@ export function createUsage(deps: Dependencies): Feature {
   function usageCost(value: unknown): string {
     return `¥${usageNumber(value).toFixed(4)}`;
   }
+  function resetSession(): void {
+    Object.assign(state, createUsageState());
+  }
   return {
+    resetSession,
     state,
     openUsage,
     setUsageRange,

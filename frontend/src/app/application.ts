@@ -15,7 +15,21 @@ import { createSettings } from "../features/settings/actions";
 import { createShares } from "../features/shares/actions";
 import { createUsage } from "../features/usage/actions";
 export function createApplication() {
+  const endSession = (expired: boolean) => {
+    api.resetSession();
+    chat.resetSession();
+    artifacts.resetSession();
+    agents.resetSession();
+    autopilots.resetSession();
+    marketplace.resetSession();
+    shares.resetSession();
+    usage.resetSession();
+    presentation.resetSession();
+    settings.resetSession();
+    identity.resetSession(expired);
+  };
   const shell = createShell({
+    onSessionEnded: endSession,
     get settings() {
       return settings;
     },
@@ -206,18 +220,10 @@ export function createApplication() {
     get shares() {
       return shares;
     },
-    onAuthenticated: async () => {
-      shell.setBootReady(false);
-      await Promise.all([agents.loadAgents(), chat.loadChats(), shell.loadHealth(), agents.loadResources()]);
-      const agent = agents.state.agents[0];
-      if (agent) chat.chooseAgent(agent.id);
-      shell.setBootReady(true);
-      await shell.routeFromUrl();
-      dom.renderIconsSoon();
-    },
+    onAuthenticated: () => shell.startSession(),
     onLoggedOut: () => {
-      shell.setBootReady(true);
-      shell.showPage("chat");
+      shell.stopSession();
+      history.replaceState({}, "", "/chat");
     },
   });
   const marketplace = createMarketplace({
@@ -286,9 +292,7 @@ export function createApplication() {
     },
   });
   function dispose() {
-    chat.stopWatching();
-    chat.abortChatReads();
-    if (shell.state.healthTimer) clearInterval(shell.state.healthTimer);
+    shell.stopSession();
     for (const cleanup of shell.state.cleanups.splice(0)) cleanup();
   }
   return {

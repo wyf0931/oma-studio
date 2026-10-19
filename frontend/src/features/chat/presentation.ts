@@ -16,6 +16,7 @@ import { createId } from "../../browser";
 import { createPresentationState } from "./presentation-state";
 export type State = ReturnType<typeof createPresentationState>;
 export interface Actions {
+  resetSession(): void;
   closeLinkDrawer(): void;
   setReasoningOpen(input: HTMLInputElement): void;
   stableMessageKey(message: DTO.Message, index: number): string;
@@ -494,7 +495,11 @@ export function createPresentation(deps: Dependencies): Feature {
   function closeLinkDrawer(): void {
     state.linkDrawerOpen = false;
   }
+  function resetSession(): void {
+    Object.assign(state, createPresentationState());
+  }
   return {
+    resetSession,
     state,
     setReasoningOpen,
     stableMessageKey,
