@@ -1,29 +1,41 @@
 <script setup lang="ts">
 import OmaIcon from "../ui/Icon.vue";
-import { onMounted, onBeforeUnmount, provide } from "vue";
+import { onMounted, onBeforeUnmount, provide, defineAsyncComponent, defineComponent } from "vue";
+import type { Component } from "vue";
 import { installContentEvents } from "../ui/content-events";
 import ChatPage from "../features/chat/ChatPage.vue";
-import LibraryPage from "../features/artifacts/LibraryPage.vue";
-import FileViewerPage from "../features/artifacts/FileViewerPage.vue";
-import AgentsPage from "../features/agents/AgentsPage.vue";
-import MarketplacePage from "../features/marketplace/MarketplacePage.vue";
-import MarketplaceDialogs from "../features/marketplace/MarketplaceDialogs.vue";
-import AutopilotsPage from "../features/autopilots/AutopilotsPage.vue";
+const LoadFailure = defineComponent({ render: () => null });
+function lazyView(loader: () => Promise<{ default: Component }>) {
+  return defineAsyncComponent({
+    loader,
+    errorComponent: LoadFailure,
+    onError(error, _retry, fail) {
+      application.shell.showError(error);
+      fail();
+    },
+  });
+}
+const LibraryPage = lazyView(() => import("../features/artifacts/LibraryPage.vue"));
+const FileViewerPage = lazyView(() => import("../features/artifacts/FileViewerPage.vue"));
+const AgentsPage = lazyView(() => import("../features/agents/AgentsPage.vue"));
+const MarketplacePage = lazyView(() => import("../features/marketplace/MarketplacePage.vue"));
+const MarketplaceDialogs = lazyView(() => import("../features/marketplace/MarketplaceDialogs.vue"));
+const AutopilotsPage = lazyView(() => import("../features/autopilots/AutopilotsPage.vue"));
 import FilesDrawer from "../features/artifacts/FilesDrawer.vue";
-import AutopilotDialogs from "../features/autopilots/AutopilotDialogs.vue";
-import ShareRecordsDialogs from "../features/shares/ShareRecordsDialogs.vue";
-import AutopilotRunDialogs from "../features/autopilots/AutopilotRunDialogs.vue";
-import ChatSearchDialog from "../features/chat/ChatSearchDialog.vue";
-import IdentityDialogs from "../features/identity/IdentityDialogs.vue";
-import SettingsDialog from "../features/settings/SettingsDialog.vue";
-import UsersDialog from "../features/identity/UsersDialog.vue";
-import UsageDialog from "../features/usage/UsageDialog.vue";
-import AgentDialogs from "../features/agents/AgentDialogs.vue";
-import ChatDeleteDialog from "../features/chat/ChatDeleteDialog.vue";
-import AgentEditorDialogs from "../features/agents/AgentEditorDialogs.vue";
-import CronDialog from "../features/autopilots/CronDialog.vue";
+const AutopilotDialogs = lazyView(() => import("../features/autopilots/AutopilotDialogs.vue"));
+const ShareRecordsDialogs = lazyView(() => import("../features/shares/ShareRecordsDialogs.vue"));
+const AutopilotRunDialogs = lazyView(() => import("../features/autopilots/AutopilotRunDialogs.vue"));
+const ChatSearchDialog = lazyView(() => import("../features/chat/ChatSearchDialog.vue"));
+const IdentityDialogs = lazyView(() => import("../features/identity/IdentityDialogs.vue"));
+const SettingsDialog = lazyView(() => import("../features/settings/SettingsDialog.vue"));
+const UsersDialog = lazyView(() => import("../features/identity/UsersDialog.vue"));
+const UsageDialog = lazyView(() => import("../features/usage/UsageDialog.vue"));
+const AgentDialogs = lazyView(() => import("../features/agents/AgentDialogs.vue"));
+const ChatDeleteDialog = lazyView(() => import("../features/chat/ChatDeleteDialog.vue"));
+const AgentEditorDialogs = lazyView(() => import("../features/agents/AgentEditorDialogs.vue"));
+const CronDialog = lazyView(() => import("../features/autopilots/CronDialog.vue"));
 import LinkDrawer from "../features/chat/LinkDrawer.vue";
-import ShareDialog from "../features/shares/ShareDialog.vue";
+const ShareDialog = lazyView(() => import("../features/shares/ShareDialog.vue"));
 import HistorySidebar from "../features/chat/HistorySidebar.vue";
 import LoginScreen from "../features/identity/LoginScreen.vue";
 
@@ -87,7 +99,7 @@ onMounted(() => {
   );
   const onEscape = (event: KeyboardEvent) => {
     if (event.key === "Escape" && application.settings.state.settingsOpen) {
-      application.settings.state.settingsOpen = false;
+      application.settings.closeSettings();
       event.preventDefault();
     }
   };
@@ -143,29 +155,57 @@ onBeforeUnmount(() => application.dispose());
 
         <ChatPage />
 
-        <LibraryPage />
+        <LibraryPage v-if="page === 'library'" />
 
-        <FileViewerPage />
+        <FileViewerPage v-if="page === 'file'" />
 
-        <AgentsPage />
-        <MarketplacePage />
-        <MarketplaceDialogs />
-        <AutopilotsPage />
+        <AgentsPage v-if="page === 'agents'" />
+        <MarketplacePage v-if="page === 'market'" />
+        <MarketplaceDialogs
+          v-if="
+            application.marketplace.state.marketUpdateAgentTarget ||
+            application.marketplace.state.marketInstallOpen ||
+            application.marketplace.state.marketMcpAddOpen ||
+            application.marketplace.state.marketUninstallTarget ||
+            application.marketplace.state.marketPublishTarget ||
+            application.marketplace.state.marketDeleteAgentTarget ||
+            application.marketplace.state.marketInstallAgentTarget
+          "
+        />
+        <AutopilotsPage v-if="page === 'autopilots'" />
       </main>
       <FilesDrawer />
     </div>
 
-    <AutopilotDialogs />
-    <ShareRecordsDialogs />
-    <AutopilotRunDialogs />
-    <ChatSearchDialog />
-    <IdentityDialogs />
-    <SettingsDialog />
-    <UsersDialog />
-    <UsageDialog />
-    <AgentDialogs />
-    <ChatDeleteDialog />
-    <AgentEditorDialogs />
+    <AutopilotDialogs
+      v-if="application.autopilots.state.autopilotDialog || application.autopilots.state.autopilotDeleteTarget"
+    />
+    <ShareRecordsDialogs
+      v-if="application.shares.state.shareRecordsOpen || application.shares.state.shareRevokeTarget"
+    />
+    <AutopilotRunDialogs
+      v-if="application.autopilots.state.autopilotRunsOpen || application.autopilots.state.autopilotDeleteTarget"
+    />
+    <ChatSearchDialog v-if="application.chat.state.searchOpen" />
+    <IdentityDialogs
+      v-if="
+        application.identity.state.userAddOpen ||
+        application.identity.state.userDeleteTarget ||
+        application.identity.state.logoutConfirmOpen
+      "
+    />
+    <SettingsDialog v-if="application.settings.state.settingsOpen" />
+    <UsersDialog v-if="application.identity.state.usersOpen" />
+    <UsageDialog v-if="application.usage.state.usageOpen" />
+    <AgentDialogs v-if="dialog" />
+    <ChatDeleteDialog v-if="application.chat.state.deleteChatTarget" />
+    <AgentEditorDialogs
+      v-if="
+        application.agents.state.createDialog ||
+        application.agents.state.editingAgent ||
+        application.agents.state.confirmTarget
+      "
+    />
     <div
       class="toast"
       v-show="toastMessage || error"
@@ -176,8 +216,8 @@ onBeforeUnmount(() => application.dispose());
       }"
     ></div>
 
-    <CronDialog />
+    <CronDialog v-if="application.autopilots.state.cronBuilderOpen" />
     <LinkDrawer />
-    <ShareDialog />
+    <ShareDialog v-if="application.shares.state.shareStep !== null" />
   </div>
 </template>

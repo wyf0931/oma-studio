@@ -9,6 +9,7 @@ import type { Actions as I18nActions } from "./i18n";
 export type HttpClient = Client<paths>;
 export interface Actions {
   client: HttpClient;
+  resetSession(): void;
   request(path: string, options?: RequestInit): Promise<{ response: Response; requestId: string }>;
   responseData(
     response: Response,
@@ -25,9 +26,62 @@ export interface Dependencies {
   i18n: Pick<I18nActions, "t">;
 }
 export function createApi(deps: Dependencies): Feature {
+  let generation = 0;
+  const pending = new Set<AbortController>();
+  function resetSession(): void {
+    generation += 1;
+    for (const controller of pending) controller.abort();
+    pending.clear();
+  }
   async function trackedFetch(request: Request): Promise<Response> {
+    const current = generation;
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (request.signal.aborted) abort();
+    request.signal.addEventListener("abort", abort, { once: true });
+    pending.add(controller);
     request.headers.set("X-Request-ID", createId());
-    return deps.fetch(new Request(request, { cache: "no-store" }));
+    const release = () => {
+      pending.delete(controller);
+      request.signal.removeEventListener("abort", abort);
+    };
+    try {
+      const response = await deps.fetch(new Request(request, { cache: "no-store", signal: controller.signal }));
+      if (current !== generation) throw new DOMException("Session changed", "AbortError");
+      if (!response.body) {
+        release();
+        return response;
+      }
+      const reader = response.body.getReader();
+      // Fetch resolves at headers. Retain cancellation until the body is consumed,
+      // including JSON validation and POST streaming, rather than only until headers.
+      const body = new ReadableStream<Uint8Array>({
+        async pull(stream) {
+          try {
+            const chunk = await reader.read();
+            if (chunk.done) {
+              release();
+              stream.close();
+            } else stream.enqueue(chunk.value);
+          } catch (cause) {
+            release();
+            stream.error(cause);
+          }
+        },
+        cancel(reason) {
+          release();
+          return reader.cancel(reason);
+        },
+      });
+      return new Response(body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    } catch (cause) {
+      release();
+      throw cause;
+    }
   }
   async function request(path: string, options: RequestInit = {}): Promise<{ response: Response; requestId: string }> {
     const input = new Request(new URL(path, deps.baseUrl), options);
@@ -46,6 +100,7 @@ export function createApi(deps: Dependencies): Feature {
     requestId: string,
     requestPath: string,
   ): Promise<{ data: unknown; responseId: string }> {
+    const current = generation;
     const responseId = response.headers.get("X-Request-ID") || requestId;
     let data: unknown = null;
     if (response.headers.get("content-type")?.includes("json")) {
@@ -57,6 +112,7 @@ export function createApi(deps: Dependencies): Feature {
     } else {
       await response.text();
     }
+    if (current !== generation) throw new DOMException("Session changed", "AbortError");
     if (!response.ok) {
       const payload = toRecord(data);
       const detail = typeof payload.detail === "string" ? payload.detail : `Server returned ${response.status}`;
@@ -93,7 +149,7 @@ export function createApi(deps: Dependencies): Feature {
       return response;
     },
   });
-  return { client, request, responseData, invalidResponse };
+  return { client, request, responseData, invalidResponse, resetSession };
 }
 // openapi-fetch has a typed success/error union; middleware throws errors before unwrap.
 export function unwrap<T>(result: { data?: T; error?: unknown }): T {

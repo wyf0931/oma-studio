@@ -204,3 +204,31 @@ test("malformed stream events recover through the chat snapshot", async ({ page 
   await expect(page.locator(".message-list")).toContainText("Recovered snapshot");
   expect(errors).toEqual([]);
 });
+
+test("first login installs history and health refresh; logout resets workspace", async ({ page }) => {
+  let healthRequests = 0;
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/health") healthRequests++;
+  });
+  await login(page);
+  await page.evaluate(() => {
+    history.pushState({}, "", "/agents");
+    dispatchEvent(new PopStateEvent("popstate"));
+  });
+  await expect(page.locator(".agents-page")).toBeVisible();
+  await page.goBack();
+  await expect(page.locator(".agents-page")).toBeHidden();
+  await expect.poll(() => healthRequests, { timeout: 8000 }).toBeGreaterThan(1);
+  if (await page.locator(".mobile-topbar").isVisible()) await page.locator(".mobile-topbar button").first().click();
+  await page.locator(".sidebar-profile-trigger").click();
+  await page.getByRole("button", { name: "Log out", exact: true }).click();
+  await page.locator("dialog[open]").getByRole("button", { name: "Log out", exact: true }).click();
+  await expect(page.locator(".login-card")).toBeVisible();
+  await expect(page.locator(".app-shell")).toBeHidden();
+  await expect(page).toHaveURL(/\/chat$/);
+  await page.locator('.login-card input[autocomplete="username"]').fill("admin");
+  await page.locator('.login-card input[autocomplete="current-password"]').fill("frontend-test-admin-password");
+  await page.locator(".login-submit").click();
+  await expect(page.locator(".app-shell")).toBeVisible();
+  await expect(page.locator(".agents-page")).toBeHidden();
+});

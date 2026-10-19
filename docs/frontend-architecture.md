@@ -167,3 +167,23 @@ References: [Vue TypeScript](https://vuejs.org/guide/typescript/overview),
 [Lucide v1](https://lucide.dev/guide/version-1),
 [openapi-typescript](https://openapi-ts.dev/introduction),
 [Ajv standalone](https://ajv.js.org/standalone.html).
+
+## Session and request ownership
+
+The shell installs navigation listeners for the app lifetime and uses one idempotent
+`startSession` for recovered sessions and interactive login. `stopSession` invalidates
+transport requests and asks each feature to reset its own state. Logout, session expiry
+and disposal share that cleanup. Shell peer ports are readonly; commands own mutation.
+Generic errors only display a toast. Chat owns turn errors and preserves partial output.
+
+Usage, library and file reads cancel superseded requests and check request identity
+before changing data, errors or loading state. Chat polling uses completion-based timeout
+scheduling, cancels on stop and reports after three consecutive failures. Do not use
+async interval callbacks for snapshot polling or let earlier results replace new filters.
+
+Secondary views/dialogs use Vue async components with active-state mount guards. Mermaid
+is imported only when unprocessed diagram nodes exist; rendering awaits module loading
+and Vue DOM updates. Failed diagram loading preserves the source text and reports a safe
+error without exposing diagram contents. The generated manifest and browser request tests
+verify these entries stay outside the initial static import closure. Existing global CSS
+and synchronous sanitized Markdown/highlighting remain shared to preserve rendering.

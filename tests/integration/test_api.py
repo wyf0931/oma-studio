@@ -595,7 +595,7 @@ def test_chat_view_reads_are_abortable_without_cancelling_writes_or_streams():
     assert 'return error instanceof Error && error.name === "AbortError";' in script
     assert "return state.chatReadController?.signal;" in script
     assert "beginChatReads();" in script
-    assert "deps.chat.abortChatReads();" in script
+    assert "deps.chat.leaveView();" in script
     assert "/api/chats/{chat_id}/messages" in script
     assert "body: JSON.stringify(payload)" in script
     assert "new EventSource(`/api/chats/${chatId}/stream`)" in script
@@ -667,7 +667,7 @@ def test_client_redirects_expired_sessions_only_for_authenticated_401_responses(
     assert 'path === "/api/auth/session"' in script
     assert "error.sessionExpired = true;" in script
     assert "Your login session has expired. Please sign in again." in script
-    assert "if (error?.sessionExpired) return;" in script
+    assert 'if (error?.sessionExpired || error.name === "AbortError") return;' in script
     assert "toast-warning" in html
     assert ".toast-warning" in styles
 
@@ -1798,7 +1798,7 @@ def test_client_uploads_chat_files_and_limits_at_mentions_to_published_artifacts
     assert "handleContentDragOver($event)" in html
     assert "handleContentDragLeave($event)" in html
     assert 'class="drag-upload-overlay"' in html
-    assert "deps.artifacts.state.uploadLimits" in script
+    assert "deps.artifacts.setUploadLimits(health.upload_limits)" in script
 
 
 def test_chat_at_picker_includes_inputs_and_supports_keyboard_completion():
@@ -1910,7 +1910,7 @@ def test_system_timezone_control_is_admin_only_and_not_browser_local_storage():
 def test_opening_a_chat_refreshes_its_running_state_without_leaking_prior_loading():
     script = frontend_scripts()
 
-    assert "deps.chat.state.loading = false;" in script
+    assert "deps.chat.clearConversation();" in script
     assert "const [data, currentChat] = await Promise.all" in script
     assert 'state.loading = currentChat.status === "running";' in script
     assert (
@@ -2465,7 +2465,7 @@ def test_dead_share_link_sends_anonymous_visitors_to_sign_in():
     # Shared views resolve the session (auth-exempt endpoint) so the branch above
     # can tell an anonymous reader from a signed-in one.
     init = script.split("async function init(", 1)[1].split(
-        'window.addEventListener("popstate"', 1
+        "async function loadHealth(", 1
     )[0]
     assert "await deps.identity.loadSession()" in init
 
@@ -2626,7 +2626,8 @@ def test_markdown_file_preview_can_create_a_public_share_link():
         'deps.shares.showCreatedLink(`${location.origin}${data.url}`, "artifact")'
         in script
     )
-    assert "state.fileViewer!.artifactShare = {" in script
+    assert "if (state.fileViewer !== viewer" in script
+    assert "viewer.artifactShare = {" in script
     assert 'new URLSearchParams(location.search).has("share")' in script
 
 

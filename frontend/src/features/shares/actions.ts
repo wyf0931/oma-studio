@@ -15,6 +15,8 @@ import { writeClipboardText } from "../../browser";
 import { createSharesState } from "./state";
 export type State = ReturnType<typeof createSharesState>;
 export interface Actions {
+  setSharedMode(shared: boolean): void;
+  resetSession(): void;
   openShareRecords(): Promise<void>;
   showCreatedLink(url: string, target: string): void;
   loadShareRecords(): Promise<void>;
@@ -214,7 +216,14 @@ export function createShares(deps: Dependencies): Feature {
     state.shareStep = "created";
     state.copiedShare = false;
   }
+  function resetSession(): void {
+    Object.assign(state, createSharesState());
+  }
   return {
+    resetSession,
+    setSharedMode: (shared: boolean) => {
+      state.sharedMode = shared;
+    },
     state,
     loadShareRecords,
     shareRecordTitle,
