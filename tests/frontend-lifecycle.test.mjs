@@ -83,10 +83,11 @@ test("session lifecycle owns initialization, cleanup and stale response isolatio
           },
         },
       },
-      onSessionEnded: () => {
+      onSessionEnded: (expired) => {
         ended++;
         chat.resetSession();
         identity.state.authUser = null;
+        identity.state.sessionExpired = expired;
       },
     });
     await shell.init();
@@ -115,6 +116,17 @@ test("session lifecycle owns initialization, cleanup and stale response isolatio
     assert.equal(ended, 1);
     assert.equal(chat.state.messages.length, 0);
     assert.equal(shell.state.healthTimer, null);
+    identity.state.authUser = { id: "test" };
+    await shell.startSession();
+    chat.state.messages = [{ role: "assistant", content: [{ type: "text", text: "private" }] }];
+    const expiredError = new Error("unauthorized");
+    shell.handleUnauthorizedResponse(new Response("", { status: 401 }), "/api/agents", expiredError);
+    assert.equal(ended, 2);
+    assert.equal(expiredError.sessionExpired, true);
+    assert.equal(identity.state.sessionExpired, true);
+    assert.equal(chat.state.messages.length, 0);
+    assert.equal(shell.state.healthTimer, null);
+    shell.stopSession();
     for (const cleanup of shell.state.cleanups) cleanup();
     const pending = deferred();
     let signal;
