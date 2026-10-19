@@ -28,6 +28,7 @@ from ...uploads import (
     file_sha256,
     save_upload,
 )
+from .. import contracts
 
 SSE_KEEPALIVE_SECONDS = 20.0
 SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
@@ -300,7 +301,11 @@ def create_router(
         finally:
             turn.unsubscribe(queue)
 
-    @router.get("/chats")
+    @router.get(
+        "/chats",
+        response_model=contracts.ChatsResponse,
+        response_model_exclude_unset=True,
+    )
     async def list_chats(request: Request):
         chats = [
             chat
@@ -311,7 +316,12 @@ def create_router(
         ]
         return {"chats": chats}
 
-    @router.post("/chats", status_code=201)
+    @router.post(
+        "/chats",
+        status_code=201,
+        response_model=contracts.ChatResponse,
+        response_model_exclude_unset=True,
+    )
     async def create_chat(payload: ChatCreate, request: Request):
         agent = visible_or_404(store.get_agent(payload.agent_id), request, "Agent")
         if agent.get("deleted_at"):
@@ -322,14 +332,22 @@ def create_router(
             user_id=agent.get("user_id") or user_id(request),
         )
 
-    @router.patch("/chats/{chat_id}")
+    @router.patch(
+        "/chats/{chat_id}",
+        response_model=contracts.ChatResponse,
+        response_model_exclude_unset=True,
+    )
     async def update_chat(chat_id: str, payload: ChatUpdate, request: Request):
         if not payload.title.strip():
             raise HTTPException(422, "Chat title cannot be empty")
         visible_or_404(store.get_chat(chat_id), request, "Chat")
         return store.update_chat(chat_id, {"title": payload.title.strip()})
 
-    @router.get("/chats/{chat_id}")
+    @router.get(
+        "/chats/{chat_id}",
+        response_model=contracts.ChatResponse,
+        response_model_exclude_unset=True,
+    )
     async def get_chat(chat_id: str, request: Request):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
         if (
@@ -340,7 +358,11 @@ def create_router(
             raise HTTPException(404, "Chat has not started")
         return chat
 
-    @router.delete("/chats/{chat_id}")
+    @router.delete(
+        "/chats/{chat_id}",
+        response_model=contracts.DeletedChatResponse,
+        response_model_exclude_unset=True,
+    )
     async def delete_chat(chat_id: str, request: Request):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
         await runtime.close_chat(chat_id)
@@ -386,7 +408,12 @@ def create_router(
             "deleted_sessions": deleted_sessions,
         }
 
-    @router.post("/chats/{chat_id}/uploads", status_code=201)
+    @router.post(
+        "/chats/{chat_id}/uploads",
+        status_code=201,
+        response_model=contracts.UploadResponse,
+        response_model_exclude_unset=True,
+    )
     async def upload_chat_file(chat_id: str, request: Request):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
         existing = store.list_uploads(chat_id)
@@ -440,7 +467,11 @@ def create_router(
             }
         )
 
-    @router.get("/chats/{chat_id}/uploads")
+    @router.get(
+        "/chats/{chat_id}/uploads",
+        response_model=contracts.UploadsResponse,
+        response_model_exclude_unset=True,
+    )
     async def list_chat_uploads(chat_id: str, request: Request):
         visible_or_404(store.get_chat(chat_id), request, "Chat")
         return {"uploads": store.list_uploads(chat_id)}
@@ -487,7 +518,11 @@ def create_router(
             return None
         return candidate
 
-    @router.get("/chats/{chat_id}/inputs")
+    @router.get(
+        "/chats/{chat_id}/inputs",
+        response_model=contracts.FilesResponse,
+        response_model_exclude_unset=True,
+    )
     async def list_chat_inputs(chat_id: str, request: Request):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
         files = [
@@ -497,7 +532,11 @@ def create_router(
         ]
         return {"files": files}
 
-    @router.delete("/chats/{chat_id}/uploads/{upload_id}")
+    @router.delete(
+        "/chats/{chat_id}/uploads/{upload_id}",
+        response_model=contracts.OkResponse,
+        response_model_exclude_unset=True,
+    )
     async def delete_chat_upload(chat_id: str, upload_id: str, request: Request):
         visible_or_404(store.get_chat(chat_id), request, "Chat")
         upload = store.get_upload(upload_id)
@@ -513,7 +552,11 @@ def create_router(
         store.delete_upload(upload_id, chat_id)
         return {"ok": True}
 
-    @router.get("/chats/{chat_id}/messages")
+    @router.get(
+        "/chats/{chat_id}/messages",
+        response_model=contracts.MessagesResponse,
+        response_model_exclude_unset=True,
+    )
     async def get_messages(chat_id: str, request: Request, mode: str = "production"):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
         if chat["status"] == "created":
@@ -534,7 +577,11 @@ def create_router(
             store.update_chat(chat_id, {"status": "error"})
             raise HTTPException(503, str(exc)) from exc
 
-    @router.get("/chats/{chat_id}/files")
+    @router.get(
+        "/chats/{chat_id}/files",
+        response_model=contracts.FilesResponse,
+        response_model_exclude_unset=True,
+    )
     async def list_chat_files(chat_id: str, request: Request):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
         if not has_session_file(chat):
@@ -545,7 +592,11 @@ def create_router(
         except PiRpcError as exc:
             raise HTTPException(503, str(exc)) from exc
 
-    @router.get("/chats/{chat_id}/files/content")
+    @router.get(
+        "/chats/{chat_id}/files/content",
+        response_model=contracts.ContentResponse,
+        response_model_exclude_unset=True,
+    )
     async def get_chat_file(chat_id: str, path: str, request: Request):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
         if not has_session_file(chat):
@@ -564,7 +615,11 @@ def create_router(
             raise HTTPException(415, "File is not a readable UTF-8 text file") from exc
         return {"content": content}
 
-    @router.get("/library/files")
+    @router.get(
+        "/library/files",
+        response_model=contracts.LibraryResponse,
+        response_model_exclude_unset=True,
+    )
     async def list_library_files(
         request: Request,
         search: str = "",
@@ -681,7 +736,11 @@ def create_router(
             headers=native_browser_headers(media_type),
         )
 
-    @router.get("/chats/{chat_id}/inputs/content")
+    @router.get(
+        "/chats/{chat_id}/inputs/content",
+        response_model=contracts.ContentResponse,
+        response_model_exclude_unset=True,
+    )
     async def get_chat_input(chat_id: str, path: str, request: Request):
         chat = visible_or_404(store.get_chat(chat_id), request, "Chat")
         file_path = resolve_chat_input(chat, path, request)
@@ -693,7 +752,11 @@ def create_router(
             raise HTTPException(415, "File is not a readable UTF-8 text file") from exc
         return {"content": content}
 
-    @router.post("/chats/{chat_id}/messages")
+    @router.post(
+        "/chats/{chat_id}/messages",
+        response_class=contracts.EventStreamResponse,
+        responses={200: {"model": contracts.StreamEnvelope}},
+    )
     async def send_message(
         chat_id: str, payload: MessageCreate, request: Request, mode: str = "production"
     ):
@@ -792,7 +855,11 @@ def create_router(
             headers=SSE_HEADERS,
         )
 
-    @router.get("/chats/{chat_id}/stream")
+    @router.get(
+        "/chats/{chat_id}/stream",
+        response_class=contracts.EventStreamResponse,
+        responses={200: {"model": contracts.StreamEnvelope}},
+    )
     async def resume_chat_stream(chat_id: str, request: Request):
         visible_or_404(store.get_chat(chat_id), request, "Chat")
         turn = runtime.active_turn(chat_id)
@@ -805,7 +872,11 @@ def create_router(
             headers=SSE_HEADERS,
         )
 
-    @router.post("/chats/{chat_id}/abort")
+    @router.post(
+        "/chats/{chat_id}/abort",
+        response_model=contracts.OkResponse,
+        response_model_exclude_unset=True,
+    )
     async def abort_chat(chat_id: str, request: Request):
         visible_or_404(store.get_chat(chat_id), request, "Chat")
         await runtime.abort(chat_id)

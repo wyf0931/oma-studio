@@ -12,7 +12,7 @@ def test_usage_statistics_has_a_single_sidebar_entry_and_dialog():
     assert '@click="openProfileUsage()"' in html
     assert 'class="modal modal-middle usage-dialog"' in html
     assert "usageOpen" in script
-    assert "`/api/usage?days=${encodeURIComponent(state.usageRange)}`" in script
+    assert "/api/usage" in script
     assert "t('usage.trend')" in html
     assert "t('usage.today')" in html
     assert "t('usage.last30Days')" in html

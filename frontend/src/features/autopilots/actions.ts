@@ -1,6 +1,7 @@
 import type { State as AgentsState } from "../agents/actions";
 import type { Actions as ApiActions } from "../../shared/api";
 import type { Actions as ShellActions } from "../../app/actions";
+import { unwrap } from "../../shared/api";
 import { reactive } from "vue";
 import type * as DTO from "../../shared/types";
 import { asError } from "../../shared/types";
@@ -34,7 +35,7 @@ export interface Feature extends Actions {
 }
 export interface Dependencies {
   agents: { state: Readonly<Pick<AgentsState, "agents">> };
-  api: Pick<ApiActions, "api">;
+  api: Pick<ApiActions, "client">;
   shell: Pick<ShellActions, "showError">;
 }
 export function createAutopilots(deps: Dependencies): Feature {
@@ -111,7 +112,13 @@ export function createAutopilots(deps: Dependencies): Feature {
       const params = new URLSearchParams();
       if (state.autopilotSearch.trim()) params.set("search", state.autopilotSearch.trim());
       if (state.autopilotAgentFilter) params.set("agent_id", state.autopilotAgentFilter);
-      state.autopilots = (await deps.api.api<{ autopilots: DTO.Autopilot[] }>(`/api/autopilots?${params}`)).autopilots;
+      state.autopilots = unwrap(
+        await deps.api.client.GET("/api/autopilots", {
+          params: {
+            query: { search: state.autopilotSearch.trim(), agent_id: state.autopilotAgentFilter || undefined },
+          },
+        }),
+      ).autopilots;
     } catch (cause) {
       const e = asError(cause);
       deps.shell.showError(e);
@@ -152,14 +159,13 @@ export function createAutopilots(deps: Dependencies): Feature {
         ends_at: state.autopilotEndsAt || null,
       };
       const item = state.autopilotEditing
-        ? await deps.api.api<DTO.Autopilot>(`/api/autopilots/${state.autopilotEditing.id}`, {
-            method: "PATCH",
-            body: JSON.stringify(payload),
-          })
-        : await deps.api.api<DTO.Autopilot>("/api/autopilots", {
-            method: "POST",
-            body: JSON.stringify(payload),
-          });
+        ? unwrap(
+            await deps.api.client.PATCH("/api/autopilots/{autopilot_id}", {
+              params: { path: { autopilot_id: state.autopilotEditing.id } },
+              body: payload,
+            }),
+          )
+        : unwrap(await deps.api.client.POST("/api/autopilots", { body: payload }));
       const index = state.autopilots.findIndex((row) => row.id === item.id);
       if (index >= 0) state.autopilots[index] = item;
       else state.autopilots.unshift(item);
@@ -173,10 +179,12 @@ export function createAutopilots(deps: Dependencies): Feature {
   }
   async function toggleAutopilot(item: DTO.Autopilot): Promise<void> {
     try {
-      const updated = await deps.api.api<DTO.Autopilot>(`/api/autopilots/${item.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ enabled: !item.enabled }),
-      });
+      const updated = unwrap(
+        await deps.api.client.PATCH("/api/autopilots/{autopilot_id}", {
+          params: { path: { autopilot_id: item.id } },
+          body: { enabled: !item.enabled },
+        }),
+      );
       Object.assign(item, updated);
     } catch (cause) {
       const e = asError(cause);
@@ -190,7 +198,9 @@ export function createAutopilots(deps: Dependencies): Feature {
     const item = state.autopilotDeleteTarget;
     if (!item) return;
     try {
-      await deps.api.api(`/api/autopilots/${item.id}`, { method: "DELETE" });
+      unwrap(
+        await deps.api.client.DELETE("/api/autopilots/{autopilot_id}", { params: { path: { autopilot_id: item.id } } }),
+      );
       state.autopilots = state.autopilots.filter((row) => row.id !== item.id);
       state.autopilotDeleteTarget = null;
     } catch (cause) {
@@ -200,7 +210,11 @@ export function createAutopilots(deps: Dependencies): Feature {
   }
   async function runAutopilot(item: DTO.Autopilot): Promise<void> {
     try {
-      await deps.api.api(`/api/autopilots/${item.id}/run`, { method: "POST" });
+      unwrap(
+        await deps.api.client.POST("/api/autopilots/{autopilot_id}/run", {
+          params: { path: { autopilot_id: item.id } },
+        }),
+      );
       loadAutopilotRuns(item);
     } catch (cause) {
       const e = asError(cause);
@@ -212,7 +226,11 @@ export function createAutopilots(deps: Dependencies): Feature {
     state.autopilotRuns = [];
     state.autopilotRunsItem = item;
     try {
-      state.autopilotRuns = (await deps.api.api<{ runs: DTO.Run[] }>(`/api/autopilots/${item.id}/runs`)).runs;
+      state.autopilotRuns = unwrap(
+        await deps.api.client.GET("/api/autopilots/{autopilot_id}/runs", {
+          params: { path: { autopilot_id: item.id } },
+        }),
+      ).runs;
     } catch (cause) {
       const e = asError(cause);
       deps.shell.showError(e);

@@ -10,6 +10,7 @@ import type { Actions as I18nActions } from "../shared/i18n";
 import type { Actions as ApiActions } from "../shared/api";
 import type { Actions as AutopilotsActions } from "../features/autopilots/actions";
 import type { Actions as MarketplaceActions } from "../features/marketplace/actions";
+import { unwrap } from "../shared/api";
 import { reactive, watch } from "vue";
 import type * as DTO from "../shared/types";
 import { ApiError, asError } from "../shared/types";
@@ -65,7 +66,7 @@ export interface Dependencies {
   presentation: { state: Pick<PresentationState, "linkDrawerOpen"> };
   dom: Pick<DomActions, "observeIcons" | "observeImageArtifacts" | "renderIconsSoon">;
   i18n: Pick<I18nActions, "initI18n" | "localizedMessage">;
-  api: Pick<ApiActions, "api">;
+  api: Pick<ApiActions, "client">;
   autopilots: Pick<AutopilotsActions, "loadAutopilots">;
   marketplace: Pick<MarketplaceActions, "loadMarketAgents">;
 }
@@ -135,10 +136,7 @@ export function createShell(deps: Dependencies): Feature {
   }
   async function loadHealth(): Promise<void> {
     try {
-      const health = await deps.api.api<{
-        active_processes: number;
-        upload_limits?: { max_files: number; max_bytes: number };
-      }>("/api/health");
+      const health = unwrap(await deps.api.client.GET("/api/health"));
       state.activeProcesses = health.active_processes || 0;
       if (health.upload_limits) deps.artifacts.state.uploadLimits = health.upload_limits;
     } catch {}

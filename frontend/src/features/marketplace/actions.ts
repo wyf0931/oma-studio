@@ -3,6 +3,7 @@ import type { State as IdentityState } from "../identity/actions";
 import type { Actions as ApiActions } from "../../shared/api";
 import type { Actions as ShellActions } from "../../app/actions";
 import type { Actions as I18nActions } from "../../shared/i18n";
+import { unwrap } from "../../shared/api";
 import { reactive } from "vue";
 import type * as DTO from "../../shared/types";
 import { ApiError, asError } from "../../shared/types";
@@ -49,7 +50,7 @@ export interface Dependencies {
     state: Readonly<Pick<AgentsState, "agents" | "resources">>;
   };
   identity: { state: Readonly<Pick<IdentityState, "authUser">> };
-  api: Pick<ApiActions, "api">;
+  api: Pick<ApiActions, "client">;
   shell: Pick<ShellActions, "showError" | "showToast">;
   i18n: Pick<I18nActions, "t">;
 }
@@ -58,7 +59,7 @@ export function createMarketplace(deps: Dependencies): Feature {
   async function loadMarketAgents(): Promise<void> {
     state.marketAgentsLoading = true;
     try {
-      state.marketAgents = (await deps.api.api<{ agents: DTO.Agent[] }>("/api/market/agents")).agents || [];
+      state.marketAgents = unwrap(await deps.api.client.GET("/api/market/agents")).agents || [];
     } catch (cause) {
       const error = asError(cause);
       deps.shell.showError(error);
@@ -92,15 +93,13 @@ export function createMarketplace(deps: Dependencies): Feature {
     state.marketSearchError = "";
     try {
       const githubSource = marketSkillGitHubSource(query);
-      const data = await deps.api.api<{ results: DTO.SkillResult[] }>(
-        githubSource ? "/api/market/skills/preview" : "/api/market/skills/search",
-        {
-          method: "POST",
-          body: JSON.stringify(
-            githubSource ? { source: githubSource } : { query, owner: state.marketOwner.trim() || null },
-          ),
-        },
-      );
+      const data = githubSource
+        ? unwrap(await deps.api.client.POST("/api/market/skills/preview", { body: { source: githubSource } }))
+        : unwrap(
+            await deps.api.client.POST("/api/market/skills/search", {
+              body: { query, owner: state.marketOwner.trim() || null },
+            }),
+          );
       state.marketSearchResults = data.results || [];
     } catch (cause) {
       const error = asError(cause);
@@ -150,12 +149,8 @@ export function createMarketplace(deps: Dependencies): Feature {
   async function addMarketMcpServers(): Promise<void> {
     state.marketMcpAction = true;
     try {
-      const data = await deps.api.api<{ servers: DTO.Resource[]; resources: DTO.Resources }>(
-        "/api/market/mcp-servers",
-        {
-          method: "POST",
-          body: JSON.stringify({ config: state.marketMcpConfig }),
-        },
+      const data = unwrap(
+        await deps.api.client.POST("/api/market/mcp-servers", { body: { config: state.marketMcpConfig } }),
       );
       deps.agents.replaceResources(data.resources);
       state.marketMcpAddOpen = false;
@@ -191,10 +186,11 @@ export function createMarketplace(deps: Dependencies): Feature {
     state.marketInstallingSkills.push(resultKey);
     state.marketSearchError = "";
     try {
-      await deps.api.api("/api/market/skills/install", {
-        method: "POST",
-        body: JSON.stringify({ source: result.repo, skill: result.skill }),
-      });
+      unwrap(
+        await deps.api.client.POST("/api/market/skills/install", {
+          body: { source: result.repo, skill: result.skill },
+        }),
+      );
       await deps.agents.refreshResources();
       deps.shell.showToast(`Skill ${result.skill} installed`);
     } catch (cause) {
@@ -212,10 +208,9 @@ export function createMarketplace(deps: Dependencies): Feature {
     }
     state.marketExtensionAction = true;
     try {
-      const data = await deps.api.api<{ package: string }>("/api/market/extensions/install", {
-        method: "POST",
-        body: JSON.stringify({ package: packageInput }),
-      });
+      const data = unwrap(
+        await deps.api.client.POST("/api/market/extensions/install", { body: { package: packageInput } }),
+      );
       await deps.agents.refreshResources();
       const installed = data.package?.replace(/^npm:/, "") || packageInput;
       state.marketInstallOpen = false;
@@ -260,9 +255,8 @@ export function createMarketplace(deps: Dependencies): Feature {
     const { kind, item } = target;
     if (kind === "mcp_servers") {
       try {
-        const data = await deps.api.api<{ servers: DTO.Resource[]; resources: DTO.Resources }>(
-          `/api/market/mcp-servers/${encodeURIComponent(item.name)}`,
-          { method: "DELETE" },
+        const data = unwrap(
+          await deps.api.client.DELETE("/api/market/mcp-servers/{name}", { params: { path: { name: item.name } } }),
         );
         deps.agents.replaceResources(data.resources);
         state.marketUninstallTarget = null;
@@ -273,22 +267,21 @@ export function createMarketplace(deps: Dependencies): Feature {
       }
       return;
     }
-    const path = kind === "extensions" ? "/api/market/extensions/uninstall" : "/api/market/skills/uninstall";
     const packageSource = marketResourceSource(kind, item);
-    const payload =
-      kind === "extensions"
-        ? packageSource.startsWith("npm:")
-          ? { package: packageSource }
-          : { path: packageSource }
-        : {
-            source: item.source || null,
-            skill: item.name,
-          };
     try {
-      await deps.api.api(path, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      if (kind === "extensions") {
+        unwrap(
+          await deps.api.client.POST("/api/market/extensions/uninstall", {
+            body: packageSource.startsWith("npm:") ? { package: packageSource } : { path: packageSource },
+          }),
+        );
+      } else {
+        unwrap(
+          await deps.api.client.POST("/api/market/skills/uninstall", {
+            body: { source: item.source || null, skill: item.name },
+          }),
+        );
+      }
       await deps.agents.refreshResources();
       state.marketUninstallTarget = null;
       deps.shell.showToast(`${kind === "extensions" ? "Extension" : "Skill"} ${item.name} uninstalled`);
@@ -302,10 +295,12 @@ export function createMarketplace(deps: Dependencies): Feature {
     if (!agent || state.marketPublishing) return;
     state.marketPublishing = true;
     try {
-      const data = await deps.api.api<{ agent: DTO.Agent }>(`/api/agents/${agent.id}/publish`, {
-        method: "POST",
-        body: JSON.stringify({ version: state.marketPublishVersion }),
-      });
+      const data = unwrap(
+        await deps.api.client.POST("/api/agents/{agent_id}/publish", {
+          params: { path: { agent_id: agent.id } },
+          body: { version: state.marketPublishVersion },
+        }),
+      );
       state.marketPublishTarget = null;
       await loadMarketAgents();
       deps.shell.showToast(`Agent ${data.agent.name} ${data.agent.version} published`);
@@ -337,7 +332,11 @@ export function createMarketplace(deps: Dependencies): Feature {
     if (!agent || state.marketDeletingAgent) return;
     state.marketDeletingAgent = true;
     try {
-      await deps.api.api(`/api/market/agents/${agent.id}`, { method: "DELETE" });
+      unwrap(
+        await deps.api.client.DELETE("/api/market/agents/{publication_id}", {
+          params: { path: { publication_id: agent.id } },
+        }),
+      );
       state.marketAgents = state.marketAgents.filter((item) => item.id !== agent.id);
       state.marketDeleteAgentTarget = null;
       deps.shell.showToast(`Agent ${agent.name} removed from Marketplace`);
@@ -353,10 +352,12 @@ export function createMarketplace(deps: Dependencies): Feature {
     if (!agent || state.marketInstallingAgent) return;
     state.marketInstallingAgent = true;
     try {
-      const data = await deps.api.api<{ agent: DTO.Agent }>(`/api/market/agents/${agent.id}/install`, {
-        method: "POST",
-        body: JSON.stringify({ version: agent.version }),
-      });
+      const data = unwrap(
+        await deps.api.client.POST("/api/market/agents/{publication_id}/install", {
+          params: { path: { publication_id: agent.id } },
+          body: { version: agent.version },
+        }),
+      );
       await deps.agents.refreshAgents();
       state.marketInstallAgentTarget = null;
       deps.shell.showToast(`Agent ${data.agent.name} installed`);
@@ -372,9 +373,11 @@ export function createMarketplace(deps: Dependencies): Feature {
     if (!agent || state.marketUpdatingAgent) return;
     state.marketUpdatingAgent = true;
     try {
-      const updated = await deps.api.api<DTO.Agent>(`/api/agents/${agent.id}/market-update`, {
-        method: "POST",
-      });
+      const updated = unwrap(
+        await deps.api.client.POST("/api/agents/{agent_id}/market-update", {
+          params: { path: { agent_id: agent.id } },
+        }),
+      );
       await Promise.all([deps.agents.refreshAgents(), loadMarketAgents()]);
       state.marketUpdateAgentTarget = null;
       deps.shell.showToast(`Agent ${updated.name} updated`);

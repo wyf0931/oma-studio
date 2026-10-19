@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
 
 jobs:
@@ -23,6 +23,8 @@ jobs:
           npm run lint
           npm run test:compatibility:policy
           npm run test:typecheck:policy
+          npm run test:modules
+          npm run test:contracts
           npm run build
 
       # astral-sh/setup-uv v6.8.0
@@ -31,7 +33,9 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync
+        run: |
+          uv sync
+          npm run api:check
 
       - name: Lint (ruff)
         run: uv run ruff check

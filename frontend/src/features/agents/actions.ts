@@ -2,6 +2,8 @@ import type { Actions as ShellActions } from "../../app/actions";
 import type { Actions as ApiActions } from "../../shared/api";
 import type { Actions as FormatActions } from "../../shared/format";
 import type { Actions as DomActions } from "../../shared/dom";
+import { validateAgentResponse } from "../../generated/validators.mjs";
+import { unwrap } from "../../shared/api";
 import { reactive, nextTick } from "vue";
 import type * as DTO from "../../shared/types";
 import { ApiError, asError } from "../../shared/types";
@@ -24,8 +26,8 @@ export interface Actions {
   profileTags(value: string): string[];
   profileQuickstarts(value: string): string[];
   agentSkills(agent: DTO.Agent): DTO.Resource[];
-  providerName(id: string): string;
-  modelName(providerId: string, modelId: string): string;
+  providerName(id: string | null | undefined): string;
+  modelName(providerId: string | null | undefined, modelId: string | null | undefined): string;
   defaultResources(kind: "extensions" | "skills" | "mcp_servers"): string[];
   newAgent(): void;
   hasAgentDraft(): boolean;
@@ -36,7 +38,7 @@ export interface Actions {
   previousAgentWizardStep(): void;
   agentSkillItems(): DTO.Resource[];
   generateAgentInstruction(): Promise<void>;
-  modelsFor(providerId?: string): DTO.Model[];
+  modelsFor(providerId?: string | null): DTO.Model[];
   thinkingLevelsFor(): string[];
   defaultThinkingLevel(): string;
   defaultAgentTools(): string[];
@@ -71,7 +73,7 @@ export interface Feature extends Actions {
 }
 export interface Dependencies {
   shell: Pick<ShellActions, "showError" | "showPage" | "showToast">;
-  api: Pick<ApiActions, "api" | "request" | "responseData">;
+  api: Pick<ApiActions, "client" | "invalidResponse" | "request" | "responseData">;
   format: Pick<FormatActions, "escape" | "initials">;
   dom: Pick<DomActions, "resizeAgentTextareas">;
 }
@@ -86,7 +88,7 @@ export function createAgents(deps: Dependencies): Feature {
     }
   }
   async function refreshAgents(): Promise<DTO.Agent[]> {
-    const data = await deps.api.api<{ agents: DTO.Agent[] }>("/api/agents");
+    const data = unwrap(await deps.api.client.GET("/api/agents"));
     state.agents = data.agents || [];
     return state.agents;
   }
@@ -106,7 +108,7 @@ export function createAgents(deps: Dependencies): Feature {
     }
   }
   async function refreshResources(): Promise<DTO.Resources> {
-    state.resources = await deps.api.api<DTO.Resources>("/api/resources");
+    state.resources = unwrap(await deps.api.client.GET("/api/resources"));
     if (state.resources.tools?.length) state.toolCatalog = state.resources.tools;
     return state.resources;
   }
@@ -174,10 +176,10 @@ export function createAgents(deps: Dependencies): Feature {
       enabled.some((path) => normalizeResourcePath(path) === normalizeResourcePath(skill.path)),
     );
   }
-  function providerName(id: string): string {
+  function providerName(id: string | null | undefined): string {
     return state.resources.providers.find((item) => item.id === id)?.name || id || "";
   }
-  function modelName(providerId: string, modelId: string): string {
+  function modelName(providerId: string | null | undefined, modelId: string | null | undefined): string {
     return modelsFor(providerId).find((item) => item.id === modelId)?.name || modelId || "";
   }
 
@@ -263,21 +265,22 @@ export function createAgents(deps: Dependencies): Feature {
     if (state.generatingInstruction) return;
     state.generatingInstruction = true;
     try {
-      const data = await deps.api.api<DTO.Agent>("/api/agents/instruction-draft", {
-        method: "POST",
-        body: JSON.stringify({
-          name: state.newAgentName,
-          instruction: state.newAgentInstruction,
-          description: state.newAgentDescription,
-          tags: profileTags(state.newAgentTags),
-          quickstarts: profileQuickstarts(state.newAgentQuickstarts),
-          ...agentModelConfigPayload(),
-          tools: state.newAgentTools,
-          extensions: state.newAgentExtensions,
-          skills: state.newAgentSkills,
-          mcp_servers: state.newAgentMcpServers,
+      const data = unwrap(
+        await deps.api.client.POST("/api/agents/instruction-draft", {
+          body: {
+            name: state.newAgentName,
+            instruction: state.newAgentInstruction,
+            description: state.newAgentDescription,
+            tags: profileTags(state.newAgentTags),
+            quickstarts: profileQuickstarts(state.newAgentQuickstarts),
+            ...agentModelConfigPayload(),
+            tools: state.newAgentTools,
+            extensions: state.newAgentExtensions,
+            skills: state.newAgentSkills,
+            mcp_servers: state.newAgentMcpServers,
+          },
         }),
-      });
+      );
       state.newAgentInstruction = data.instruction || state.newAgentInstruction;
       state.newAgentDescription = data.description || state.newAgentDescription;
       if (Array.isArray(data.tags) && data.tags.length) state.newAgentTags = data.tags.join(", ");
@@ -292,7 +295,7 @@ export function createAgents(deps: Dependencies): Feature {
       state.generatingInstruction = false;
     }
   }
-  function modelsFor(providerId: string = state.newAgentProvider): DTO.Model[] {
+  function modelsFor(providerId: string | null = state.newAgentProvider): DTO.Model[] {
     return state.resources.providers.find((item) => item.id === providerId)?.models || [];
   }
   function thinkingLevelsFor(): string[] {
@@ -314,11 +317,6 @@ export function createAgents(deps: Dependencies): Feature {
   }
   function defaultModelFor(providerId: string): string {
     const models = modelsFor(providerId);
-    if (
-      providerId === state.resources.default_provider &&
-      models.some((item) => item.id === state.resources.default_model)
-    )
-      return state.resources.default_model;
     return models[0]?.id || "";
   }
   function changeAgentProvider(): void {
@@ -353,8 +351,8 @@ export function createAgents(deps: Dependencies): Feature {
     return !state.newAgentProvider && !state.newAgentModel && !state.newAgentThinkingLevel;
   }
   function autoModelConfigLabel(): string {
-    const provider = state.resources.default_provider || "not configured";
-    const model = state.resources.default_model || "not configured";
+    const provider = "not configured";
+    const model = "not configured";
     const thinking = state.resources.default_thinking_level || "not configured";
     return `${providerName(provider) || provider} / ${modelName(provider, model) || model} / ${thinking}`;
   }
@@ -379,14 +377,13 @@ export function createAgents(deps: Dependencies): Feature {
         mcp_servers: state.newAgentMcpServers,
       };
       const agent = state.editingAgent
-        ? await deps.api.api<DTO.Agent>(`/api/agents/${state.editingAgent.id}`, {
-            method: "PATCH",
-            body: JSON.stringify(payload),
-          })
-        : await deps.api.api<DTO.Agent>("/api/agents", {
-            method: "POST",
-            body: JSON.stringify(payload),
-          });
+        ? unwrap(
+            await deps.api.client.PATCH("/api/agents/{agent_id}", {
+              params: { path: { agent_id: state.editingAgent.id } },
+              body: payload,
+            }),
+          )
+        : unwrap(await deps.api.client.POST("/api/agents", { body: payload }));
       if (!editing && avatarFile) await uploadAvatarFile(agent.id, avatarFile);
       await refreshAgents();
       state.createDialog = false;
@@ -444,7 +441,8 @@ export function createAgents(deps: Dependencies): Feature {
       },
       body: file,
     });
-    const { data } = await deps.api.responseData<DTO.Agent>(response, requestId, requestPath);
+    const { data } = await deps.api.responseData(response, requestId, requestPath);
+    if (!validateAgentResponse(data)) throw deps.api.invalidResponse(requestPath, requestId);
     return data;
   }
   async function uploadAgentAvatar(event: Event): Promise<void> {
@@ -493,7 +491,7 @@ export function createAgents(deps: Dependencies): Feature {
     const agent = state.confirmTarget;
     if (!agent) return;
     try {
-      await deps.api.api(`/api/agents/${agent.id}`, { method: "DELETE" });
+      unwrap(await deps.api.client.DELETE("/api/agents/{agent_id}", { params: { path: { agent_id: agent.id } } }));
       await refreshAgents();
       if (state.dialog?.id === agent.id) state.dialog = null;
       state.confirmTarget = null;

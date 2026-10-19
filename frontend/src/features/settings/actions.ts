@@ -2,8 +2,9 @@ import type { Actions as IdentityActions, State as IdentityState } from "../iden
 import type { Actions as I18nActions, State as I18nState } from "../../shared/i18n";
 import type { Actions as ApiActions } from "../../shared/api";
 import type { Actions as ShellActions } from "../../app/actions";
+import { unwrap } from "../../shared/api";
 import { reactive, nextTick } from "vue";
-import type * as DTO from "../../shared/types";
+
 import { asError } from "../../shared/types";
 
 import { createSettingsState } from "./state";
@@ -31,7 +32,7 @@ export interface Feature extends Actions {
 export interface Dependencies {
   identity: Pick<IdentityActions, "setCurrentUser"> & { state: Readonly<Pick<IdentityState, "authUser">> };
   i18n: Pick<I18nActions, "setLanguage" | "t"> & { state: Readonly<Pick<I18nState, "language">> };
-  api: Pick<ApiActions, "api">;
+  api: Pick<ApiActions, "client">;
   shell: Pick<ShellActions, "showError" | "showToast">;
   onCleanup(cleanup: () => void): void;
 }
@@ -95,13 +96,14 @@ export function createSettings(deps: Dependencies): Feature {
     state.accountProfileError = "";
     state.accountProfileSaved = false;
     try {
-      const user = await deps.api.api<DTO.User>("/api/users/me", {
-        method: "PATCH",
-        body: JSON.stringify({
-          nickname: state.accountProfile.nickname.trim() || null,
-          email: state.accountProfile.email.trim() || null,
+      const user = unwrap(
+        await deps.api.client.PATCH("/api/users/me", {
+          body: {
+            nickname: state.accountProfile.nickname.trim() || null,
+            email: state.accountProfile.email.trim() || null,
+          },
         }),
-      });
+      );
       deps.identity.setCurrentUser(user);
       state.accountProfile = { nickname: user.nickname || "", email: user.email || "" };
       state.accountProfileSaved = true;
@@ -141,13 +143,14 @@ export function createSettings(deps: Dependencies): Feature {
     state.accountShowCurrentPassword = false;
     state.accountShowNewPassword = false;
     try {
-      await deps.api.api("/api/users/me/password", {
-        method: "POST",
-        body: JSON.stringify({
-          current_password: state.accountCurrentPassword,
-          new_password: state.accountNewPassword,
+      unwrap(
+        await deps.api.client.POST("/api/users/me/password", {
+          body: {
+            current_password: state.accountCurrentPassword,
+            new_password: state.accountNewPassword,
+          },
         }),
-      });
+      );
       resetAccountPassword();
       state.accountPasswordSaved = true;
     } catch (cause) {
@@ -169,7 +172,7 @@ export function createSettings(deps: Dependencies): Feature {
   }
   async function loadSystemSettings(): Promise<void> {
     try {
-      state.systemTimezone = (await deps.api.api<{ timezone: string }>("/api/settings")).timezone;
+      state.systemTimezone = unwrap(await deps.api.client.GET("/api/settings")).timezone;
     } catch (cause) {
       const error = asError(cause);
       deps.shell.showError(error);
@@ -177,11 +180,8 @@ export function createSettings(deps: Dependencies): Feature {
   }
   async function saveSystemTimezone(): Promise<void> {
     try {
-      state.systemTimezone = (
-        await deps.api.api<{ timezone: string }>("/api/settings/timezone", {
-          method: "PATCH",
-          body: JSON.stringify({ timezone: state.systemTimezone }),
-        })
+      state.systemTimezone = unwrap(
+        await deps.api.client.PATCH("/api/settings/timezone", { body: { timezone: state.systemTimezone } }),
       ).timezone;
       deps.shell.showToast("System timezone updated");
     } catch (cause) {

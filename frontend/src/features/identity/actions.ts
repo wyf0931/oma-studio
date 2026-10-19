@@ -5,6 +5,7 @@ import type { Actions as FormatActions } from "../../shared/format";
 import type { Actions as I18nActions } from "../../shared/i18n";
 import type { Actions as UsageActions } from "../usage/actions";
 import type { Actions as SharesActions } from "../shares/actions";
+import { unwrap } from "../../shared/api";
 import { reactive } from "vue";
 import type * as DTO from "../../shared/types";
 import { asError } from "../../shared/types";
@@ -36,7 +37,7 @@ export interface Feature extends Actions {
   state: State;
 }
 export interface Dependencies {
-  api: Pick<ApiActions, "api">;
+  api: Pick<ApiActions, "client">;
   settings: Pick<SettingsActions, "closeSettings" | "openSettings">;
   shell: Pick<ShellActions, "showError" | "showToast">;
   format: Pick<FormatActions, "initials">;
@@ -50,7 +51,7 @@ export function createIdentity(deps: Dependencies): Feature {
   const state = reactive(createIdentityState());
   async function loadSession(): Promise<void> {
     try {
-      const data = await deps.api.api<{ user: DTO.User | null }>("/api/auth/session");
+      const data = unwrap(await deps.api.client.GET("/api/auth/session"));
       state.authUser = data.user;
     } catch (cause) {
       const error = asError(cause);
@@ -66,13 +67,14 @@ export function createIdentity(deps: Dependencies): Feature {
     state.loginLoading = true;
     state.loginError = "";
     try {
-      state.authUser = await deps.api.api<DTO.User>("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({
-          username: state.loginUsername,
-          password: state.loginPassword,
+      state.authUser = unwrap(
+        await deps.api.client.POST("/api/auth/login", {
+          body: {
+            username: state.loginUsername,
+            password: state.loginPassword,
+          },
         }),
-      });
+      );
       state.sessionExpired = false;
       state.loginPassword = "";
       await deps.onAuthenticated();
@@ -89,7 +91,7 @@ export function createIdentity(deps: Dependencies): Feature {
   }
   async function confirmLogout(): Promise<void> {
     try {
-      await deps.api.api("/api/auth/logout", { method: "POST" });
+      unwrap(await deps.api.client.POST("/api/auth/logout"));
       state.logoutConfirmOpen = false;
       state.authUser = null;
       state.authChecked = true;
@@ -132,7 +134,7 @@ export function createIdentity(deps: Dependencies): Feature {
   async function loadUsers(): Promise<void> {
     state.usersLoading = true;
     try {
-      state.users = (await deps.api.api<{ users: DTO.User[] }>("/api/users")).users;
+      state.users = unwrap(await deps.api.client.GET("/api/users")).users;
     } catch (cause) {
       const error = asError(cause);
       deps.shell.showError(error);
@@ -149,13 +151,14 @@ export function createIdentity(deps: Dependencies): Feature {
     if (state.userCreating) return;
     state.userCreating = true;
     try {
-      await deps.api.api("/api/users", {
-        method: "POST",
-        body: JSON.stringify({
-          username: state.newUserUsername,
-          email: state.newUserEmail || null,
+      unwrap(
+        await deps.api.client.POST("/api/users", {
+          body: {
+            username: state.newUserUsername,
+            email: state.newUserEmail || null,
+          },
         }),
-      });
+      );
       await loadUsers();
       state.userAddOpen = false;
       deps.shell.showToast(`User ${state.newUserUsername} added`);
@@ -169,10 +172,12 @@ export function createIdentity(deps: Dependencies): Feature {
   async function toggleManagedUser(user: DTO.User): Promise<void> {
     const status = user.status === "active" ? "disabled" : "active";
     try {
-      await deps.api.api(`/api/users/${user.id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      });
+      unwrap(
+        await deps.api.client.PATCH("/api/users/{user_id}/status", {
+          params: { path: { user_id: user.id } },
+          body: { status },
+        }),
+      );
       await loadUsers();
       deps.shell.showToast(`User ${user.username} ${status}`);
     } catch (cause) {
@@ -187,7 +192,7 @@ export function createIdentity(deps: Dependencies): Feature {
     const user = state.userDeleteTarget;
     if (!user) return;
     try {
-      await deps.api.api(`/api/users/${user.id}`, { method: "DELETE" });
+      unwrap(await deps.api.client.DELETE("/api/users/{user_id}", { params: { path: { user_id: user.id } } }));
       await loadUsers();
       state.userDeleteTarget = null;
       deps.shell.showToast(`User ${user.username} deleted`);

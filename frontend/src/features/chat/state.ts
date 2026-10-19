@@ -3,7 +3,7 @@ import type * as DTO from "../../shared/types";
 export function createChatState() {
   return {
     chats: [] as DTO.Chat[],
-    activeChat: null as DTO.Chat | null,
+    activeChat: null as DTO.ActiveChat | null,
     editingChatTitle: false,
     chatTitleDraft: "",
     chatTitleSaving: false,

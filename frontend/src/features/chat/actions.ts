@@ -6,6 +6,8 @@ import type { Actions as ApiActions } from "../../shared/api";
 import type { Actions as DomActions } from "../../shared/dom";
 import type { Actions as PresentationActions } from "./presentation";
 import type { Actions as FormatActions } from "../../shared/format";
+import { parseStreamEvent } from "./messages";
+import { unwrap } from "../../shared/api";
 import { reactive, nextTick } from "vue";
 import type * as DTO from "../../shared/types";
 import { ApiError, asError } from "../../shared/types";
@@ -15,14 +17,14 @@ import { createChatState } from "./state";
 export type State = ReturnType<typeof createChatState>;
 export interface Actions {
   clearAttachmentCommand(): void;
-  setSharedConversation(chat: DTO.Chat | null, messages: DTO.Message[]): void;
+  setSharedConversation(chat: DTO.SharedChat | null, messages: DTO.Message[]): void;
   setMessagesLoading(loading: boolean): void;
   chooseAgent(id: string): void;
   chatCount(id: string): number;
   beginChatReads(): void;
   abortChatReads(): void;
   isAbortError(error: unknown): boolean;
-  chatRead<T = unknown>(path: string): Promise<T>;
+  readSignal(): AbortSignal | undefined;
   startQuickstart(agent: DTO.Agent, prompt: string): void;
   loadChats(): Promise<void>;
   startEditingChatTitle(): void;
@@ -53,7 +55,7 @@ export interface Actions {
   startPolling(chatId: string, viewToken?: number): void;
   stopPolling(): void;
   stopWatching(): void;
-  setMessagesIfChanged(rawMessages: DTO.Message[]): DTO.Message[];
+  setMessagesIfChanged(rawMessages: unknown): DTO.Message[];
   isActionableAssistant(message: DTO.Message): boolean;
   copyMessage(message: DTO.Message): Promise<void>;
   copyCodeBlock(button: HTMLElement & { _copyTimer?: ReturnType<typeof setTimeout> }): Promise<void>;
@@ -76,7 +78,7 @@ export interface Dependencies {
   shell: Pick<ShellActions, "clearError" | "modeQuery" | "showError" | "showPage"> & {
     state: Readonly<Pick<ShellState, "mode">>;
   };
-  api: Pick<ApiActions, "api" | "request" | "responseData">;
+  api: Pick<ApiActions, "client" | "request" | "responseData">;
   dom: Pick<DomActions, "resetConversationInput" | "scrollMessagesToLatest">;
   presentation: Pick<PresentationActions, "messageVisible" | "messagesFingerprint" | "normalizeMessages" | "partsText">;
   format: Pick<FormatActions, "escape">;
@@ -94,8 +96,8 @@ export function createChat(deps: Dependencies): Feature {
   function isAbortError(error: unknown): boolean {
     return error instanceof Error && error.name === "AbortError";
   }
-  function chatRead<T = unknown>(path: string): Promise<T> {
-    return deps.api.api<T>(path, { signal: state.chatReadController?.signal });
+  function readSignal(): AbortSignal | undefined {
+    return state.chatReadController?.signal;
   }
   function startQuickstart(agent: DTO.Agent, prompt: string): void {
     newChat();
@@ -105,7 +107,7 @@ export function createChat(deps: Dependencies): Feature {
   }
   async function loadChats(): Promise<void> {
     try {
-      state.chats = (await deps.api.api<{ chats: DTO.Chat[] }>("/api/chats")).chats;
+      state.chats = unwrap(await deps.api.client.GET("/api/chats")).chats;
     } catch (cause) {
       const e = asError(cause);
       deps.shell.showError(e);
@@ -135,10 +137,9 @@ export function createChat(deps: Dependencies): Feature {
     }
     state.chatTitleSaving = true;
     try {
-      const updated = await deps.api.api<DTO.Chat>(`/api/chats/${chatId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ title }),
-      });
+      const updated = unwrap(
+        await deps.api.client.PATCH("/api/chats/{chat_id}", { params: { path: { chat_id: chatId } }, body: { title } }),
+      );
       if (state.activeChat?.id === chatId) {
         state.activeChat = updated;
         const sidebarChat = state.chats.find((chat) => chat.id === updated.id);
@@ -182,7 +183,11 @@ export function createChat(deps: Dependencies): Feature {
   function newChat(): void {
     const draftChat =
       state.activeChat?.status === "created" && deps.artifacts.state.pendingUploads.length ? state.activeChat : null;
-    if (draftChat) void deps.api.api(`/api/chats/${draftChat.id}`, { method: "DELETE" }).catch(() => {});
+    if (draftChat)
+      void deps.api.client
+        .DELETE("/api/chats/{chat_id}", { params: { path: { chat_id: draftChat.id } } })
+        .then(unwrap)
+        .catch(() => {});
     stopWatching();
     abortChatReads();
     state.chatViewToken += 1;
@@ -218,8 +223,20 @@ export function createChat(deps: Dependencies): Feature {
     state.messagesLoading = true;
     try {
       const [data, currentChat] = await Promise.all([
-        chatRead<{ messages: DTO.Message[] }>(`/api/chats/${chat.id}/messages?mode=${deps.shell.state.mode}`),
-        chat.status === "created" ? Promise.resolve(chat) : chatRead<DTO.Chat>(`/api/chats/${chat.id}`),
+        deps.api.client
+          .GET("/api/chats/{chat_id}/messages", {
+            params: { path: { chat_id: chat.id }, query: { mode: deps.shell.state.mode } },
+            signal: state.chatReadController?.signal,
+          })
+          .then(unwrap),
+        chat.status === "created"
+          ? Promise.resolve(chat)
+          : deps.api.client
+              .GET("/api/chats/{chat_id}", {
+                params: { path: { chat_id: chat.id } },
+                signal: state.chatReadController?.signal,
+              })
+              .then(unwrap),
       ]);
       if (viewToken !== state.chatViewToken || state.activeChat?.id !== chat.id) return;
       state.activeChat = currentChat;
@@ -229,7 +246,12 @@ export function createChat(deps: Dependencies): Feature {
       state.messages = deps.presentation.normalizeMessages(data.messages);
       if (currentChat.status === "created") {
         deps.artifacts.restoreUploads(
-          (await chatRead<{ uploads: DTO.Artifact[] }>(`/api/chats/${chat.id}/uploads`)).uploads || [],
+          unwrap(
+            await deps.api.client.GET("/api/chats/{chat_id}/uploads", {
+              params: { path: { chat_id: chat.id } },
+              signal: state.chatReadController?.signal,
+            }),
+          ).uploads || [],
         );
       }
       deps.dom.scrollMessagesToLatest();
@@ -245,10 +267,7 @@ export function createChat(deps: Dependencies): Feature {
   async function sendFirst(): Promise<void> {
     if (!state.draft.trim() || !state.selectedAgentId) return;
     try {
-      const chat = await deps.api.api<DTO.Chat>("/api/chats", {
-        method: "POST",
-        body: JSON.stringify({ agent_id: state.selectedAgentId }),
-      });
+      const chat = unwrap(await deps.api.client.POST("/api/chats", { body: { agent_id: state.selectedAgentId } }));
       state.selectedAgentId = chat.agent_id;
       state.activeChat = chat;
       state.chats.unshift(chat);
@@ -373,13 +392,14 @@ export function createChat(deps: Dependencies): Feature {
       });
       const uploadIds = deps.artifacts.state.pendingUploads.map((file) => file.id);
       const artifactPaths = deps.artifacts.state.pendingArtifacts.map((file) => file.path);
+      const payload: DTO.MessageRequest = { content, upload_ids: uploadIds, artifact_paths: artifactPaths };
       const requestPath = `/api/chats/${chatId}/messages`;
       const { response, requestId } = await deps.api.request(requestPath, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content, upload_ids: uploadIds, artifact_paths: artifactPaths }),
+        body: JSON.stringify(payload),
       });
       if (!response.ok) {
         await deps.api.responseData(response, requestId, requestPath);
@@ -398,7 +418,8 @@ export function createChat(deps: Dependencies): Feature {
         for (const frame of frames) {
           const line = frame.split("\n").find((value) => value.startsWith("data: "));
           if (!line) continue;
-          const event = JSON.parse(line.slice(6)) as DTO.StreamEvent;
+          const event = parseStreamEvent(line.slice(6), response.headers.get("X-Request-ID") || requestId);
+          if (!event) continue;
           if (event.type === "complete") {
             const found = state.chats.find((c) => c.id === event.chat?.id);
             if (found && event.chat) Object.assign(found, event.chat);
@@ -497,11 +518,19 @@ export function createChat(deps: Dependencies): Feature {
     const viewToken = state.chatViewToken;
     state.watchingChat = chatId;
     try {
-      const chat = await chatRead<DTO.Chat>(`/api/chats/${chatId}`);
+      const chat = unwrap(
+        await deps.api.client.GET("/api/chats/{chat_id}", {
+          params: { path: { chat_id: chatId } },
+          signal: state.chatReadController?.signal,
+        }),
+      );
       if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
       if (state.activeChat?.id === chatId) state.activeChat = chat;
-      const data = await chatRead<{ messages: DTO.Message[] }>(
-        `/api/chats/${chatId}/messages?mode=${deps.shell.state.mode}`,
+      const data = unwrap(
+        await deps.api.client.GET("/api/chats/{chat_id}/messages", {
+          params: { path: { chat_id: chatId }, query: { mode: deps.shell.state.mode } },
+          signal: state.chatReadController?.signal,
+        }),
       );
       if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
       const normalized = deps.presentation.normalizeMessages(data.messages);
@@ -525,10 +554,17 @@ export function createChat(deps: Dependencies): Feature {
       const source = new EventSource(`/api/chats/${chatId}/stream`);
       state.streamSource = source;
       source.onmessage = (m) => {
-        let event: DTO.StreamEvent;
+        let event: DTO.StreamEvent | null;
         try {
-          event = JSON.parse(m.data) as DTO.StreamEvent;
+          event = parseStreamEvent(m.data);
+          if (!event) return;
         } catch {
+          source.close();
+          if (viewToken === state.chatViewToken && state.activeChat?.id === chatId) {
+            state.streamSource = null;
+            state.watchingChat = null;
+            startPolling(chatId, viewToken);
+          }
           return;
         }
         if (event.type === "complete" || event.type === "error") {
@@ -563,12 +599,20 @@ export function createChat(deps: Dependencies): Feature {
   async function finishWatch(chatId: string, viewToken: number = state.chatViewToken): Promise<void> {
     if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
     try {
-      const data = await chatRead<{ messages: DTO.Message[] }>(
-        `/api/chats/${chatId}/messages?mode=${deps.shell.state.mode}`,
+      const data = unwrap(
+        await deps.api.client.GET("/api/chats/{chat_id}/messages", {
+          params: { path: { chat_id: chatId }, query: { mode: deps.shell.state.mode } },
+          signal: state.chatReadController?.signal,
+        }),
       );
       if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
       setMessagesIfChanged(data.messages);
-      const chat = await chatRead<DTO.Chat>(`/api/chats/${chatId}`);
+      const chat = unwrap(
+        await deps.api.client.GET("/api/chats/{chat_id}", {
+          params: { path: { chat_id: chatId } },
+          signal: state.chatReadController?.signal,
+        }),
+      );
       if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
       state.activeChat = chat;
       const found = state.chats.find((c) => c.id === chatId);
@@ -589,14 +633,22 @@ export function createChat(deps: Dependencies): Feature {
         return;
       }
       try {
-        const chat = await chatRead<DTO.Chat>(`/api/chats/${chatId}`);
+        const chat = unwrap(
+          await deps.api.client.GET("/api/chats/{chat_id}", {
+            params: { path: { chat_id: chatId } },
+            signal: state.chatReadController?.signal,
+          }),
+        );
         if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) {
           stopPolling();
           return;
         }
         if (chat.status !== "running") {
-          const data = await chatRead<{ messages: DTO.Message[] }>(
-            `/api/chats/${chatId}/messages?mode=${deps.shell.state.mode}`,
+          const data = unwrap(
+            await deps.api.client.GET("/api/chats/{chat_id}/messages", {
+              params: { path: { chat_id: chatId }, query: { mode: deps.shell.state.mode } },
+              signal: state.chatReadController?.signal,
+            }),
           );
           if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
           setMessagesIfChanged(data.messages);
@@ -608,8 +660,11 @@ export function createChat(deps: Dependencies): Feature {
           await deps.artifacts.refreshOpenFiles(chatId);
           return;
         }
-        const data = await chatRead<{ messages: DTO.Message[] }>(
-          `/api/chats/${chatId}/messages?mode=${deps.shell.state.mode}`,
+        const data = unwrap(
+          await deps.api.client.GET("/api/chats/{chat_id}/messages", {
+            params: { path: { chat_id: chatId }, query: { mode: deps.shell.state.mode } },
+            signal: state.chatReadController?.signal,
+          }),
         );
         if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
         const normalized = setMessagesIfChanged(data.messages);
@@ -636,7 +691,7 @@ export function createChat(deps: Dependencies): Feature {
     state.watchingChat = null;
     stopPolling();
   }
-  function setMessagesIfChanged(rawMessages: DTO.Message[]): DTO.Message[] {
+  function setMessagesIfChanged(rawMessages: unknown): DTO.Message[] {
     const normalized = deps.presentation.normalizeMessages(rawMessages);
     if (deps.presentation.messagesFingerprint(normalized) !== deps.presentation.messagesFingerprint(state.messages))
       state.messages = normalized;
@@ -687,9 +742,11 @@ export function createChat(deps: Dependencies): Feature {
   async function abort(): Promise<void> {
     if (!state.activeChat) return;
     try {
-      await deps.api.api(`/api/chats/${state.activeChat.id}/abort`, {
-        method: "POST",
-      });
+      unwrap(
+        await deps.api.client.POST("/api/chats/{chat_id}/abort", {
+          params: { path: { chat_id: state.activeChat.id } },
+        }),
+      );
       state.loading = false;
     } catch (cause) {
       const e = asError(cause);
@@ -703,7 +760,7 @@ export function createChat(deps: Dependencies): Feature {
     const chat = state.deleteChatTarget;
     if (!chat) return;
     try {
-      await deps.api.api(`/api/chats/${chat.id}`, { method: "DELETE" });
+      unwrap(await deps.api.client.DELETE("/api/chats/{chat_id}", { params: { path: { chat_id: chat.id } } }));
       state.chats = state.chats.filter((item) => item.id !== chat.id);
       state.deleteChatTarget = null;
       if (state.activeChat?.id === chat.id) newChat();
@@ -722,7 +779,7 @@ export function createChat(deps: Dependencies): Feature {
   function clearAttachmentCommand(): void {
     state.draft = state.draft.replace(/(?:^|\s)@[^\s]*$/, (value) => (value.startsWith(" ") ? " " : ""));
   }
-  function setSharedConversation(chat: DTO.Chat | null, messages: DTO.Message[]): void {
+  function setSharedConversation(chat: DTO.SharedChat | null, messages: DTO.Message[]): void {
     state.activeChat = chat;
     state.messages = messages;
   }
@@ -734,7 +791,7 @@ export function createChat(deps: Dependencies): Feature {
     beginChatReads,
     abortChatReads,
     isAbortError,
-    chatRead,
+    readSignal,
     startQuickstart,
     loadChats,
     startEditingChatTitle,

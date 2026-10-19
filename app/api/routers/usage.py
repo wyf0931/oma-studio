@@ -5,12 +5,17 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from ...config import Settings
 from ...store import Store
 from ...usage import aggregate_usage
+from .. import contracts
 
 
 def create_router(settings: Settings, store: Store) -> APIRouter:
     router = APIRouter(prefix="/api", tags=["usage"])
 
-    @router.get("/usage")
+    @router.get(
+        "/usage",
+        response_model=contracts.UsageResponse,
+        response_model_exclude_unset=True,
+    )
     async def get_usage(
         request: Request,
         days: int | None = Query(default=None, ge=1, le=90),

@@ -7,6 +7,7 @@ import type { Actions as FormatActions } from "../../shared/format";
 import type { Actions as ArtifactsActions } from "../artifacts/actions";
 import type { Actions as ContentActions } from "../../shared/content";
 import type { Actions as I18nActions } from "../../shared/i18n";
+import { decodeMessages, toolArguments } from "./messages";
 import { reactive } from "vue";
 import type * as DTO from "../../shared/types";
 
@@ -19,7 +20,7 @@ export interface Actions {
   setReasoningOpen(input: HTMLInputElement): void;
   stableMessageKey(message: DTO.Message, index: number): string;
   messagesFingerprint(messages: DTO.Message[]): string;
-  normalizeMessages(messages: DTO.Message[]): DTO.Message[];
+  normalizeMessages(input: unknown): DTO.Message[];
   renderMessage(message: DTO.Message): string;
   renderUserMessage(message: DTO.Message, parts: DTO.MessagePart[]): string;
   imageArtifactMessage(message: DTO.Message, _index: number): { path: string } | null;
@@ -82,7 +83,8 @@ export function createPresentation(deps: Dependencies): Feature {
       })
       .join("\u001e");
   }
-  function normalizeMessages(messages: DTO.Message[]): DTO.Message[] {
+  function normalizeMessages(input: unknown): DTO.Message[] {
+    const messages = decodeMessages(input);
     const archived: DTO.Message[] = [];
     const sessionUsage = {
       input: 0,
@@ -287,9 +289,9 @@ export function createPresentation(deps: Dependencies): Feature {
     return `<details class="process-disclosure ${kind ? `${kind}-disclosure` : ""}"><summary><i class="process-chevron" data-lucide="chevron-right" aria-hidden="true"></i><span class="process-label">${deps.format.escape(label)}</span>${showPreview ? `<span class="process-preview">${deps.format.escape(String(value).replace(/\s+/g, " ").trim())}</span>` : ""}</summary><pre class="process-detail-code ${kind ? `${kind}-code` : ""}">${detail}</pre></details>`;
   }
   function toolArgs(part: DTO.MessagePart): DTO.ToolArgs {
-    if (part.arguments && typeof part.arguments === "object") return part.arguments;
+    if (part.arguments && typeof part.arguments === "object") return toolArguments(part.arguments);
     try {
-      return JSON.parse(part.arguments || "{}");
+      return toolArguments(JSON.parse(part.arguments || "{}"));
     } catch {
       return { arguments: part.arguments || "" };
     }

@@ -577,14 +577,13 @@ def test_chinese_agent_update_warning_uses_localized_marketplace_name():
 
 def test_frontend_request_transport_keeps_json_binary_and_streaming_paths_distinct():
     script = frontend_scripts()
-
-    assert "async function request(" in script
-    assert "async function responseData<" in script
-    assert 'headers.set("X-Request-ID", requestId)' in script
-    assert 'if (options.body !== undefined && !headers.has("Content-Type"))' in script
+    assert "createClient<paths>" in script
+    assert 'request.headers.set("X-Request-ID", createId())' in script
+    assert "responseValidators[" in script
     assert '"X-Upload-Filename": encodeURIComponent(file.name)' in script
     assert "response.body.getReader()" in script
     assert "new EventSource(`/api/chats/${chatId}/stream`)" in script
+    assert "data as T" not in script
 
 
 def test_chat_view_reads_are_abortable_without_cancelling_writes_or_streams():
@@ -594,17 +593,11 @@ def test_chat_view_reads_are_abortable_without_cancelling_writes_or_streams():
     assert "state.chatReadController = new AbortController();" in script
     assert "state.chatReadController?.abort();" in script
     assert 'return error instanceof Error && error.name === "AbortError";' in script
-    assert (
-        "return deps.api.api<T>(path, { signal: state.chatReadController?.signal });"
-        in script
-    )
+    assert "return state.chatReadController?.signal;" in script
     assert "beginChatReads();" in script
     assert "deps.chat.abortChatReads();" in script
-    assert "`/api/chats/${chatId}/messages?mode=${deps.shell.state.mode}`" in script
-    assert (
-        "body: JSON.stringify({ content, upload_ids: uploadIds, artifact_paths: artifactPaths })"
-        in script
-    )
+    assert "/api/chats/{chat_id}/messages" in script
+    assert "body: JSON.stringify(payload)" in script
     assert "new EventSource(`/api/chats/${chatId}/stream`)" in script
 
 
@@ -1410,8 +1403,8 @@ def test_marketplace_agent_delete_ui_is_admin_only_and_confirmed():
     assert "deleteMarketAgent(item)" in html
     assert "confirmDeleteMarketAgent()" in html
     assert "DELETE /api/market/agents/{id}" not in html
-    assert "`/api/market/agents/${agent.id}`" in script
-    assert 'method: "DELETE"' in script
+    assert "/api/market/agents/{publication_id}" in script
+    assert "deps.api.client.DELETE(" in script
     assert "Existing installed Agents and" in html
 
 
@@ -1700,10 +1693,7 @@ def test_chat_detail_files_tabs_and_mobile_markdown_boundaries_are_explicit():
     assert 'class="tabs tabs-box files-tabs"' in html
     assert "filesTab === 'outputs'" in html
     assert "filesTab === 'inputs'" in html
-    assert (
-        "deps.chat.chatRead<{ files: DTO.Artifact[] }>(`/api/chats/${deps.chat.state.activeChat.id}/inputs`)"
-        in script
-    )
+    assert "/api/chats/{chat_id}/inputs" in script
     assert 'wrapper.className = "markdown-table-wrap"' in script
     assert ".file-markdown .markdown-table-wrap" in styles
     assert ".file-view-page," in styles
@@ -2616,11 +2606,8 @@ def test_share_records_profile_ui_uses_revoke_confirmation_and_existing_link_che
     assert "t('share.shareId')" in html
     assert 'target="_blank"' in html
     assert 'v-text="share.token"' in html
-    assert 'deps.api.api<{ shares: DTO.Share[] }>("/api/shares")' in script
-    assert (
-        "deps.api.api<DTO.Share>(`/api/chats/${deps.chat.state.activeChat.id}/share`)"
-        in script
-    )
+    assert 'deps.api.client.GET("/api/shares")' in script
+    assert "/api/chats/{chat_id}/share" in script
     assert "shareRecordUrl(" in script
 
 
@@ -2634,12 +2621,12 @@ def test_markdown_file_preview_can_create_a_public_share_link():
     assert 'name="link-2-off"' in html
     assert "v-text=\"t('share.linkExpiredTitle')\"" in html
     assert "fileViewerExpired = true" in script
-    assert "artifact-shares?path=" in script
+    assert "artifact-shares" in script
     assert (
         'deps.shares.showCreatedLink(`${location.origin}${data.url}`, "artifact")'
         in script
     )
-    assert "state.fileViewer!.artifactShare = await deps.api.api<DTO.Share>(" in script
+    assert "state.fileViewer!.artifactShare = {" in script
     assert 'new URLSearchParams(location.search).has("share")' in script
 
 

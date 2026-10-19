@@ -5,6 +5,8 @@ import type { Actions as ApiActions } from "../../shared/api";
 import type { Actions as ShellActions } from "../../app/actions";
 import type { Actions as I18nActions } from "../../shared/i18n";
 import type { Actions as ContentActions } from "../../shared/content";
+import { validateUploadResponse } from "../../generated/validators.mjs";
+import { unwrap } from "../../shared/api";
 import { reactive, nextTick } from "vue";
 import type * as DTO from "../../shared/types";
 import { ApiError, asError } from "../../shared/types";
@@ -15,7 +17,7 @@ export interface Actions {
   closeFiles(): void;
   resetFilePanel(): void;
   clearAttachments(includeLocal?: boolean): void;
-  restoreUploads(uploads: DTO.Artifact[]): void;
+  restoreUploads(uploads: DTO.Upload[]): void;
   clearFileShare(token: string): void;
   toggleFiles(): Promise<void>;
   refreshOpenFiles(chatId?: string | undefined): Promise<void>;
@@ -44,7 +46,7 @@ export interface Actions {
   uploadSelectionTotalBytes(): number;
   removeUploadSelection(file: File, force?: boolean): void;
   formatFileSize(bytes: number): string;
-  uploadFiles(chat: DTO.Chat): Promise<DTO.Artifact[]>;
+  uploadFiles(chat: Pick<DTO.Chat, "id">): Promise<DTO.Upload[]>;
   removePendingAttachment(file: DTO.Attachment): void;
   removePendingUpload(upload: Pick<DTO.Attachment, "id">): Promise<void>;
   removePendingArtifact(artifact: Pick<DTO.Attachment, "path">): void;
@@ -67,12 +69,12 @@ export interface Feature extends Actions {
   state: State;
 }
 export interface Dependencies {
-  chat: Pick<ChatActions, "chatRead" | "clearAttachmentCommand" | "isAbortError"> & {
+  chat: Pick<ChatActions, "clearAttachmentCommand" | "isAbortError" | "readSignal"> & {
     state: Readonly<Pick<ChatState, "activeChat" | "draft">>;
   };
   shares: Pick<SharesActions, "showCreatedLink"> & { state: Readonly<Pick<SharesState, "sharedMode" | "sharedToken">> };
   presentation: Pick<PresentationActions, "closeLinkDrawer">;
-  api: Pick<ApiActions, "api" | "request" | "responseData">;
+  api: Pick<ApiActions, "client" | "invalidResponse" | "request" | "responseData">;
   shell: Pick<ShellActions, "showError">;
   i18n: Pick<I18nActions, "t">;
   content: Pick<
@@ -104,8 +106,10 @@ export function createArtifacts(deps: Dependencies): Feature {
   async function loadSharedFiles(): Promise<void> {
     state.filesLoading = true;
     try {
-      state.files = (
-        await deps.api.api<{ files: DTO.Artifact[] }>(`/api/share/${deps.shares.state.sharedToken}/files`)
+      state.files = unwrap(
+        await deps.api.client.GET("/api/share/{token}/files", {
+          params: { path: { token: deps.shares.state.sharedToken } },
+        }),
       ).files;
       state.inputFiles = [];
     } catch (cause) {
@@ -120,8 +124,18 @@ export function createArtifacts(deps: Dependencies): Feature {
     state.filesLoading = true;
     try {
       const [outputs, inputs] = await Promise.all([
-        deps.chat.chatRead<{ files: DTO.Artifact[] }>(`/api/chats/${deps.chat.state.activeChat.id}/files`),
-        deps.chat.chatRead<{ files: DTO.Artifact[] }>(`/api/chats/${deps.chat.state.activeChat.id}/inputs`),
+        deps.api.client
+          .GET("/api/chats/{chat_id}/files", {
+            params: { path: { chat_id: deps.chat.state.activeChat.id } },
+            signal: deps.chat.readSignal(),
+          })
+          .then(unwrap),
+        deps.api.client
+          .GET("/api/chats/{chat_id}/inputs", {
+            params: { path: { chat_id: deps.chat.state.activeChat.id } },
+            signal: deps.chat.readSignal(),
+          })
+          .then(unwrap),
       ]);
       state.files = outputs.files;
       state.inputFiles = inputs.files;
@@ -136,14 +150,17 @@ export function createArtifacts(deps: Dependencies): Feature {
     state.libraryLoading = true;
     state.libraryPage = Math.max(1, page);
     try {
-      const params = new URLSearchParams({
-        page: String(state.libraryPage),
-        page_size: "20",
-      });
-      if (state.librarySearch.trim()) params.set("search", state.librarySearch.trim());
-      if (state.libraryAgentFilter) params.set("agent_id", state.libraryAgentFilter);
-      const data = await deps.api.api<{ files: DTO.Artifact[]; pages: number; total: number }>(
-        `/api/library/files?${params}`,
+      const data = unwrap(
+        await deps.api.client.GET("/api/library/files", {
+          params: {
+            query: {
+              page: state.libraryPage,
+              page_size: 20,
+              search: state.librarySearch.trim(),
+              agent_id: state.libraryAgentFilter || undefined,
+            },
+          },
+        }),
       );
       state.libraryFiles = data.files;
       state.libraryPages = data.pages;
@@ -247,9 +264,18 @@ export function createArtifacts(deps: Dependencies): Feature {
   }
   function chooseFileAttachment(file: DTO.Artifact): void {
     if (file.kind === "input") {
+      if (!file.chat_id || !file.created_at || !file.media_type) {
+        deps.shell.showError(new ApiError("Incomplete input-file metadata"));
+        return;
+      }
       state.pendingUploads.push({
-        ...file,
+        id: file.id,
+        chat_id: file.chat_id,
+        created_at: file.created_at,
         filename: file.name,
+        path: file.path,
+        media_type: file.media_type,
+        size: file.size,
       });
     } else {
       state.pendingArtifacts.push(file);
@@ -340,7 +366,7 @@ export function createArtifacts(deps: Dependencies): Feature {
     if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   }
-  async function uploadFiles(chat: DTO.Chat): Promise<DTO.Artifact[]> {
+  async function uploadFiles(chat: Pick<DTO.Chat, "id">): Promise<DTO.Upload[]> {
     if (!state.uploadSelection.length) return [];
     if (state.uploadingFiles) return [];
     state.uploadingFiles = true;
@@ -356,7 +382,8 @@ export function createArtifacts(deps: Dependencies): Feature {
           },
           body: file,
         });
-        const { data } = await deps.api.responseData<DTO.Artifact>(response, requestId, requestPath);
+        const { data } = await deps.api.responseData(response, requestId, requestPath);
+        if (!validateUploadResponse(data)) throw deps.api.invalidResponse(requestPath, requestId);
         state.pendingUploads.push(data);
         uploaded.push(data);
         removeUploadSelection(file, true);
@@ -379,7 +406,11 @@ export function createArtifacts(deps: Dependencies): Feature {
     const chat = deps.chat.state.activeChat;
     if (!chat) return;
     try {
-      await deps.api.api(`/api/chats/${chat.id}/uploads/${upload.id}`, { method: "DELETE" });
+      unwrap(
+        await deps.api.client.DELETE("/api/chats/{chat_id}/uploads/{upload_id}", {
+          params: { path: { chat_id: chat.id, upload_id: upload.id } },
+        }),
+      );
       state.pendingUploads = state.pendingUploads.filter((item) => item.id !== upload.id);
     } catch (cause) {
       const error = asError(cause);
@@ -473,12 +504,22 @@ export function createArtifacts(deps: Dependencies): Feature {
     }
     try {
       const data = share
-        ? await deps.api.api<{ content: string }>(
-            `/api/share/${encodeURIComponent(share || "")}/files/content?path=${encodeURIComponent(path)}`,
+        ? unwrap(
+            await deps.api.client.GET("/api/share/{token}/files/content", {
+              params: { path: { token: share || "" }, query: { path: path } },
+            }),
           )
-        : await deps.api.api<{ content: string }>(
-            `/api/chats/${encodeURIComponent(chatId || "")}/${params.get("kind") === "input" ? "inputs" : "files"}/content?path=${encodeURIComponent(path)}`,
-          );
+        : params.get("kind") === "input"
+          ? unwrap(
+              await deps.api.client.GET("/api/chats/{chat_id}/inputs/content", {
+                params: { path: { chat_id: chatId || "" }, query: { path } },
+              }),
+            )
+          : unwrap(
+              await deps.api.client.GET("/api/chats/{chat_id}/files/content", {
+                params: { path: { chat_id: chatId || "" }, query: { path } },
+              }),
+            );
       state.fileViewer = {
         chatId: chatId || `share:${share}`,
         kind: params.get("kind") === "input" ? "input" : "file",
@@ -509,10 +550,14 @@ export function createArtifacts(deps: Dependencies): Feature {
   }
   async function loadArtifactShare(chatId: string, path: string): Promise<void> {
     try {
-      state.fileViewer!.artifactShare = await deps.api.api<DTO.Share>(
-        `/api/chats/${encodeURIComponent(chatId || "")}/artifact-shares?path=${encodeURIComponent(path)}`,
-      );
-      state.fileViewer!.artifactShare!.kind = "artifact";
+      state.fileViewer!.artifactShare = {
+        ...unwrap(
+          await deps.api.client.GET("/api/chats/{chat_id}/artifact-shares", {
+            params: { path: { chat_id: chatId || "" }, query: { path: path } },
+          }),
+        ),
+        kind: "artifact",
+      };
     } catch (cause) {
       const error = asError(cause);
       if (error.status !== 404) deps.shell.showError(error);
@@ -525,11 +570,10 @@ export function createArtifacts(deps: Dependencies): Feature {
     if (!chatId || !path || state.sharingViewedFile) return;
     state.sharingViewedFile = true;
     try {
-      const data = await deps.api.api<DTO.Share>(
-        `/api/chats/${encodeURIComponent(chatId || "")}/artifact-shares?path=${encodeURIComponent(path)}`,
-        {
-          method: "POST",
-        },
+      const data = unwrap(
+        await deps.api.client.POST("/api/chats/{chat_id}/artifact-shares", {
+          params: { path: { chat_id: chatId || "" }, query: { path: path } },
+        }),
       );
       state.fileViewer!.artifactShare = {
         ...data,
@@ -565,7 +609,7 @@ export function createArtifacts(deps: Dependencies): Feature {
     state.pendingArtifacts = [];
     if (includeLocal) state.uploadSelection = [];
   }
-  function restoreUploads(uploads: DTO.Artifact[]): void {
+  function restoreUploads(uploads: DTO.Upload[]): void {
     state.pendingUploads = uploads;
   }
   function clearFileShare(token: string): void {

@@ -10,6 +10,7 @@ from ...config import Settings
 from ...pi_rpc import PiRpcError, PiRuntimeManager
 from ...resources import discover_resources
 from ...store import SUPPORTED_TOOLS, Store
+from .. import contracts
 
 
 class AgentCreate(BaseModel):
@@ -180,7 +181,11 @@ def create_router(
             != latest["content_hash"],
         }
 
-    @router.get("/api/agents")
+    @router.get(
+        "/api/agents",
+        response_model=contracts.AgentsResponse,
+        response_model_exclude_unset=True,
+    )
     async def list_agents(request: Request):
         return {
             "agents": [
@@ -189,7 +194,12 @@ def create_router(
             ]
         }
 
-    @router.post("/api/agents", status_code=201)
+    @router.post(
+        "/api/agents",
+        status_code=201,
+        response_model=contracts.AgentResponse,
+        response_model_exclude_unset=True,
+    )
     async def create_agent(payload: AgentCreate, request: Request):
         owner_id = user_id(request)
         if any(
@@ -233,7 +243,11 @@ def create_router(
             user_id=owner_id,
         )
 
-    @router.post("/api/agents/instruction-draft")
+    @router.post(
+        "/api/agents/instruction-draft",
+        response_model=contracts.AgentDraftResponse,
+        response_model_exclude_unset=True,
+    )
     async def generate_instruction(payload: AgentInstructionDraft):
         resource_catalog = catalog()
         validate_capabilities(
@@ -274,7 +288,11 @@ def create_router(
         validate_profile(profile["tags"], profile["quickstarts"])
         return profile
 
-    @router.get("/api/market/agents")
+    @router.get(
+        "/api/market/agents",
+        response_model=contracts.AgentsResponse,
+        response_model_exclude_unset=True,
+    )
     async def list_market_agents(request: Request):
         return {
             "agents": [
@@ -283,7 +301,11 @@ def create_router(
             ]
         }
 
-    @router.post("/api/agents/{agent_id}/publish")
+    @router.post(
+        "/api/agents/{agent_id}/publish",
+        response_model=contracts.AgentResultResponse,
+        response_model_exclude_unset=True,
+    )
     async def publish_agent(agent_id: str, payload: AgentPublish, request: Request):
         agent = active_agent_or_404(agent_id, request)
         version = normalize_agent_version(payload.version)
@@ -313,14 +335,23 @@ def create_router(
             raise HTTPException(404, "Published Agent avatar not found")
         return FileResponse(path)
 
-    @router.delete("/api/market/agents/{publication_id}")
+    @router.delete(
+        "/api/market/agents/{publication_id}",
+        response_model=contracts.DeletedAgentResponse,
+        response_model_exclude_unset=True,
+    )
     async def delete_market_agent(publication_id: str, request: Request):
         require_admin(request)
         if not store.delete_agent_publication(publication_id):
             raise HTTPException(404, "Published Agent not found")
         return {"ok": True, "id": publication_id}
 
-    @router.post("/api/market/agents/{publication_id}/install", status_code=201)
+    @router.post(
+        "/api/market/agents/{publication_id}/install",
+        status_code=201,
+        response_model=contracts.AgentResultResponse,
+        response_model_exclude_unset=True,
+    )
     async def install_market_agent(
         publication_id: str, payload: AgentInstall, request: Request
     ):
@@ -342,7 +373,11 @@ def create_router(
                 )
         return {"agent": installed}
 
-    @router.post("/api/agents/{agent_id}/market-update")
+    @router.post(
+        "/api/agents/{agent_id}/market-update",
+        response_model=contracts.AgentResponse,
+        response_model_exclude_unset=True,
+    )
     async def update_agent_from_marketplace(agent_id: str, request: Request):
         agent = active_agent_or_404(agent_id, request)
         if not agent.get("source_publication_id"):
@@ -352,7 +387,11 @@ def create_router(
             raise HTTPException(404, "Marketplace Agent not found")
         return agent_view(updated)
 
-    @router.get("/api/agents/{agent_id}")
+    @router.get(
+        "/api/agents/{agent_id}",
+        response_model=contracts.AgentResponse,
+        response_model_exclude_unset=True,
+    )
     async def get_agent(agent_id: str, request: Request):
         return active_agent_or_404(agent_id, request)
 
@@ -364,7 +403,11 @@ def create_router(
             raise HTTPException(404, "Agent avatar not found")
         return FileResponse(path)
 
-    @router.put("/api/agents/{agent_id}/avatar")
+    @router.put(
+        "/api/agents/{agent_id}/avatar",
+        response_model=contracts.AgentResponse,
+        response_model_exclude_unset=True,
+    )
     async def upload_agent_avatar(agent_id: str, request: Request):
         active_agent_or_404(agent_id, request)
         content_length = request.headers.get("content-length")
@@ -381,7 +424,11 @@ def create_router(
         )
         return store.update_agent(agent_id, {"avatar_path": avatar_path})
 
-    @router.patch("/api/agents/{agent_id}")
+    @router.patch(
+        "/api/agents/{agent_id}",
+        response_model=contracts.AgentResponse,
+        response_model_exclude_unset=True,
+    )
     async def update_agent(agent_id: str, payload: AgentUpdate, request: Request):
         resource_catalog = catalog()
         validate_capabilities(
@@ -409,7 +456,11 @@ def create_router(
             raise HTTPException(404, "Agent not found")
         return agent
 
-    @router.delete("/api/agents/{agent_id}")
+    @router.delete(
+        "/api/agents/{agent_id}",
+        response_model=contracts.OkResponse,
+        response_model_exclude_unset=True,
+    )
     async def delete_agent(agent_id: str, request: Request):
         agent = active_agent_or_404(agent_id, request)
         if not store.delete_agent(agent_id):

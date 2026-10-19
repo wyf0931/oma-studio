@@ -23,8 +23,10 @@ test("feature factories own independent state and consume only declared capabili
     });
     const { createUsage } = await import(pathToFileURL(join(output, "usage.mjs")));
     const { createChat } = await import(pathToFileURL(join(output, "chat.mjs")));
-    const first = createUsage({ api: { api: async () => ({ summary: { input_tokens: 1234, cost: 0.5 } }) } });
-    const second = createUsage({ api: { api: async () => ({}) } });
+    const first = createUsage({
+      api: { client: { GET: async () => ({ data: { summary: { input_tokens: 1234, cost: 0.5 } } }) } },
+    });
+    const second = createUsage({ api: { client: { GET: async () => ({ data: {} }) } } });
     await first.loadUsage();
     assert.equal(first.state.usageData.summary.input, 1234);
     assert.equal(second.state.usageData.summary.input, 0);

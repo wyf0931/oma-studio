@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from ...autopilots import AutopilotScheduler, next_run_at
 from ...pi_rpc import PiRpcError, PiRuntimeManager
 from ...store import Store, now_iso
+from .. import contracts
 
 
 class AutopilotCreate(BaseModel):
@@ -109,7 +110,11 @@ def create_router(
             "next_run_at": upcoming.isoformat() if upcoming else None,
         }
 
-    @router.get("")
+    @router.get(
+        "",
+        response_model=contracts.AutopilotsResponse,
+        response_model_exclude_unset=True,
+    )
     async def list_autopilots(
         request: Request, search: str = "", agent_id: str | None = None
     ):
@@ -123,7 +128,12 @@ def create_router(
             items = [item for item in items if query in item["name"].casefold()]
         return {"autopilots": items}
 
-    @router.post("", status_code=201)
+    @router.post(
+        "",
+        status_code=201,
+        response_model=contracts.AutopilotResponse,
+        response_model_exclude_unset=True,
+    )
     async def create_autopilot(payload: AutopilotCreate, request: Request):
         agent = visible_or_404(store.get_agent(payload.agent_id), request, "Agent")
         if next_run_at({"cron": payload.cron}, timezone=timezone_provider()) is None:
@@ -140,7 +150,11 @@ def create_router(
             )
         )
 
-    @router.patch("/{autopilot_id}")
+    @router.patch(
+        "/{autopilot_id}",
+        response_model=contracts.AutopilotResponse,
+        response_model_exclude_unset=True,
+    )
     async def update_autopilot(
         autopilot_id: str, payload: AutopilotUpdate, request: Request
     ):
@@ -162,14 +176,23 @@ def create_router(
             raise HTTPException(400, "Invalid cron expression")
         return view(store.update_autopilot(autopilot_id, values) or current)
 
-    @router.delete("/{autopilot_id}")
+    @router.delete(
+        "/{autopilot_id}",
+        response_model=contracts.OkResponse,
+        response_model_exclude_unset=True,
+    )
     async def delete_autopilot(autopilot_id: str, request: Request):
         visible_or_404(store.get_autopilot(autopilot_id), request, "Autopilot")
         if not store.delete_autopilot(autopilot_id):
             raise HTTPException(404, "Autopilot not found")
         return {"ok": True}
 
-    @router.post("/{autopilot_id}/run", status_code=202)
+    @router.post(
+        "/{autopilot_id}/run",
+        status_code=202,
+        response_model=contracts.QueuedResponse,
+        response_model_exclude_unset=True,
+    )
     async def run_autopilot(autopilot_id: str, request: Request):
         autopilot = visible_or_404(
             store.get_autopilot(autopilot_id), request, "Autopilot"
@@ -183,7 +206,11 @@ def create_router(
         asyncio.create_task(scheduler._execute(autopilot))
         return {"ok": True, "status": "queued"}
 
-    @router.get("/{autopilot_id}/runs")
+    @router.get(
+        "/{autopilot_id}/runs",
+        response_model=contracts.RunsResponse,
+        response_model_exclude_unset=True,
+    )
     async def list_autopilot_runs(autopilot_id: str, request: Request):
         visible_or_404(store.get_autopilot(autopilot_id), request, "Autopilot")
         return {

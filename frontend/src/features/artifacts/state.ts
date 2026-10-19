@@ -7,7 +7,7 @@ export function createArtifactsState() {
     files: [] as DTO.Artifact[],
     inputFiles: [] as DTO.Artifact[],
     filesTab: "outputs",
-    pendingUploads: [] as DTO.Artifact[],
+    pendingUploads: [] as DTO.Upload[],
     pendingArtifacts: [] as DTO.Artifact[],
     uploadingFiles: false,
     uploadDragActive: false,

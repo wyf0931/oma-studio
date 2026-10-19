@@ -17,4 +17,5 @@ def frontend_scripts() -> str:
     return "\n".join(
         path.read_text(encoding="utf-8")
         for path in sorted(Path("frontend/src").rglob("*.ts"))
+        if "generated" not in path.parts
     )

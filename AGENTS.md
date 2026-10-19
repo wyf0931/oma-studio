@@ -49,6 +49,9 @@ npm ci
 npm run format            # frontend source, build config and browser tests
 npm run typecheck
 npm run test:typecheck:policy
+npm run test:modules
+npm run test:contracts
+npm run api:check
 npm run format:check      # merge-gate check
 npm run lint              # Web API compatibility against .browserslistrc
 npm run test:compatibility:policy
@@ -121,7 +124,7 @@ data/           Legacy runtime data (pre-normalization archive, gitignored, supe
 - **No speculative design.** Build only what a current requirement needs. Future
   capabilities (SandboxRunner, auth, durable datastore, Agent marketplace) live in the README
   Roadmap and the design spec — do not pre-create stubs, interfaces, or config for them.
-- **Pragmatism over purity.** Single process, one-file frontend JS, file-based storage,
+- **Pragmatism over purity.** Single process, feature-owned Vue state, file-based storage,
   plain dicts at the Store boundary (SQLModel underneath) are conscious MVP choices, not oversights. Make the
   smallest change that satisfies the requirement; don't add layers (services,
   repositories, DI) until a concrete need appears. When you trade purity for simplicity,
@@ -183,7 +186,7 @@ Each issue gets one branch and one worktree, preferably including the issue numb
 
 ```bash
 git fetch origin
-git worktree add /private/tmp/pi-rpc-pydemo-issue-42 -b feat/issue-42-short-name origin/main
+git worktree add /private/tmp/pi-rpc-pydemo-issue-42 -b feat/issue-42-short-name origin/develop
 ```
 
 Parallel work is allowed only when the issues are independent. Do not modify the
@@ -198,6 +201,9 @@ uv run ruff format app tests
 uv run ruff check
 npm run typecheck
 npm run test:typecheck:policy
+npm run test:modules
+npm run test:contracts
+npm run api:check
 npm run format:check
 npm run lint
 npm run test:compatibility:policy
@@ -218,13 +224,16 @@ push its branch as requested by this project, but the merge gate is serialized:
 
 ```bash
 git fetch origin
-git switch main
-git pull --ff-only origin main
+git switch develop
+git pull --ff-only origin develop
 git merge --no-ff <issue-branch> -m "merge: <issue summary>"
 uv run ruff format --check app tests
 uv run ruff check
 npm run typecheck
 npm run test:typecheck:policy
+npm run test:modules
+npm run test:contracts
+npm run api:check
 npm run format:check
 npm run lint
 npm run test:compatibility:policy
@@ -232,17 +241,17 @@ npm run build
 uvx pyright app tests
 uv run pytest -q
 npm run test:frontend
-git push origin main
+git push origin develop
 ```
 
 Only one worker may perform this merge/push sequence at a time. On macOS/Linux,
 use an atomic directory under the shared Git directory as a short-lived merge
 lock, for example `mkdir "$GIT_COMMON_DIR/oma-merge.lock"`; if it already exists,
 wait or skip the merge. Never force-push. If push is rejected, release the lock,
-rebase or merge the new `origin/main` into the feature branch, rerun validation,
+rebase or merge the new `origin/develop` into the feature branch, rerun validation,
 and retry.
 
-The push triggers `.github/workflows/ci.yml`, which runs CI and production deploy.
+A develop push triggers CI only. A release merge from develop to main and its push require explicit owner authorization and the same serialized validation gate; only main pushes run production deploy.
 The worker must inspect the workflow result with `gh run view` and comment it on
 the Issue. A successful deploy is not user acceptance: keep the Issue in
 `status:awaiting-user` until the product owner verifies the production behavior.
@@ -252,8 +261,7 @@ only after the acceptance criteria and production smoke check are satisfied.
 
 ## Development workflow
 
-The repository has one long-lived branch, `main`, and `origin` is the deployment
-remote. Work on feature branches; never commit directly on `main`. Use the
+The repository uses `develop` for integration and `main` for releases; `origin` is the deployment remote. Start feature branches from `develop`; never commit directly on either integration or release branches. Use the
 Multi-agent Issue loop above for claimed Issue work, including its worktree,
 validation, merge-lock, and publication rules. For user-directed work outside an
 Issue, use the same branch-first and full-validation discipline, and only merge or
@@ -293,11 +301,15 @@ force-push it.
   reintroduce CDN scripts or the Tailwind browser compiler. Keep DaisyUI/Vue/Lucide
   and existing OMA UI/UX; see `docs/frontend-architecture.md` for the compatibility boundary.
 
-## Vue module rules
+## Vue module and API contract rules
 
-- Feature state factories own fresh state per mount; action modules declare explicit typed dependencies.
-- Views use SFCs with TypeScript and named reactive scope bindings; never expose the workspace on window.
-- `npm run build` must run vue-tsc before Vite. Keep strict templates and strict TypeScript enabled.
-- Keep untyped network payloads unknown until the endpoint contract or boundary parser supplies a type.
-- Native template icons are Vue Lucide components; imperative replacement is confined to dynamic HTML containers.
-- Keep the existing FastAPI/static deployment and CSS appearance. Add Router/Pinia only for a concrete requirement.
+- Feature factories own reactive state and closure actions. No Workspace type, flattened state/action spreads, bound this, dynamic scope adapter or window application object.
+- Cross-feature state ports are readonly; change another feature through named commands or an explicit workflow callback. Shared capabilities must not import feature/app implementations.
+- Views inject their individual features; reusable child components use typed props/emits.
+- Keep strict templates, strict TypeScript and noUncheckedIndexedAccess. Build runs contract artifact checks, vue-tsc and Vite in that order.
+- Endpoint calls use generated schema paths and request/response types, not caller-selected generic return types. Runtime guards and wire-to-view adapters handle external JSON/SSE.
+- Update response models with endpoint changes, then run `npm run api:generate`; commit the schema snapshot and generated contract artifacts. Never hand-edit generated types/validators.
+- The isolated exporter must not import app.main, touch production storage, start Pi, or resolve credentials. Keep CI live-schema verification and Node-only build fingerprint checks.
+- Response-validation logs must not include invalid input/output payloads or exception tracebacks containing them.
+- Template icons use Vue Lucide components; imperative replacement stays inside dynamic HTML containers. Keep existing FastAPI/static deployment, CSS and browser baseline.
+- New feature work is based on develop. Do not merge/push the current feature branch or release main unless explicitly authorized in the session.

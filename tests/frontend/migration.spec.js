@@ -34,7 +34,16 @@ test("Agent wizard edits persist through the existing API", async ({ page }) => 
 test("chat streaming completes, reasoning toggles and history survives navigation", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const chat = { id: "vue-stream-fixture", agent_id: "default", title: "Vue stream fixture", status: "ready" };
+  const chat = {
+    id: "vue-stream-fixture",
+    session_id: "vue-stream-fixture",
+    agent_id: "default",
+    title: "Vue stream fixture",
+    status: "ready",
+    created_at: "2026-10-19T00:00:00Z",
+    updated_at: "2026-10-19T00:00:00Z",
+    last_activity_at: "2026-10-19T00:00:00Z",
+  };
   let completed = false;
   const messages = [
     {
@@ -98,8 +107,33 @@ test("settings Escape and usage queries retain their lifecycle", async ({ page }
   await page.route("**/api/usage?days=*", (route) =>
     route.fulfill({
       json: {
-        summary: { session_count: 3, input_tokens: 1234, total_cost: 0.25 },
-        daily: [{ date: "2026-10-19", total_cost: 0.25 }],
+        range: { days: 7, from: "2026-10-13", to: "2026-10-19" },
+        summary: {
+          sessions: 3,
+          input_tokens: 1234,
+          output_tokens: 0,
+          cached_tokens: 0,
+          tool_calls: 0,
+          search_calls: 0,
+          fetch_calls: 0,
+          cost: 0.25,
+        },
+        daily: [
+          {
+            date: "2026-10-19",
+            sessions: 3,
+            input_tokens: 1234,
+            output_tokens: 0,
+            cached_tokens: 0,
+            tool_calls: 0,
+            search_calls: 0,
+            fetch_calls: 0,
+            cost: 0.25,
+          },
+        ],
+        sessions: [],
+        users: [],
+        agents: [],
       },
     }),
   );
@@ -119,4 +153,54 @@ test("settings Escape and usage queries retain their lifecycle", async ({ page }
   await expect(page.locator(".usage-dialog")).toBeVisible();
   await expect(page.locator(".usage-stat-card .stat-value").nth(1)).toHaveText("1.2k");
   await expect(page.locator(".usage-cost-card .stat-value")).toHaveText("¥0.2500");
+});
+
+test("invalid API payloads show a request ID without exposing their contents", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  await page.route("**/api/agents", (route) =>
+    route.fulfill({ json: { agents: "private-contract-payload" }, headers: { "X-Request-ID": requestId } }),
+  );
+  await login(page);
+  await expect(page.locator(".toast")).toContainText(requestId);
+  await expect(page.locator(".toast")).not.toContainText("private-contract-payload");
+  expect(errors).toEqual([]);
+});
+
+test("malformed stream events recover through the chat snapshot", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const chat = {
+    id: "recovery-fixture",
+    session_id: "recovery-fixture",
+    agent_id: "default",
+    title: "Recovery fixture",
+    status: "ready",
+    created_at: "now",
+    updated_at: "now",
+    last_activity_at: "now",
+  };
+  let sent = false;
+  await page.route("**/api/chats", (route) => route.fulfill({ json: { chats: [chat] } }));
+  await page.route("**/api/chats/recovery-fixture", (route) => route.fulfill({ json: chat }));
+  await page.route("**/api/chats/recovery-fixture/messages*", async (route) => {
+    if (route.request().method() === "POST") {
+      sent = true;
+      return route.fulfill({ contentType: "text/event-stream", body: 'data: {"type":"delta","delta":42}\n\n' });
+    }
+    return route.fulfill({
+      json: {
+        messages: sent
+          ? [{ role: "assistant", content: [{ type: "text", text: "Recovered snapshot" }], stopReason: "stop" }]
+          : [],
+      },
+    });
+  });
+  await login(page);
+  await page.goto("/chat/recovery-fixture");
+  await page.locator("#conversation-message").fill("Recover an invalid event");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.locator(".message-list")).toContainText("Recovered snapshot");
+  expect(errors).toEqual([]);
 });

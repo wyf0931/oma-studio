@@ -60,7 +60,8 @@ export function createApplication() {
     },
   });
   const api = createApi({
-    getMode: () => shell.state.mode,
+    baseUrl: location.origin,
+    fetch: (request) => fetch(request),
     onUnauthorized: (...args) => shell.handleUnauthorizedResponse(...args),
     get i18n() {
       return i18n;

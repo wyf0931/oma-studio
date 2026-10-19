@@ -1,4 +1,5 @@
 import type { Actions as ApiActions } from "../../shared/api";
+import { unwrap } from "../../shared/api";
 import { reactive } from "vue";
 import type * as DTO from "../../shared/types";
 import { asError, toRecord } from "../../shared/types";
@@ -25,7 +26,7 @@ export interface Feature extends Actions {
   state: State;
 }
 export interface Dependencies {
-  api: Pick<ApiActions, "api">;
+  api: Pick<ApiActions, "client">;
 }
 export function createUsage(deps: Dependencies): Feature {
   const state = reactive(createUsageState());
@@ -44,7 +45,9 @@ export function createUsage(deps: Dependencies): Feature {
     state.usageLoading = true;
     state.usageError = "";
     try {
-      const payload = await deps.api.api(`/api/usage?days=${encodeURIComponent(state.usageRange)}`);
+      const payload = unwrap(
+        await deps.api.client.GET("/api/usage", { params: { query: { days: Number(state.usageRange) } } }),
+      );
       state.usageData = normalizeUsageData(payload);
     } catch (cause) {
       const error = asError(cause);

@@ -6,6 +6,7 @@ import type { Actions as ArtifactsActions } from "../artifacts/actions";
 import type { Actions as I18nActions } from "../../shared/i18n";
 import type { Actions as PresentationActions } from "../chat/presentation";
 import type { Actions as DomActions } from "../../shared/dom";
+import { unwrap } from "../../shared/api";
 import { reactive } from "vue";
 import type * as DTO from "../../shared/types";
 import { asError } from "../../shared/types";
@@ -37,7 +38,7 @@ export interface Dependencies {
     state: Readonly<Pick<ChatState, "activeChat">>;
   };
   identity: { state: Readonly<Pick<IdentityState, "authUser">> };
-  api: Pick<ApiActions, "api">;
+  api: Pick<ApiActions, "client">;
   shell: Pick<ShellActions, "showError" | "showPage" | "showToast">;
   artifacts: Pick<ArtifactsActions, "clearFileShare">;
   i18n: Pick<I18nActions, "t">;
@@ -49,7 +50,7 @@ export function createShares(deps: Dependencies): Feature {
   async function loadShareRecords(): Promise<void> {
     state.shareRecordsLoading = true;
     try {
-      state.shareRecords = (await deps.api.api<{ shares: DTO.Share[] }>("/api/shares")).shares || [];
+      state.shareRecords = unwrap(await deps.api.client.GET("/api/shares")).shares || [];
     } catch (cause) {
       const error = asError(cause);
       deps.shell.showError(error);
@@ -74,7 +75,7 @@ export function createShares(deps: Dependencies): Feature {
     const viewingRevokedShare = state.sharedMode && share.token === state.sharedToken;
     state.shareRevoking = true;
     try {
-      await deps.api.api(`/api/shares/${encodeURIComponent(share.token)}`, { method: "DELETE" });
+      unwrap(await deps.api.client.DELETE("/api/shares/{token}", { params: { path: { token: share.token } } }));
       state.shareRecords = state.shareRecords.filter((item) => item.token !== share.token);
       deps.artifacts.clearFileShare(share.token);
       if (state.shareUrl.endsWith(`/share/${share.token}`) || state.shareUrl.includes(`share=${share.token}&`)) {
@@ -95,7 +96,11 @@ export function createShares(deps: Dependencies): Feature {
     if (!deps.chat.state.activeChat || state.sharedMode) return;
     try {
       state.shareTarget = "session";
-      const data = await deps.api.api<DTO.Share>(`/api/chats/${deps.chat.state.activeChat.id}/share`);
+      const data = unwrap(
+        await deps.api.client.GET("/api/chats/{chat_id}/share", {
+          params: { path: { chat_id: deps.chat.state.activeChat.id } },
+        }),
+      );
       state.shareUrl = `${location.origin}${data.url}`;
       state.shareStep = "created";
     } catch (cause) {
@@ -111,13 +116,18 @@ export function createShares(deps: Dependencies): Feature {
     deps.shell.showPage("chat");
     deps.chat.setMessagesLoading(true);
     try {
-      const data = await deps.api.api<{ can_manage: boolean; chat: DTO.Chat; messages: DTO.Message[] }>(
-        `/api/share/${encodeURIComponent(token)}`,
-      );
+      const data = unwrap(await deps.api.client.GET("/api/share/{token}", { params: { path: { token: token } } }));
       // Only the account that owns the link may revoke it from this page.
       state.sharedCanManage = Boolean(data.can_manage);
       deps.chat.setSharedConversation(
-        { ...data.chat, id: `share:${token}`, status: "ready" },
+        {
+          id: `share:${token}`,
+          status: "ready",
+          title: data.chat.title || "Shared conversation",
+          agent_id: data.chat.agent_id || "",
+          created_at: data.chat.created_at || "",
+          updated_at: data.chat.updated_at || "",
+        },
         deps.presentation.normalizeMessages(data.messages || []),
       );
       deps.dom.scrollMessagesToLatest();
@@ -163,9 +173,11 @@ export function createShares(deps: Dependencies): Feature {
     state.creatingShare = true;
     try {
       state.shareTarget = "session";
-      const data = await deps.api.api<DTO.Share>(`/api/chats/${deps.chat.state.activeChat.id}/share`, {
-        method: "POST",
-      });
+      const data = unwrap(
+        await deps.api.client.POST("/api/chats/{chat_id}/share", {
+          params: { path: { chat_id: deps.chat.state.activeChat.id } },
+        }),
+      );
       state.shareUrl = `${location.origin}/share/${data.token}`;
       state.shareStep = "created";
       try {
