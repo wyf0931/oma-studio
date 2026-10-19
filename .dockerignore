@@ -12,7 +12,8 @@ workspace
 node_modules
 research
 docs
-bin
+bin/*
+!bin/generate-api.mjs
 dist
 test-results
 playwright-report

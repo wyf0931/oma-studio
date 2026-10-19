@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, field_va
 from ...auth_limits import AuthRateLimits
 from ...config import Settings
 from ...store import Store
+from .. import contracts
 
 SESSION_COOKIE = "oma_session"
 
@@ -54,7 +55,11 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
     router = APIRouter(prefix="/api", tags=["identity"])
     rate_limits = AuthRateLimits()
 
-    @router.post("/auth/login")
+    @router.post(
+        "/auth/login",
+        response_model=contracts.UserResponse,
+        response_model_exclude_unset=True,
+    )
     async def login(payload: LoginPayload, request: Request, response: Response):
         username = payload.username.strip()
         client = request.client.host if request.client else "unknown"
@@ -77,12 +82,20 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
         )
         return store.public_user(user)
 
-    @router.get("/auth/session")
+    @router.get(
+        "/auth/session",
+        response_model=contracts.SessionResponse,
+        response_model_exclude_unset=True,
+    )
     async def auth_session(request: Request):
         user = request.state.user
         return {"user": store.public_user(user) if user else None}
 
-    @router.post("/auth/logout")
+    @router.post(
+        "/auth/logout",
+        response_model=contracts.OkResponse,
+        response_model_exclude_unset=True,
+    )
     async def logout(request: Request, response: Response):
         token = request.cookies.get(SESSION_COOKIE)
         if token:
@@ -90,7 +103,11 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
         response.delete_cookie(SESSION_COOKIE)
         return {"ok": True}
 
-    @router.patch("/users/me")
+    @router.patch(
+        "/users/me",
+        response_model=contracts.UserResponse,
+        response_model_exclude_unset=True,
+    )
     async def update_profile(payload: ProfileUpdate, request: Request):
         user = request.state.user
         if not user:
@@ -100,7 +117,11 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
         )
         return store.public_user(updated or user)
 
-    @router.post("/users/me/password")
+    @router.post(
+        "/users/me/password",
+        response_model=contracts.OkResponse,
+        response_model_exclude_unset=True,
+    )
     async def change_password(payload: PasswordChange, request: Request):
         user = request.state.user
         token = request.cookies.get(SESSION_COOKIE)
@@ -117,12 +138,21 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
         rate_limits.password_changed(user["id"])
         return {"ok": True}
 
-    @router.get("/users")
+    @router.get(
+        "/users",
+        response_model=contracts.UsersResponse,
+        response_model_exclude_unset=True,
+    )
     async def list_users(request: Request):
         _require_admin(request)
         return {"users": store.list_users()}
 
-    @router.post("/users", status_code=201)
+    @router.post(
+        "/users",
+        status_code=201,
+        response_model=contracts.UserResponse,
+        response_model_exclude_unset=True,
+    )
     async def create_user(payload: UserCreate, request: Request):
         _require_admin(request)
         if not settings.default_user_password:
@@ -135,7 +165,11 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
         )
         return store.public_user(user)
 
-    @router.patch("/users/{user_id}/status")
+    @router.patch(
+        "/users/{user_id}/status",
+        response_model=contracts.UserResponse,
+        response_model_exclude_unset=True,
+    )
     async def update_user_status(
         user_id: str, payload: UserStatusUpdate, request: Request
     ):
@@ -148,7 +182,11 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
         updated = store.update_user_status(user_id, payload.status)
         return store.public_user(updated or user)
 
-    @router.delete("/users/{user_id}")
+    @router.delete(
+        "/users/{user_id}",
+        response_model=contracts.OkResponse,
+        response_model_exclude_unset=True,
+    )
     async def delete_user(user_id: str, request: Request):
         _require_admin(request)
         user = store.get_user(user_id)

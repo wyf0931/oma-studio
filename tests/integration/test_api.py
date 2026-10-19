@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from frontend_sources import frontend_scripts, frontend_templates
 
 from app.api.routers.agents import validate_model_configuration
 from app.api.routers.chats import visible_messages
@@ -381,12 +382,12 @@ def test_instruction_draft_rejects_unknown_skill(client):
 
 
 def test_agent_instruction_generator_control_is_present():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
 
-    assert 'data-lucide="pencil-sparkles"' in html
+    assert 'name="pencil-sparkles"' in html
     assert '@click="generateAgentInstruction"' in html
-    assert "async generateAgentInstruction()" in script
+    assert "async function generateAgentInstruction(" in script
     assert '"/api/agents/instruction-draft"' in script
     assert "Auto (system default)" in html
     assert "agentModelConfigPayload()" in script
@@ -399,8 +400,8 @@ def test_agent_instruction_generator_control_is_present():
 
 
 def test_agent_editor_uses_clickable_three_step_wizard_with_skill_search():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'class="steps agent-wizard-steps"' in html
@@ -421,18 +422,18 @@ def test_agent_editor_uses_clickable_three_step_wizard_with_skill_search():
 
 
 def test_agent_editor_keeps_nonempty_draft_open_on_backdrop_click():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
 
     assert '@click.self="dismissAgentDialogFromBackdrop()"' in html
     assert "hasAgentDraft()" in script
-    assert "this.newAgentDescription.trim()" in script
-    assert "this.newAgentQuickstarts.trim()" in script
-    assert "if (!this.hasAgentDraft()) this.createDialog = false;" in script
+    assert "state.newAgentDescription.trim()" in script
+    assert "state.newAgentQuickstarts.trim()" in script
+    assert "if (!hasAgentDraft()) state.createDialog = false;" in script
 
 
 def test_favicon_assets_are_explicit_and_ico_is_not_spa_html(client):
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    html = frontend_templates()
 
     assert 'id="app-favicon"' in html
     assert 'rel="icon"' in html
@@ -473,7 +474,7 @@ def assert_opaque_png(path):
 
 
 def test_apple_touch_icon_is_opaque_and_resolves_to_a_real_asset(client):
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    html = frontend_templates()
 
     links = APPLE_TOUCH_ICON_LINK.findall(html)
     assert links, (
@@ -513,7 +514,7 @@ def test_apple_touch_icon_is_opaque_and_resolves_to_a_real_asset(client):
 
 
 def test_agent_edit_entry_is_card_action_only():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    html = frontend_templates()
 
     assert 'class="trash-btn agent-publish-btn agent-edit-btn"' in html
     assert '@click.stop="editAgent(agent)"' in html
@@ -538,31 +539,31 @@ def test_agent_card_typography_matches_marketplace_cards():
 
 
 def test_marketplace_agent_cards_show_server_derived_installation_states():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    html = frontend_templates()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "item.installation_status === 'installed'" in html
     assert "item.installation_status === 'update_available'" in html
-    assert 'data-lucide="circle-check"' in html
-    assert 'data-lucide="circle-fading-arrow-up"' in html
+    assert 'name="circle-check"' in html
+    assert 'name="circle-fading-arrow-up"' in html
     assert ".market-agent-status-installed" in styles
     assert ".market-agent-status-update" in styles
 
 
 def test_agent_marketplace_update_uses_one_confirmed_flow():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
 
-    assert 'data-lucide="circle-fading-arrow-up"' in html
+    assert 'name="circle-fading-arrow-up"' in html
     assert '@click.stop="requestMarketplaceAgentUpdate(agent)"' in html
     assert '@click.stop="requestMarketListingUpdate(item)"' in html
     assert "Your local changes may be overwritten." in Path(
         "static/locales/en.json"
     ).read_text(encoding="utf-8")
     assert "confirmMarketplaceAgentUpdate()" in html
-    assert "requestMarketListingUpdate(item)" in script
+    assert "requestMarketListingUpdate(" in script
     assert "/market-update" in script
-    assert "x-text=\"t('marketplace.confirmUpdate')\"" in html
+    assert "v-text=\"t('marketplace.confirmUpdate')\"" in html
 
 
 def test_chinese_agent_update_warning_uses_localized_marketplace_name():
@@ -575,37 +576,28 @@ def test_chinese_agent_update_warning_uses_localized_marketplace_name():
 
 
 def test_frontend_request_transport_keeps_json_binary_and_streaming_paths_distinct():
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
-
-    assert "async request(path, options = {})" in script
-    assert "async responseData(response, requestId, requestPath)" in script
-    assert 'headers.set("X-Request-ID", requestId)' in script
-    assert 'if (options.body !== undefined && !headers.has("Content-Type"))' in script
+    script = frontend_scripts()
+    assert "createClient<paths>" in script
+    assert 'request.headers.set("X-Request-ID", createId())' in script
+    assert "responseValidators[" in script
     assert '"X-Upload-Filename": encodeURIComponent(file.name)' in script
     assert "response.body.getReader()" in script
     assert "new EventSource(`/api/chats/${chatId}/stream`)" in script
+    assert "data as T" not in script
 
 
 def test_chat_view_reads_are_abortable_without_cancelling_writes_or_streams():
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    script = frontend_scripts()
 
     assert "chatReadController: null" in script
-    assert "this.chatReadController = new AbortController();" in script
-    assert "this.chatReadController?.abort();" in script
-    assert 'return error?.name === "AbortError";' in script
-    assert (
-        "return this.api(path, { signal: this.chatReadController?.signal });" in script
-    )
-    assert "this.beginChatReads();" in script
-    assert "this.abortChatReads();" in script
-    assert (
-        "await this.chatRead(`/api/chats/${chatId}/messages?mode=${this.mode}`)"
-        in script
-    )
-    assert (
-        "body: JSON.stringify({ content, upload_ids: uploadIds, artifact_paths: artifactPaths })"
-        in script
-    )
+    assert "state.chatReadController = new AbortController();" in script
+    assert "state.chatReadController?.abort();" in script
+    assert 'return error instanceof Error && error.name === "AbortError";' in script
+    assert "return state.chatReadController?.signal;" in script
+    assert "beginChatReads();" in script
+    assert "deps.chat.abortChatReads();" in script
+    assert "/api/chats/{chat_id}/messages" in script
+    assert "body: JSON.stringify(payload)" in script
     assert "new EventSource(`/api/chats/${chatId}/stream`)" in script
 
 
@@ -618,61 +610,58 @@ def test_thought_blocks_follow_the_turn_state_and_honor_user_preference():
     collapsed while the in-flight round is open.
     """
 
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    script = frontend_scripts()
 
     assert 'const label = isStreaming ? "Thinking"' in script
     assert (
-        "Object.prototype.hasOwnProperty.call(this.reasoningOpen, reasoningKey)"
+        "Object.prototype.hasOwnProperty.call(state.reasoningOpen, reasoningKey)"
         in script
     )
     # No preference recorded follows the turn state; a recorded preference wins.
     assert (
-        'const checked = (hasPreference ? this.reasoningOpen[reasoningKey] : isStreaming) ? " checked" : "";'
+        'const checked = (hasPreference ? state.reasoningOpen[reasoningKey] : isStreaming) ? " checked" : "";'
         in script
     )
     assert "this.reasoningOpen[reasoningKey] : true" not in script
     # The render path is read-only: setReasoningOpen() is the only writer, so an
     # automatic transition can never be mistaken for a user choice.
-    assert script.count("this.reasoningOpen[") == 2
-    assert "if (key) this.reasoningOpen[key] = input.checked;" in script
+    assert script.count("state.reasoningOpen[") == 2
+    assert "if (key) state.reasoningOpen[key] = input.checked;" in script
     # The group's own streaming flag drives the default, one group per turn.
     assert (
         "renderReasoning(message._reasoningParts || [], message._key, message._streaming)"
         in script
     )
-    assert "renderReasoning(parts, messageKey, isStreaming = false)" in script
+    assert "renderReasoning(" in script
     assert (
-        "assistantGroup._streaming = assistantGroup._streaming || message._streaming;"
+        "assistantGroup._streaming = assistantGroup._streaming || Boolean(message._streaming);"
         in script
     )
 
 
 def test_chat_viewport_and_composer_use_latest_message_and_seven_line_contract():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'id="conversation-message"' in html
     assert 'rows="1"' in html
-    assert (
-        '@input="resizeConversationInput($event); updateAttachmentCommandState()"'
-        in html
-    )
-    assert 'x-ref="chatContent"' in html
+    assert "resizeConversationInput($event)" in html
+    assert 'data-ref="chatContent"' in html
     assert "scrollMessagesToLatest()" in script
     assert "const maxHeight = lineHeight * 7 + verticalPadding" in script
     assert "chatContent.scrollTop = chatContent.scrollHeight" in script
-    assert "this.scrollMessagesToLatest();" in script
+    assert "deps.dom.scrollMessagesToLatest();" in script
     assert ".composer textarea" in styles
     assert "max-height: calc(10.5em + 24px);" in styles
 
 
 def test_client_redirects_expired_sessions_only_for_authenticated_401_responses():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
-    assert "handleUnauthorizedResponse(response, requestPath, error);" in script
+    assert "deps.onUnauthorized(response, requestPath, error);" in script
     assert "response.status !== 401" in script
     assert 'path === "/api/auth/login"' in script
     assert 'path === "/api/auth/session"' in script
@@ -684,20 +673,17 @@ def test_client_redirects_expired_sessions_only_for_authenticated_401_responses(
 
 
 def test_lucide_icons_render_after_unauthenticated_boot_and_first_login():
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    script = frontend_scripts()
 
-    assert "this.observeIcons();" in script
-    assert "this.renderIconsSoon();" in script
+    assert "deps.dom.observeIcons();" in script
+    assert "deps.dom.renderIconsSoon();" in script
     assert "renderIconsSoon()" in script
-    assert (
-        "this.$nextTick(() => requestAnimationFrame(() => this.renderIcons()));"
-        in script
-    )
+    assert "nextTick(() => requestAnimationFrame(() => renderIcons()));" in script
 
 
 def test_agent_tools_use_product_capability_groups_with_safe_defaults():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "tool-group-grid" in html
@@ -724,14 +710,14 @@ def test_agent_tools_use_product_capability_groups_with_safe_defaults():
 
 
 def test_generated_images_render_as_responsive_file_artifacts_and_refresh_files():
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "imageArtifactMessage(message, index)" in script
     assert "assistantGroup._imageArtifacts.push(artifact)" in script
-    assert "renderImageArtifact(message)" in script
+    assert "renderImageArtifact(" in script
     assert "refreshOpenFiles(chatId)" in script
-    assert "if (this.filesOpen && this.activeChat)" in script
+    assert "if (state.filesOpen && deps.chat.state.activeChat)" in script
     assert ".chat-image-artifact img" in styles
     assert "margin: 24px 0 30px" in styles
     assert "max-height: min(68vh, 720px)" in styles
@@ -739,7 +725,7 @@ def test_generated_images_render_as_responsive_file_artifacts_and_refresh_files(
 
 
 def test_agent_picker_menus_limit_height_and_scroll_overflow():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    html = frontend_templates()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'class="agent-picker-menu"' in html
@@ -750,27 +736,27 @@ def test_agent_picker_menus_limit_height_and_scroll_overflow():
 
 
 def test_chat_image_artifacts_use_daisyui_skeleton_loading_state():
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'class="chat-image-artifact skeleton"' in script
     assert 'loading="lazy"' in script
     assert 'decoding="async"' in script
-    assert 'document.addEventListener(\n        "load"' in script
+    assert "document.addEventListener(" in script
     assert 'artifact.classList.remove("skeleton")' in script
     assert ".chat-image-artifact.skeleton" in styles
     assert ".chat-image-artifact.is-loaded" in styles
 
 
 def test_mobile_chat_truncates_tool_paths_and_keeps_composer_in_safe_area():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "viewport-fit=cover" in html
-    assert "processFileName(path)" in script
-    assert 'this.processLine("Read", this.processFileName(args.path))' in script
-    assert 'title="${this.escape(fullValue)}"' in script
+    assert "processFileName(" in script
+    assert 'processLine("Read", processFileName(args.path))' in script
+    assert 'title="${deps.format.escape(fullValue)}"' in script
     assert "flex: 1 1 0" in styles
     assert "height: 100dvh" in styles
     assert "safe-area-inset-bottom" in styles
@@ -781,16 +767,16 @@ def test_mobile_chat_truncates_tool_paths_and_keeps_composer_in_safe_area():
 
 
 def test_agent_profile_detail_contract_is_user_facing():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
     assert html.count("t('nav.newTask')") >= 3
     assert "agentAvatarMarkup(agent, 'large')" in html
     assert "agentAvatarMarkup(dialog, 'large')" in html
     assert "agentTagsMarkup(agent.tags)" in html
     assert "agentTagsMarkup(dialog.tags)" in html
-    assert 'agentAvatarMarkup(agent, size = "", market = false)' in script
-    assert "agentTagsMarkup(tags, limit = 4)" in script
+    assert "agentAvatarMarkup(" in script
+    assert "agentTagsMarkup(" in script
     assert "grid-template-columns: repeat(3, minmax(0, 1fr))" in styles
     assert "flex-wrap: nowrap" in styles
     assert "aspect-ratio: 1" in styles
@@ -801,8 +787,8 @@ def test_agent_profile_detail_contract_is_user_facing():
     assert "t('agents.startNewChat')" in html
     assert "agent-quickstart" in html
     assert "agent-skill-row" in html
-    assert "startQuickstart(agent, prompt)" in script
-    assert "this.draft = prompt" in script
+    assert "startQuickstart(" in script
+    assert "state.draft = prompt" in script
     assert '<label for="new-agent-name">name' in html
     assert '<label for="new-agent-description">description' in html
     assert 'for="new-agent-tags">tags' in html
@@ -810,16 +796,17 @@ def test_agent_profile_detail_contract_is_user_facing():
 
 
 def test_frontend_i18n_resources_and_language_switch_contract():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
     chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
 
-    entry = Path("frontend/src/main.js").read_text(encoding="utf-8")
-    assert 'import i18next from "i18next"' in entry
+    entry = Path("frontend/src/main.ts").read_text(encoding="utf-8")
+    assert 'createApp(App).mount("#app")' in entry
+    assert 'import i18next from "i18next"' in script
     assert "static/locales/${locale}.json" in script
     assert 'fallbackLng: "en"' in script
-    assert "document.documentElement.lang = this.language" in script
+    assert "document.documentElement.lang = state.language" in script
     assert 'value="zh-CN"' in html
     assert english["nav"]["newTask"] == "New Task"
     assert chinese["nav"]["newTask"] == "新任务"
@@ -828,13 +815,13 @@ def test_frontend_i18n_resources_and_language_switch_contract():
 
 
 def test_agent_catalog_search_covers_installed_and_marketplace_agents():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
     chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
 
-    assert 'x-model="agentSearch"' in html
-    assert 'x-for="agent in agentItems()"' in html
+    assert 'v-model="agentSearch"' in html
+    assert 'v-for="agent in agentItems()"' in html
     assert 'item.description || ""' in script
     assert '(item.tags || []).join(" ")' in script
     assert english["agents"]["search"] == "Search installed agents"
@@ -844,8 +831,8 @@ def test_agent_catalog_search_covers_installed_and_marketplace_agents():
 
 
 def test_agent_profile_textareas_auto_resize_from_one_row():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     assert html.count('rows="1"') >= 3
     assert html.count('@input="resizeAgentTextarea($event)"') == 3
     assert "resizeAgentTextareas()" in script
@@ -864,31 +851,33 @@ def test_agent_profile_textareas_auto_resize_from_one_row():
 
 
 def test_agent_save_refreshes_list_without_opening_detail_dialog():
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    script = frontend_scripts()
 
-    assert "await this.refreshAgents();" in script
-    assert "this.createDialog = false;" in script
-    assert "this.dialog = null;" in script
+    assert "await deps.agents.refreshAgents();" in script
+    assert "state.createDialog = false;" in script
+    assert "state.dialog = null;" in script
     assert "this.dialog = refreshedAgent;" not in script
 
 
 def test_file_preview_code_blocks_offer_a_copy_action():
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
     english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
     chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
 
     # One code-block renderer covers every supported code file (json, yaml, txt, sh, xml…).
-    code_extensions = script.split("isCodeFile(path) {", 1)[1].split("].includes", 1)[0]
+    code_extensions = script.split("function isCodeFile(", 1)[1].split("].includes", 1)[
+        0
+    ]
     for extension in ("json", "yaml", "yml", "txt", "sh", "bash", "xml"):
         assert f'"{extension}"' in code_extensions
 
     # The button sits inside the block, copies the code element, and swaps its glyph.
     assert 'class="code-block"' in script
     assert 'class="code-copy-btn"' in script
-    assert 'onclick="window.omaPlatform.copyCodeBlock(this)"' in script
+    assert 'data-copy-code=""' in script
     assert 'block?.querySelector("code")?.textContent' in script
-    assert "copyCodeBlock(button) {" in script
+    assert "async function copyCodeBlock(" in script
     assert 'button.classList.add("copied")' in script
 
     # Pinned to the block's top-right, outside the horizontal scroller.
@@ -906,18 +895,18 @@ def test_file_preview_code_blocks_offer_a_copy_action():
 
 
 def test_structured_file_preview_uses_csv_table_and_code_renderer():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
-    assert 'x-html="renderFilePreview()"' in html
+    assert 'v-html="renderFilePreview()"' in html
     assert "parseCsv(source)" in script
     assert "isCsvFile(path)" in script
     assert 'class="table table-zebra csv-table"' in script
     assert 'class="mockup-code overflow-x-auto w-full"' in script
-    assert 'class="hljs language-${this.escape(language)}"' in script
+    assert 'class="hljs language-${deps.format.escape(language)}"' in script
     assert "syncHighlightTheme()" in script
-    themes = Path("frontend/src/ui/code-themes.js").read_text(encoding="utf-8")
+    themes = Path("frontend/src/ui/code-themes.ts").read_text(encoding="utf-8")
     assert "highlight.js/styles/github-dark.css?inline" in themes
     assert "--code-surface: #0d1117" in styles
     assert "--code-ink: #e6edf3" in styles
@@ -945,28 +934,28 @@ def test_new_chat_is_removed_when_pi_cannot_start(client, temporary_agent, monke
 
 
 def test_user_management_is_available_only_from_the_admin_profile_menu():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'title="Users"' not in html
     assert '@click="openProfileUsers()"' in html
-    assert "x-show=\"authUser?.role === 'admin'\"" in html
+    assert "v-show=\"authUser?.role === 'admin'\"" in html
     assert "usersOpen" in script
     assert "openProfileUsers()" in script
-    assert "async openSettingsTab(tab)" in script
+    assert "async function openSettingsTab(" in script
     assert ".users-modal-box" in styles
     assert "display: flex" in styles
     assert "flex: 1 1 auto" in styles
 
 
 def test_theme_preference_defaults_to_system_and_is_managed_in_settings():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
 
     assert 'themePreference: "system"' in script
     assert (
-        'localStorage.setItem("oma-theme-preference", this.themePreference)' in script
+        'localStorage.setItem("oma-theme-preference", state.themePreference)' in script
     )
     assert 'matchMedia?.("(prefers-color-scheme: dark)")' in script
     assert 'systemThemeQuery?.addEventListener("change"' in script
@@ -975,14 +964,14 @@ def test_theme_preference_defaults_to_system_and_is_managed_in_settings():
 
 
 def test_dark_theme_uses_contrast_safe_boot_logo_and_synchronized_favicon():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'id="app-favicon"' in html
     assert 'rel="shortcut icon"' not in html
-    assert "this.syncFavicon();" in script
-    assert 'document.getElementById("app-favicon")' in script
+    assert "syncFavicon();" in script
+    assert 'document.querySelector<HTMLLinkElement>("#app-favicon")' in script
     assert "favicon-dark-32.png" in script
     assert '[data-theme="dark"] .app-boot-brand img,' in styles
     assert '[data-theme="dark"] .login-brand img,' in styles
@@ -1090,10 +1079,10 @@ def test_market_mcp_server_add_and_delete_are_admin_only(client, monkeypatch):
 
 
 def test_mcp_market_cards_use_the_shared_author_label():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    html = frontend_templates()
 
     assert "marketResourceAuthor('mcp_servers', item)" in html
-    assert 'data-lucide="user"' in html
+    assert 'name="user"' in html
     assert '<span class="market-card-author">MCP server</span>' not in html
 
 
@@ -1406,16 +1395,16 @@ def test_admin_can_delete_marketplace_publication_without_deleting_installed_cop
 
 
 def test_marketplace_agent_delete_ui_is_admin_only_and_confirmed():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
 
-    assert "x-show=\"authUser?.role === 'admin'\"" in html
-    assert 'data-lucide="trash-2"' in html
+    assert "v-show=\"authUser?.role === 'admin'\"" in html
+    assert 'name="trash-2"' in html
     assert "deleteMarketAgent(item)" in html
     assert "confirmDeleteMarketAgent()" in html
     assert "DELETE /api/market/agents/{id}" not in html
-    assert "`/api/market/agents/${agent.id}`" in script
-    assert 'method: "DELETE"' in script
+    assert "/api/market/agents/{publication_id}" in script
+    assert "deps.api.client.DELETE(" in script
     assert "Existing installed Agents and" in html
 
 
@@ -1429,14 +1418,14 @@ def test_auth_login_uses_24_hour_cookie(client):
 
 
 def test_file_download_links_preserve_generated_filename():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    html = frontend_templates()
 
     assert html.count(':download="file.name"') == 2
 
 
 def test_file_preview_offers_the_drawer_and_library_download_entry():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
     english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
     chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
@@ -1448,11 +1437,11 @@ def test_file_preview_offers_the_drawer_and_library_download_entry():
     # Download sits left of share in the same fixed top-right cluster.
     assert actions.index("file-view-download") < actions.index("file-view-share")
     # Token-gated shared previews stay read-only: the download endpoint needs a session.
-    assert 'x-show="!fileViewer?.isShared"' in actions
+    assert 'v-show="!fileViewer?.isShared"' in actions
 
     # Same endpoint helper the drawer and the library already use.
-    assert "fileViewerDownloadUrl() {" in script
-    assert "this.downloadUrl({" in script
+    assert "function fileViewerDownloadUrl(" in script
+    assert "downloadUrl({" in script
     assert 'kind: params.get("kind") === "input" ? "input" : "file"' in script
     # The two existing entry points keep their own binding.
     assert html.count(':download="file.name"') == 2
@@ -1551,10 +1540,10 @@ def test_chat_file_view_serves_native_files_inline_and_sandboxes_html(
 
 
 def test_native_files_open_in_browser_tabs_while_text_files_keep_internal_preview():
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    script = frontend_scripts()
 
     assert "opensInNativeBrowser(file)" in script
-    assert "browserViewUrl(file.chat_id, file.path)" in script
+    assert 'browserViewUrl(file.chat_id || "", file.path)' in script
     assert '"html"' in script
     assert '"png"' in script
     assert '"jpg"' in script
@@ -1697,14 +1686,14 @@ def test_chat_upload_file_limit_is_one_hundred(client, temporary_agent):
 
 
 def test_chat_detail_files_tabs_and_mobile_markdown_boundaries_are_explicit():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'class="tabs tabs-box files-tabs"' in html
     assert "filesTab === 'outputs'" in html
     assert "filesTab === 'inputs'" in html
-    assert "this.chatRead(`/api/chats/${this.activeChat.id}/inputs`)" in script
+    assert "/api/chats/{chat_id}/inputs" in script
     assert 'wrapper.className = "markdown-table-wrap"' in script
     assert ".file-markdown .markdown-table-wrap" in styles
     assert ".file-view-page," in styles
@@ -1775,7 +1764,7 @@ def test_long_user_messages_wrap_inside_the_chat_bubble():
 
 
 def test_error_toast_stays_above_fixed_chat_composer():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    html = frontend_templates()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'class="toast"' in html
@@ -1783,57 +1772,57 @@ def test_error_toast_stays_above_fixed_chat_composer():
 
 
 def test_successful_upload_removes_file_from_local_selection_before_send():
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    script = frontend_scripts()
 
     assert "removeUploadSelection(file, true)" in script
 
 
 def test_client_uploads_chat_files_and_limits_at_mentions_to_published_artifacts():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
 
     assert "openUploadPicker()" in script
-    assert "handleUploadSelection(event)" in script
+    assert "handleUploadSelection(" in script
     assert "attachmentCommandItems()" in script
     assert "this.files.filter" not in script
     assert "/uploads" in script
     assert "pendingArtifacts" in script
-    assert 'x-ref="uploadInput"' in html
-    assert 'data-lucide="paperclip"' in html
-    assert "this.activeChat = chat;" in script
+    assert 'data-ref="uploadInput"' in html
+    assert 'name="paperclip"' in html
+    assert "state.activeChat = chat;" in script
     assert "uploadSelection" in script
     assert "addUploadSelection(selected)" in script
     assert "pendingAttachments()" in script
-    assert "await this.uploadFiles(this.activeChat)" in script
+    assert "await deps.artifacts.uploadFiles(state.activeChat)" in script
     assert "handleContentDragEnter($event)" in html
     assert "handleContentDragOver($event)" in html
     assert "handleContentDragLeave($event)" in html
     assert 'class="drag-upload-overlay"' in html
-    assert "this.uploadLimits" in script
+    assert "deps.artifacts.state.uploadLimits" in script
 
 
 def test_chat_at_picker_includes_inputs_and_supports_keyboard_completion():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
-    assert "this.inputFiles.map" in script
+    assert "state.inputFiles.map" in script
     assert 'kind: "input"' in script
-    assert "this.pendingUploads.push" in script
+    assert "state.pendingUploads.push" in script
     assert "handleAttachmentKeydown($event)" in html
     assert 'event.key === "ArrowDown"' in script
     assert 'event.key === "ArrowUp"' in script
     assert 'event.key === "Tab"' in script
-    assert ':class="{selected: index === attachmentCommandIndex}"' in html
+    assert ':class="{ selected: index === attachmentCommandIndex }"' in html
     assert "left: 0;" in styles
 
 
 def test_composer_actions_stay_bottom_aligned_and_send_is_idle_ghost():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    html = frontend_templates()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
-    assert ':class="{idle: !draft.trim()}"' in html
-    assert ':class="{abort: loading, idle: !loading && !draft.trim()}"' in html
+    assert ':class="{ idle: !draft.trim() }"' in html
+    assert ':class="{ abort: loading, idle: !loading && !draft.trim() }"' in html
     assert ".conversation-attach {" in styles
     assert "bottom: 6px;" in styles
     assert "transform: none;" in styles
@@ -1851,8 +1840,8 @@ def test_markdown_code_overflow_stays_inside_message_content():
 
 
 def test_chat_inputs_accept_clipboard_images_without_intercepting_text_paste():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
 
     assert html.count('@paste="handlePaste($event)"') == 2
     assert "event.clipboardData?.items" in script
@@ -1861,8 +1850,8 @@ def test_chat_inputs_accept_clipboard_images_without_intercepting_text_paste():
 
 
 def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_tokens():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     start_footer = html.split('<div class="start-composer-foot">', 1)[1]
@@ -1875,15 +1864,18 @@ def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_to
     assert 'class="modal modal-middle upload-dialog"' not in html
     assert 'class="upload-dropzone"' not in html
     assert '@drop.prevent="handleUploadDrop($event)"' in html
-    assert 'hidden\n            type="file"' in html
-    assert "async uploadFiles(chat)" in script
-    assert "this.$refs.uploadInput?.click()" in script
+    assert re.search(r'hidden\s+type="file"', html)
+    assert "async function uploadFiles(" in script
+    assert (
+        """document.querySelector<HTMLInputElement>('[data-ref="uploadInput"]')?.click()"""
+        in script
+    )
     assert "this.uploadDialogOpen" not in script
 
 
 def test_sidebar_footer_uses_a_grouped_profile_menu_with_existing_actions():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "sidebar-profile" in html
@@ -1895,7 +1887,7 @@ def test_sidebar_footer_uses_a_grouped_profile_menu_with_existing_actions():
     )
     assert "t('nav.workspace')" not in html
     assert "t('nav.helpFeedback')" in html and "t('nav.about')" in html
-    assert 'data-lucide="log-out"' in html
+    assert 'name="log-out"' in html
     assert "profileMenuOpen" in script
     assert "openProfileUsers()" in script
     assert ".sidebar-profile-menu" in styles
@@ -1904,11 +1896,11 @@ def test_sidebar_footer_uses_a_grouped_profile_menu_with_existing_actions():
 
 
 def test_system_timezone_control_is_admin_only_and_not_browser_local_storage():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
 
-    assert "x-show=\"authUser?.role === 'admin'\"" in html
-    assert 'x-model="systemTimezone"' in html
+    assert "v-show=\"authUser?.role === 'admin'\"" in html
+    assert 'v-model="systemTimezone"' in html
     assert '@change="saveSystemTimezone()"' in html
     assert "loadSystemSettings()" in script
     assert "/api/settings/timezone" in script
@@ -1916,14 +1908,13 @@ def test_system_timezone_control_is_admin_only_and_not_browser_local_storage():
 
 
 def test_opening_a_chat_refreshes_its_running_state_without_leaking_prior_loading():
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    script = frontend_scripts()
 
-    assert "this.loading = false;" in script
+    assert "deps.chat.state.loading = false;" in script
     assert "const [data, currentChat] = await Promise.all" in script
-    assert 'this.loading = currentChat.status === "running";' in script
+    assert 'state.loading = currentChat.status === "running";' in script
     assert (
-        'if (this.activeChat?.status === "running") void this.watchChat(chat.id);'
-        in script
+        'if (state.activeChat?.status === "running") void watchChat(chat.id);' in script
     )
 
 
@@ -2002,9 +1993,9 @@ def test_market_skill_search(client, monkeypatch):
 
 
 def test_market_skill_preview(client, monkeypatch):
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    html = frontend_templates()
     assert (
-        'x-for="result in marketSearchResults" :key="result.repo + \':\' + result.skill"'
+        'v-for="result in marketSearchResults" :key="result.repo + \':\' + result.skill"'
         in html
     )
 
@@ -2045,17 +2036,17 @@ def test_market_skill_install(client, monkeypatch):
 
 
 def test_market_skill_install_keeps_dialog_open_and_tracks_each_install():
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
-    install_method = script.split("async installMarketSkill(result) {", 1)[1].split(
-        "async installMarketExtension()", 1
+    script = frontend_scripts()
+    install_method = script.split("async function installMarketSkill(", 1)[1].split(
+        "async function installMarketExtension(", 1
     )[0]
 
     assert "marketInstallingSkills: []" in script
-    assert "this.marketInstallingSkills.push(resultKey)" in install_method
-    assert "this.marketInstallingSkills = this.marketInstallingSkills.filter" in (
+    assert "state.marketInstallingSkills.push(resultKey)" in install_method
+    assert "state.marketInstallingSkills = state.marketInstallingSkills.filter" in (
         install_method
     )
-    assert "this.marketInstallOpen = false" not in install_method
+    assert "state.marketInstallOpen = false" not in install_method
     assert "marketSkillSourceKey(result.repo)" in script
 
 
@@ -2402,8 +2393,8 @@ def test_turn_survives_viewer_disconnect(client, monkeypatch, temporary_agent):
 
 
 def test_shared_session_page_offers_unshare_next_to_the_file_drawer():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
     styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
     english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
     chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
@@ -2413,7 +2404,7 @@ def test_shared_session_page_offers_unshare_next_to_the_file_drawer():
     )[0]
     assert 'class="icon-btn chat-unshare-toggle"' in header
     # Only the owner, and only while viewing the public link, may revoke.
-    assert 'x-show="sharedMode && sharedCanManage"' in header
+    assert 'v-show="sharedMode && sharedCanManage"' in header
     assert header.index("chat-unshare-toggle") < header.index("files-toggle")
     # Reuses the existing revoke confirmation dialog and DELETE endpoint.
     assert "requestRevokeShare({ token: sharedToken, kind: 'session' })" in header
@@ -2421,7 +2412,7 @@ def test_shared_session_page_offers_unshare_next_to_the_file_drawer():
     assert "shareRevokeTarget" in html
 
     assert "sharedCanManage: false" in script
-    assert "this.sharedCanManage = Boolean(data.can_manage)" in script
+    assert "state.sharedCanManage = Boolean(data.can_manage)" in script
     assert ".chat-unshare-toggle {" in styles
 
     assert english["share"]["revokeSession"]
@@ -2456,27 +2447,27 @@ def test_shared_session_payload_reports_owner_management(client, temporary_agent
 
 
 def test_dead_share_link_sends_anonymous_visitors_to_sign_in():
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    script = frontend_scripts()
 
-    block = script.split("async openSharedChat(token) {", 1)[1].split(
-        "cancelShare() {", 1
+    block = script.split("async function openSharedChat(", 1)[1].split(
+        "function cancelShare(", 1
     )[0]
     assert "e.status === 404" in block
-    assert "if (this.authUser)" in block
+    assert "if (deps.identity.state.authUser)" in block
     # Signed-in visitor: back to their own workspace with a notice.
-    assert 'this.showToast(this.t("share.linkExpiredTitle"))' in block
+    assert 'showToast(deps.i18n.t("share.linkExpiredTitle"))' in block
     assert 'location.assign("/")' in block
     # Anonymous visitor: leave shared mode so the sign-in screen renders, and drop
     # the dead token from the URL so a later login lands in the workspace.
-    assert "this.sharedMode = false" in block
+    assert "state.sharedMode = false" in block
     assert 'history.replaceState({}, "", "/")' in block
 
     # Shared views resolve the session (auth-exempt endpoint) so the branch above
     # can tell an anonymous reader from a signed-in one.
-    init = script.split("async init() {", 1)[1].split(
+    init = script.split("async function init(", 1)[1].split(
         'window.addEventListener("popstate"', 1
     )[0]
-    assert "await this.loadSession()" in init
+    assert "await deps.identity.loadSession()" in init
 
 
 def test_message_stream_sends_keepalive_when_idle(client, monkeypatch, temporary_agent):
@@ -2605,39 +2596,42 @@ def test_share_records_are_user_scoped_and_revocable(client, temporary_agent):
 
 
 def test_share_records_profile_ui_uses_revoke_confirmation_and_existing_link_check():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
 
     assert '@click="openProfileShares()"' in html
-    assert 'data-lucide="link-2-off"' in html
-    assert 'x-show="shareRecordsOpen"' in html
-    assert 'x-show="shareRevokeTarget"' in html
+    assert 'name="link-2-off"' in html
+    assert 'v-show="shareRecordsOpen"' in html
+    assert 'v-show="shareRevokeTarget"' in html
     assert "t('share.shareId')" in html
     assert 'target="_blank"' in html
-    assert 'x-text="share.token"' in html
-    assert 'this.api("/api/shares")' in script
-    assert "this.api(`/api/chats/${this.activeChat.id}/share`)" in script
-    assert "shareRecordUrl(share)" in script
+    assert 'v-text="share.token"' in html
+    assert 'deps.api.client.GET("/api/shares")' in script
+    assert "/api/chats/{chat_id}/share" in script
+    assert "shareRecordUrl(" in script
 
 
 def test_markdown_file_preview_can_create_a_public_share_link():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
 
-    assert 'data-lucide="share-2"' in html
-    assert 'x-show="fileViewer?.canManageShare"' in html
+    assert 'name="share-2"' in html
+    assert 'v-show="fileViewer?.canManageShare"' in html
     assert "requestRevokeShare(fileViewer?.artifactShare) : shareViewedFile()" in html
-    assert 'data-lucide="link-2-off"' in html
-    assert "x-text=\"t('share.linkExpiredTitle')\"" in html
+    assert 'name="link-2-off"' in html
+    assert "v-text=\"t('share.linkExpiredTitle')\"" in html
     assert "fileViewerExpired = true" in script
-    assert "artifact-shares?path=" in script
-    assert 'shareTarget = "artifact"' in script
-    assert "this.fileViewer.artifactShare = await this.api(" in script
+    assert "artifact-shares" in script
+    assert (
+        'deps.shares.showCreatedLink(`${location.origin}${data.url}`, "artifact")'
+        in script
+    )
+    assert "state.fileViewer!.artifactShare = {" in script
     assert 'new URLSearchParams(location.search).has("share")' in script
 
 
 def test_share_and_message_actions_render_localized_labels():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    html = frontend_templates()
     english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
     chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
 
@@ -2676,8 +2670,8 @@ def test_share_and_message_actions_render_localized_labels():
 
 
 def test_chat_share_sits_in_the_header_and_creates_in_one_step():
-    html = Path("frontend/index.html").read_text(encoding="utf-8")
-    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    html = frontend_templates()
+    script = frontend_scripts()
 
     # The session share control belongs to the page header, left of the file drawer.
     header = html.split('<div class="chat-header">', 1)[1].split(

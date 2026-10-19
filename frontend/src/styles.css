@@ -72,9 +72,6 @@ body {
  color: var(--ink);
  font-family: Manrope, sans-serif;
 }
-[x-cloak] {
- display: none !important;
-}
 .app-boot {
  position: fixed;
  inset: 0;

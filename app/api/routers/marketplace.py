@@ -23,6 +23,7 @@ from ...market import (
     validate_skill_source,
 )
 from ...resources import discover_resources
+from .. import contracts
 
 
 class SkillSearch(BaseModel):
@@ -65,7 +66,11 @@ def create_router(
 ) -> APIRouter:
     router = APIRouter(prefix="/api/market", tags=["marketplace"])
 
-    @router.post("/skills/search")
+    @router.post(
+        "/skills/search",
+        response_model=contracts.SkillSearchResponse,
+        response_model_exclude_unset=True,
+    )
     async def skill_search(payload: SkillSearch):
         query = payload.query.strip()
         owner = payload.owner.strip() if payload.owner else None
@@ -83,7 +88,11 @@ def create_router(
             raise HTTPException(502, f"skills search failed: {exc}") from exc
         return {"results": results}
 
-    @router.post("/skills/install")
+    @router.post(
+        "/skills/install",
+        response_model=contracts.SkillInstallResponse,
+        response_model_exclude_unset=True,
+    )
     async def skill_install(payload: SkillInstall, request: Request):
         require_admin(request)
         source = payload.source.strip()
@@ -108,7 +117,11 @@ def create_router(
             raise HTTPException(502, f"skill install failed: {exc}") from exc
         return {"skill": skill, "resources": resources()}
 
-    @router.post("/skills/preview")
+    @router.post(
+        "/skills/preview",
+        response_model=contracts.SkillSearchResponse,
+        response_model_exclude_unset=True,
+    )
     async def skill_preview(payload: SkillPreview):
         source = payload.source.strip()
         try:
@@ -132,7 +145,11 @@ def create_router(
             ]
         }
 
-    @router.post("/skills/uninstall")
+    @router.post(
+        "/skills/uninstall",
+        response_model=contracts.SkillInstallResponse,
+        response_model_exclude_unset=True,
+    )
     async def skill_uninstall(payload: SkillUninstall, request: Request):
         require_admin(request)
         source = payload.source.strip() if payload.source else None
@@ -147,7 +164,11 @@ def create_router(
             raise HTTPException(502, f"skill uninstall failed: {exc}") from exc
         return {"skill": skill, "resources": resources()}
 
-    @router.post("/extensions/install")
+    @router.post(
+        "/extensions/install",
+        response_model=contracts.ExtensionResultResponse,
+        response_model_exclude_unset=True,
+    )
     async def extension_install(payload: ExtensionPackage, request: Request):
         require_admin(request)
         try:
@@ -172,7 +193,11 @@ def create_router(
             raise HTTPException(502, f"extension install failed: {exc}") from exc
         return {"package": package, "resources": resources()}
 
-    @router.post("/extensions/uninstall")
+    @router.post(
+        "/extensions/uninstall",
+        response_model=contracts.ExtensionResultResponse,
+        response_model_exclude_unset=True,
+    )
     async def extension_uninstall(payload: ExtensionUninstall, request: Request):
         require_admin(request)
         try:
@@ -211,7 +236,11 @@ def create_router(
             raise HTTPException(502, f"extension uninstall failed: {exc}") from exc
         return {"package": package, "resources": resources()}
 
-    @router.post("/mcp-servers")
+    @router.post(
+        "/mcp-servers",
+        response_model=contracts.McpAddedResponse,
+        response_model_exclude_unset=True,
+    )
     async def mcp_server_add(payload: McpServerConfig, request: Request):
         require_admin(request)
         try:
@@ -227,7 +256,11 @@ def create_router(
             ) from exc
         return {"servers": added, "resources": resources()}
 
-    @router.delete("/mcp-servers/{name}")
+    @router.delete(
+        "/mcp-servers/{name}",
+        response_model=contracts.McpRemovedResponse,
+        response_model_exclude_unset=True,
+    )
     async def mcp_server_delete(name: str, request: Request):
         require_admin(request)
         try:

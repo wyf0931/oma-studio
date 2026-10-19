@@ -2,9 +2,10 @@ import logging
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, Request
-from fastapi.exceptions import RequestValidationError
+from fastapi.exceptions import RequestValidationError, ResponseValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
+from .api.contracts import error_responses
 from .api.routers.agents import create_router as create_agents_router
 from .api.routers.autopilots import (
     create_executor as create_autopilot_executor,
@@ -25,6 +26,7 @@ from .api.routers.resource_catalog import (
     create_router as create_resource_catalog_router,
 )
 from .api.routers.shares import create_router as create_share_router
+from .api.routers.system import create_router as create_system_router
 from .api.routers.system_settings import create_router as create_system_settings_router
 from .api.routers.usage import create_router as create_usage_router
 from .autopilots import AutopilotScheduler
@@ -39,7 +41,7 @@ settings = context.settings
 store = context.store
 runtime = context.runtime
 
-app = create_app(context)
+app = create_app(context, responses=error_responses())
 logger = logging.getLogger(__name__)
 SESSION_COOKIE = "oma_session"
 
@@ -52,6 +54,20 @@ async def handle_http_exception(request: Request, exc: HTTPException):
         status_code=exc.status_code,
         headers=exc.headers,
     )
+
+
+@app.exception_handler(ResponseValidationError)
+async def handle_response_validation_exception(
+    request: Request, exc: ResponseValidationError
+):
+    del request
+    # ResponseValidationError includes raw model/tool content; never log its text or traceback.
+    logger.error(
+        "API response contract failed (%d errors)",
+        len(exc.errors()),
+        extra={"event": "api.response.invalid", "error_count": len(exc.errors())},
+    )
+    return JSONResponse(error_payload("Internal server error", 500), status_code=500)
 
 
 @app.exception_handler(RequestValidationError)
@@ -164,22 +180,7 @@ def _has_session_file(chat: dict) -> bool:
     return any(settings.pi_session_dir.glob(f"*_{session_id}.jsonl"))
 
 
-@app.get("/api/health")
-async def health():
-    active_processes = sum(
-        1
-        for client in runtime.clients.values()
-        if client.process and client.process.returncode is None
-    )
-    return {
-        "ok": True,
-        "active_processes": active_processes,
-        "upload_limits": {
-            "max_files": settings.max_upload_files,
-            "max_bytes": settings.max_upload_bytes,
-        },
-    }
-
+app.include_router(create_system_router(settings, runtime))
 
 app.include_router(
     create_share_router(

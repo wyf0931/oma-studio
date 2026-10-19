@@ -6,11 +6,11 @@ export function installCodeThemes() {
   for (const [id, css, disabled] of [
     ["highlightjs-light-theme", lightTheme, false],
     ["highlightjs-dark-theme", darkTheme, true],
-  ]) {
+  ] as const) {
     const style = document.createElement("style");
     style.id = id;
     style.textContent = css;
     document.head.insertBefore(style, before);
-    style.sheet.disabled = disabled;
+    style.sheet!.disabled = disabled;
   }
 }

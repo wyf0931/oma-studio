@@ -1,21 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-async function login(page) {
-  await page.goto("/chat");
-  await page.locator('[x-model="loginUsername"]').fill("admin");
-  await page.locator('[x-model="loginPassword"]').fill("frontend-test-admin-password");
-  await page.locator(".login-submit").click();
-  await expect(page.locator(".app-shell")).toBeVisible();
-}
-
-async function settings(page) {
-  // On mobile the existing navigation is behind the existing sidebar toggle.
-  if (await page.locator(".mobile-topbar").isVisible()) {
-    await page.locator(".mobile-topbar button").first().click();
-  }
-  await page.locator(".sidebar-profile-trigger").click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-}
+import { login, settings } from "./helpers.js";
 
 test("bundled app boots offline from CDNs, with stable icons and platform APIs", async ({ page, baseURL }) => {
   const errors = [];
@@ -36,13 +21,13 @@ test("bundled app boots offline from CDNs, with stable icons and platform APIs",
   });
   await login(page);
   await expect(page.locator("svg.lucide").first()).toBeAttached();
-  const requests = await page.evaluate(() => window.omaPlatform.authUser?.username);
-  expect(requests).toBe("admin");
+  await expect(page.locator(".sidebar-profile-trigger")).toContainText("admin");
+  expect(await page.evaluate(() => "Alpine" in window || "omaPlatform" in window)).toBe(false);
   expect(externalDependencies).toEqual([]);
   expect(errors).toEqual([]);
 });
 
-test("existing settings, themes and language work on desktop and mobile", async ({ page }) => {
+test("existing settings, themes and language work on desktop and mobile", async ({ page }, testInfo) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await login(page);
@@ -71,6 +56,7 @@ test("existing settings, themes and language work on desktop and mobile", async 
   await expect(page.locator("#account-email")).toBeVisible();
   const noOverflow = await page.locator(".settings-modal-box").evaluate((el) => el.scrollWidth <= el.clientWidth);
   expect(noOverflow).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("settings.png") });
   expect(errors).toEqual([]);
 });
 
@@ -78,15 +64,15 @@ test("sanitized Markdown, highlighting and Mermaid render from local chunks", as
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await login(page);
-  await page.evaluate(() => {
-    const source =
-      "# Preview\n\n<script>window.markdownXSS = true</script>\n\n```javascript\nconst value = 42;\n```\n\n```mermaid\ngraph LR\nA[Start] --> B[Finish]\n```";
-    const container = document.createElement("div");
-    container.className = "file-markdown";
-    container.innerHTML = window.omaPlatform.renderMarkdown(source);
-    document.body.append(container);
-    window.omaPlatform.renderMermaidDiagrams();
-  });
+  await page.route("**/api/chats/preview-fixture/files/content?*", (route) =>
+    route.fulfill({
+      json: {
+        content:
+          "# Preview\n\n<script>window.markdownXSS = true</script>\n\n```javascript\nconst value = 42;\n```\n\n```mermaid\ngraph LR\nA[Start] --> B[Finish]\n```",
+      },
+    }),
+  );
+  await page.goto("/file-view?chat_id=preview-fixture&path=preview.md");
   await expect(page.locator(".file-markdown h1")).toHaveText("Preview");
   await expect(page.locator(".file-markdown code.hljs")).toBeVisible();
   await expect(page.locator(".file-markdown .mermaid svg")).toBeVisible();
@@ -110,7 +96,7 @@ test("deep links, build cache headers and upload controls preserve the same orig
   await expect(file).toBeAttached();
   await expect(file).toBeHidden();
   const uuidHeader = page.waitForRequest((req) => req.url().includes("/api/health"));
-  await page.evaluate(() => window.omaPlatform.loadHealth());
+  await page.reload();
   expect((await uuidHeader).headers()["x-request-id"]).toMatch(/^[0-9a-f-]{36}$/);
 });
 
@@ -118,14 +104,12 @@ test("file selection and existing navigation remain usable", async ({ page }) =>
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await login(page);
-  await page.locator('input[x-ref="uploadInput"]').setInputFiles({
+  await page.locator('input[data-ref="uploadInput"]').setInputFiles({
     name: "compatibility-note.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("A browser-compatibility fixture."),
   });
-  await expect
-    .poll(() => page.evaluate(() => window.omaPlatform.uploadSelection[0]?.name))
-    .toBe("compatibility-note.txt");
+  await expect(page.locator(".composer-attachment").first()).toContainText("compatibility-note.txt");
   for (const [label, route] of [
     ["Agents", "agents"],
     ["Marketplace", "market"],
@@ -153,19 +137,11 @@ test("clipboard compatibility preserves copy feedback without the native API", a
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
   });
   await login(page);
-  await page.evaluate(() => {
-    const button = document.createElement("button");
-    button.id = "clipboard-compatibility-fixture";
-    button.textContent = "Copy browser fixture";
-    button.style.cssText = "position:fixed;top:0;right:0;z-index:9999";
-    button.onclick = () =>
-      window.omaPlatform.copyMessage({
-        _key: "clipboard-fixture",
-        content: [{ type: "text", text: "Clipboard compatibility fixture" }],
-      });
-    document.body.append(button);
-  });
-  await page.locator("#clipboard-compatibility-fixture").click();
-  await expect.poll(() => page.evaluate(() => window.omaPlatform.copiedKey)).toBe("clipboard-fixture");
+  await page.route("**/api/chats/copy-fixture/files/content?*", (route) =>
+    route.fulfill({ json: { content: "Clipboard compatibility fixture" } }),
+  );
+  await page.goto("/file-view?chat_id=copy-fixture&path=fixture.py");
+  await page.locator(".code-copy-btn").click();
+  await expect(page.locator(".code-copy-btn")).toHaveClass(/copied/);
   expect(errors).toEqual([]);
 });

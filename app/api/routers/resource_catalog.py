@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from ...config import Settings
 from ...resources import discover_resources
 from ...store import IMAGE_TOOLS, SUPPORTED_TOOLS, WEB_TOOLS
+from .. import contracts
 
 
 def catalog_response(settings: Settings) -> dict:
@@ -35,7 +36,11 @@ def catalog_response(settings: Settings) -> dict:
 def create_router(settings: Settings) -> APIRouter:
     router = APIRouter(prefix="/api", tags=["resources"])
 
-    @router.get("/resources")
+    @router.get(
+        "/resources",
+        response_model=contracts.ResourcesResponse,
+        response_model_exclude_unset=True,
+    )
     async def list_resources():
         return catalog_response(settings)
 
