@@ -1,0 +1,6 @@
+# Shared by Vite's JavaScript/polyfill configuration and Lightning CSS.
+safari >= 16.4
+ios_saf >= 16.4
+chrome >= 111
+edge >= 111
+firefox >= 128

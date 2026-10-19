@@ -520,23 +520,47 @@ Local development server with hot reload (no Docker):
 uv run uvicorn app.main:app --env-file .env --reload
 ```
 
-The page is plain static HTML, JavaScript, and CSS under `static/`; FastAPI serves it together with the API. The interactive MVP still runs without a frontend build step, while the file viewer's typography stylesheet is generated with Tailwind CLI:
+The existing Alpine.js + DaisyUI UI is built with Vite and served by the same
+FastAPI process. Frontend source lives under `frontend/`; `static/` holds public
+images/locales, and `dist/` is the generated deployable bundle. Build once before
+starting the local server (Node >=22.12):
 
 ```bash
-npm install
-npm run build:css
+npm ci
+npm run build
+uv run uvicorn app.main:app --env-file .env --reload
+# Separate terminal for frontend edits; refresh after each rebuild:
+npm run dev
 ```
 
-The build uses the official `@tailwindcss/typography` plugin. Keep `static/typography.css` in sync when changing Markdown presentation classes.
+Docker and CI build assets automatically. `npm run dev` uses the production
+build watcher, including the same polyfills; no second UI server is required.
+Generated assets are not committed, and content hashes replace manual CSS/JS
+cache tokens. Keep dependency changes in the npm lockfile.
 
-**Browser baseline: Safari / iPadOS 16.4 or newer.** That floor comes from Tailwind CSS v4
-(`@property`, `color-mix()`, `oklch()`, `@layer`), which the CDN build and the generated
-typography stylesheet both depend on. Older engines get a dismissible notice instead of a
-broken UI. The audit, the iPad-specific pitfalls and the device checklist live in
-[`docs/safari-ipad-compatibility.md`](docs/safari-ipad-compatibility.md);
-`tests/unit/test_style_compat.py` enforces the invariants (every `100vh` height keeps a
-`dvh` companion, `backdrop-filter` keeps its `-webkit-` prefix, and every sub-16px form
-control keeps its iOS-only 16px override so the desktop sizing is untouched).
+**Browser baseline: Safari / iPadOS 16.4+, Chrome / Edge 111+, Firefox 128+.**
+`.browserslistrc` drives Vite's JavaScript targets, core-js-backed polyfill
+selection and Lightning CSS targets. Tailwind, DaisyUI and typography are
+compiled ahead of time; application scripts/styles no longer require a CDN or
+browser-time compiler. Core-js covers JavaScript features, not CSS or OS/WebKit
+keyboard/viewport behavior.
+
+```bash
+npm run format:check
+npm run lint
+npm run build
+npm run test:frontend:install
+npm run test:frontend
+uv run pytest -q
+```
+
+The regression suite covers Chromium, Firefox, desktop WebKit and mobile
+WebKit with isolated local data. Latest WebKit is not proof of compatibility
+with every historical Safari or a real iPad keyboard. Architecture, component
+rules and upgrade workflow live in
+[`docs/frontend-architecture.md`](docs/frontend-architecture.md); the real-device
+checklist remains in
+[`docs/safari-ipad-compatibility.md`](docs/safari-ipad-compatibility.md).
 
 Useful commands:
 

@@ -1,3 +1,5 @@
+> Historical investigation, superseded by the 2026-10-19 Vite migration. Some original browser-version/root-cause claims were unverified or incorrect. Use [the current Safari policy](safari-ipad-compatibility.md) and [frontend architecture](frontend-architecture.md).
+
 # Safari 文件上传选择框 Bug — 调查报告
 
 > 调查时间：2026-09-17

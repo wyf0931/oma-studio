@@ -381,8 +381,8 @@ def test_instruction_draft_rejects_unknown_skill(client):
 
 
 def test_agent_instruction_generator_control_is_present():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert 'data-lucide="pencil-sparkles"' in html
     assert '@click="generateAgentInstruction"' in html
@@ -399,9 +399,9 @@ def test_agent_instruction_generator_control_is_present():
 
 
 def test_agent_editor_uses_clickable_three_step_wizard_with_skill_search():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'class="steps agent-wizard-steps"' in html
     assert 'class="divider agent-wizard-divider"' in html
@@ -421,8 +421,8 @@ def test_agent_editor_uses_clickable_three_step_wizard_with_skill_search():
 
 
 def test_agent_editor_keeps_nonempty_draft_open_on_backdrop_click():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert '@click.self="dismissAgentDialogFromBackdrop()"' in html
     assert "hasAgentDraft()" in script
@@ -432,7 +432,7 @@ def test_agent_editor_keeps_nonempty_draft_open_on_backdrop_click():
 
 
 def test_favicon_assets_are_explicit_and_ico_is_not_spa_html(client):
-    html = Path("static/index.html").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
 
     assert 'id="app-favicon"' in html
     assert 'rel="icon"' in html
@@ -473,11 +473,11 @@ def assert_opaque_png(path):
 
 
 def test_apple_touch_icon_is_opaque_and_resolves_to_a_real_asset(client):
-    html = Path("static/index.html").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
 
     links = APPLE_TOUCH_ICON_LINK.findall(html)
     assert links, (
-        "static/index.html must declare an apple-touch-icon for Add to Home Screen"
+        "frontend/index.html must declare an apple-touch-icon for Add to Home Screen"
     )
 
     declared = []
@@ -513,7 +513,7 @@ def test_apple_touch_icon_is_opaque_and_resolves_to_a_real_asset(client):
 
 
 def test_agent_edit_entry_is_card_action_only():
-    html = Path("static/index.html").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
 
     assert 'class="trash-btn agent-publish-btn agent-edit-btn"' in html
     assert '@click.stop="editAgent(agent)"' in html
@@ -521,13 +521,13 @@ def test_agent_edit_entry_is_card_action_only():
 
 
 def test_library_file_name_does_not_add_hover_underline():
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert ".library-file-name:hover b" not in styles
 
 
 def test_agent_card_typography_matches_marketplace_cards():
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert ".agent-card h3" in styles
     assert "font-size: 15px;" in styles
@@ -538,8 +538,8 @@ def test_agent_card_typography_matches_marketplace_cards():
 
 
 def test_marketplace_agent_cards_show_server_derived_installation_states():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "item.installation_status === 'installed'" in html
     assert "item.installation_status === 'update_available'" in html
@@ -550,8 +550,8 @@ def test_marketplace_agent_cards_show_server_derived_installation_states():
 
 
 def test_agent_marketplace_update_uses_one_confirmed_flow():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert 'data-lucide="circle-fading-arrow-up"' in html
     assert '@click.stop="requestMarketplaceAgentUpdate(agent)"' in html
@@ -575,7 +575,7 @@ def test_chinese_agent_update_warning_uses_localized_marketplace_name():
 
 
 def test_frontend_request_transport_keeps_json_binary_and_streaming_paths_distinct():
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert "async request(path, options = {})" in script
     assert "async responseData(response, requestId, requestPath)" in script
@@ -587,7 +587,7 @@ def test_frontend_request_transport_keeps_json_binary_and_streaming_paths_distin
 
 
 def test_chat_view_reads_are_abortable_without_cancelling_writes_or_streams():
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert "chatReadController: null" in script
     assert "this.chatReadController = new AbortController();" in script
@@ -618,7 +618,7 @@ def test_thought_blocks_follow_the_turn_state_and_honor_user_preference():
     collapsed while the in-flight round is open.
     """
 
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert 'const label = isStreaming ? "Thinking"' in script
     assert (
@@ -645,20 +645,12 @@ def test_thought_blocks_follow_the_turn_state_and_honor_user_preference():
         "assistantGroup._streaming = assistantGroup._streaming || message._streaming;"
         in script
     )
-    app_src = re.search(
-        r'<script src="(/static/app\.js[^"]*)"',
-        Path("static/index.html").read_text(encoding="utf-8"),
-    )
-    assert app_src, "static/index.html must load /static/app.js"
-    assert "?v=" in app_src.group(1), (
-        f"app.js must be cache-busted after a frontend change: {app_src.group(1)}"
-    )
 
 
 def test_chat_viewport_and_composer_use_latest_message_and_seven_line_contract():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'id="conversation-message"' in html
     assert 'rows="1"' in html
@@ -676,9 +668,9 @@ def test_chat_viewport_and_composer_use_latest_message_and_seven_line_contract()
 
 
 def test_client_redirects_expired_sessions_only_for_authenticated_401_responses():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "handleUnauthorizedResponse(response, requestPath, error);" in script
     assert "response.status !== 401" in script
@@ -692,7 +684,7 @@ def test_client_redirects_expired_sessions_only_for_authenticated_401_responses(
 
 
 def test_lucide_icons_render_after_unauthenticated_boot_and_first_login():
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert "this.observeIcons();" in script
     assert "this.renderIconsSoon();" in script
@@ -704,9 +696,9 @@ def test_lucide_icons_render_after_unauthenticated_boot_and_first_login():
 
 
 def test_agent_tools_use_product_capability_groups_with_safe_defaults():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "tool-group-grid" in html
     assert "Read only" in script
@@ -732,8 +724,8 @@ def test_agent_tools_use_product_capability_groups_with_safe_defaults():
 
 
 def test_generated_images_render_as_responsive_file_artifacts_and_refresh_files():
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "imageArtifactMessage(message, index)" in script
     assert "assistantGroup._imageArtifacts.push(artifact)" in script
@@ -747,8 +739,8 @@ def test_generated_images_render_as_responsive_file_artifacts_and_refresh_files(
 
 
 def test_agent_picker_menus_limit_height_and_scroll_overflow():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'class="agent-picker-menu"' in html
     assert 'class="agent-picker-menu filter-agent-picker-menu"' in html
@@ -758,8 +750,8 @@ def test_agent_picker_menus_limit_height_and_scroll_overflow():
 
 
 def test_chat_image_artifacts_use_daisyui_skeleton_loading_state():
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'class="chat-image-artifact skeleton"' in script
     assert 'loading="lazy"' in script
@@ -771,9 +763,9 @@ def test_chat_image_artifacts_use_daisyui_skeleton_loading_state():
 
 
 def test_mobile_chat_truncates_tool_paths_and_keeps_composer_in_safe_area():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "viewport-fit=cover" in html
     assert "processFileName(path)" in script
@@ -789,9 +781,9 @@ def test_mobile_chat_truncates_tool_paths_and_keeps_composer_in_safe_area():
 
 
 def test_agent_profile_detail_contract_is_user_facing():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
     assert html.count("t('nav.newTask')") >= 3
     assert "agentAvatarMarkup(agent, 'large')" in html
     assert "agentAvatarMarkup(dialog, 'large')" in html
@@ -818,12 +810,13 @@ def test_agent_profile_detail_contract_is_user_facing():
 
 
 def test_frontend_i18n_resources_and_language_switch_contract():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
     english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
     chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
 
-    assert "i18next@26.4.2/dist/umd/i18next.min.js" in html
+    entry = Path("frontend/src/main.js").read_text(encoding="utf-8")
+    assert 'import i18next from "i18next"' in entry
     assert "static/locales/${locale}.json" in script
     assert 'fallbackLng: "en"' in script
     assert "document.documentElement.lang = this.language" in script
@@ -835,8 +828,8 @@ def test_frontend_i18n_resources_and_language_switch_contract():
 
 
 def test_agent_catalog_search_covers_installed_and_marketplace_agents():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
     english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
     chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
 
@@ -851,23 +844,27 @@ def test_agent_catalog_search_covers_installed_and_marketplace_agents():
 
 
 def test_agent_profile_textareas_auto_resize_from_one_row():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
     assert html.count('rows="1"') >= 3
     assert html.count('@input="resizeAgentTextarea($event)"') == 3
     assert "resizeAgentTextareas()" in script
     assert "textarea.scrollHeight" in script
     assert "lineHeight * 5" in script
     assert 'overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden"' in script
-    assert "resize: vertical" in Path("static/styles.css").read_text(encoding="utf-8")
-    assert ".agent-form-content .textarea" in Path("static/styles.css").read_text(
+    assert "resize: vertical" in Path("frontend/src/styles.css").read_text(
         encoding="utf-8"
     )
-    assert "min-height: 0" in Path("static/styles.css").read_text(encoding="utf-8")
+    assert ".agent-form-content .textarea" in Path("frontend/src/styles.css").read_text(
+        encoding="utf-8"
+    )
+    assert "min-height: 0" in Path("frontend/src/styles.css").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_agent_save_refreshes_list_without_opening_detail_dialog():
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert "await this.refreshAgents();" in script
     assert "this.createDialog = false;" in script
@@ -876,8 +873,8 @@ def test_agent_save_refreshes_list_without_opening_detail_dialog():
 
 
 def test_file_preview_code_blocks_offer_a_copy_action():
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
     english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
     chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
 
@@ -909,9 +906,9 @@ def test_file_preview_code_blocks_offer_a_copy_action():
 
 
 def test_structured_file_preview_uses_csv_table_and_code_renderer():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'x-html="renderFilePreview()"' in html
     assert "parseCsv(source)" in script
@@ -920,7 +917,8 @@ def test_structured_file_preview_uses_csv_table_and_code_renderer():
     assert 'class="mockup-code overflow-x-auto w-full"' in script
     assert 'class="hljs language-${this.escape(language)}"' in script
     assert "syncHighlightTheme()" in script
-    assert "github-dark.min.css" in html
+    themes = Path("frontend/src/ui/code-themes.js").read_text(encoding="utf-8")
+    assert "highlight.js/styles/github-dark.css?inline" in themes
     assert "--code-surface: #0d1117" in styles
     assert "--code-ink: #e6edf3" in styles
     assert "jsonl" in script
@@ -947,9 +945,9 @@ def test_new_chat_is_removed_when_pi_cannot_start(client, temporary_agent, monke
 
 
 def test_user_management_is_available_only_from_the_admin_profile_menu():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'title="Users"' not in html
     assert '@click="openProfileUsers()"' in html
@@ -963,8 +961,8 @@ def test_user_management_is_available_only_from_the_admin_profile_menu():
 
 
 def test_theme_preference_defaults_to_system_and_is_managed_in_settings():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert 'themePreference: "system"' in script
     assert (
@@ -977,9 +975,9 @@ def test_theme_preference_defaults_to_system_and_is_managed_in_settings():
 
 
 def test_dark_theme_uses_contrast_safe_boot_logo_and_synchronized_favicon():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'id="app-favicon"' in html
     assert 'rel="shortcut icon"' not in html
@@ -1092,7 +1090,7 @@ def test_market_mcp_server_add_and_delete_are_admin_only(client, monkeypatch):
 
 
 def test_mcp_market_cards_use_the_shared_author_label():
-    html = Path("static/index.html").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
 
     assert "marketResourceAuthor('mcp_servers', item)" in html
     assert 'data-lucide="user"' in html
@@ -1408,8 +1406,8 @@ def test_admin_can_delete_marketplace_publication_without_deleting_installed_cop
 
 
 def test_marketplace_agent_delete_ui_is_admin_only_and_confirmed():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert "x-show=\"authUser?.role === 'admin'\"" in html
     assert 'data-lucide="trash-2"' in html
@@ -1431,15 +1429,15 @@ def test_auth_login_uses_24_hour_cookie(client):
 
 
 def test_file_download_links_preserve_generated_filename():
-    html = Path("static/index.html").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
 
     assert html.count(':download="file.name"') == 2
 
 
 def test_file_preview_offers_the_drawer_and_library_download_entry():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
     english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
     chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
 
@@ -1450,7 +1448,7 @@ def test_file_preview_offers_the_drawer_and_library_download_entry():
     # Download sits left of share in the same fixed top-right cluster.
     assert actions.index("file-view-download") < actions.index("file-view-share")
     # Token-gated shared previews stay read-only: the download endpoint needs a session.
-    assert 'x-show="!fileViewer.isShared"' in actions
+    assert 'x-show="!fileViewer?.isShared"' in actions
 
     # Same endpoint helper the drawer and the library already use.
     assert "fileViewerDownloadUrl() {" in script
@@ -1553,7 +1551,7 @@ def test_chat_file_view_serves_native_files_inline_and_sandboxes_html(
 
 
 def test_native_files_open_in_browser_tabs_while_text_files_keep_internal_preview():
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert "opensInNativeBrowser(file)" in script
     assert "browserViewUrl(file.chat_id, file.path)" in script
@@ -1699,9 +1697,9 @@ def test_chat_upload_file_limit_is_one_hundred(client, temporary_agent):
 
 
 def test_chat_detail_files_tabs_and_mobile_markdown_boundaries_are_explicit():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'class="tabs tabs-box files-tabs"' in html
     assert "filesTab === 'outputs'" in html
@@ -1763,7 +1761,7 @@ def test_attachment_blocks_restore_clean_user_content_and_file_labels():
 
 
 def test_long_user_messages_wrap_inside_the_chat_bubble():
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert (
         ".message.user .message-body {\n"
@@ -1777,22 +1775,22 @@ def test_long_user_messages_wrap_inside_the_chat_bubble():
 
 
 def test_error_toast_stays_above_fixed_chat_composer():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'class="toast"' in html
     assert ".toast {\n position: fixed;\n z-index: 1000;" in styles
 
 
 def test_successful_upload_removes_file_from_local_selection_before_send():
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert "removeUploadSelection(file, true)" in script
 
 
 def test_client_uploads_chat_files_and_limits_at_mentions_to_published_artifacts():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert "openUploadPicker()" in script
     assert "handleUploadSelection(event)" in script
@@ -1815,9 +1813,9 @@ def test_client_uploads_chat_files_and_limits_at_mentions_to_published_artifacts
 
 
 def test_chat_at_picker_includes_inputs_and_supports_keyboard_completion():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "this.inputFiles.map" in script
     assert 'kind: "input"' in script
@@ -1831,8 +1829,8 @@ def test_chat_at_picker_includes_inputs_and_supports_keyboard_completion():
 
 
 def test_composer_actions_stay_bottom_aligned_and_send_is_idle_ghost():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert ':class="{idle: !draft.trim()}"' in html
     assert ':class="{abort: loading, idle: !loading && !draft.trim()}"' in html
@@ -1844,7 +1842,7 @@ def test_composer_actions_stay_bottom_aligned_and_send_is_idle_ghost():
 
 
 def test_markdown_code_overflow_stays_inside_message_content():
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "overflow-x: hidden;" in styles
     assert ".markdown-part pre {" in styles
@@ -1853,8 +1851,8 @@ def test_markdown_code_overflow_stays_inside_message_content():
 
 
 def test_chat_inputs_accept_clipboard_images_without_intercepting_text_paste():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert html.count('@paste="handlePaste($event)"') == 2
     assert "event.clipboardData?.items" in script
@@ -1863,9 +1861,9 @@ def test_chat_inputs_accept_clipboard_images_without_intercepting_text_paste():
 
 
 def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_tokens():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     start_footer = html.split('<div class="start-composer-foot">', 1)[1]
     assert start_footer.index('class="agent-picker"') < start_footer.index(
@@ -1884,9 +1882,9 @@ def test_new_chat_upload_control_follows_the_agent_picker_and_uses_its_border_to
 
 
 def test_sidebar_footer_uses_a_grouped_profile_menu_with_existing_actions():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "sidebar-profile" in html
     assert "avatar-placeholder sidebar-profile-avatar" in html
@@ -1906,8 +1904,8 @@ def test_sidebar_footer_uses_a_grouped_profile_menu_with_existing_actions():
 
 
 def test_system_timezone_control_is_admin_only_and_not_browser_local_storage():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert "x-show=\"authUser?.role === 'admin'\"" in html
     assert 'x-model="systemTimezone"' in html
@@ -1918,7 +1916,7 @@ def test_system_timezone_control_is_admin_only_and_not_browser_local_storage():
 
 
 def test_opening_a_chat_refreshes_its_running_state_without_leaking_prior_loading():
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert "this.loading = false;" in script
     assert "const [data, currentChat] = await Promise.all" in script
@@ -2004,7 +2002,7 @@ def test_market_skill_search(client, monkeypatch):
 
 
 def test_market_skill_preview(client, monkeypatch):
-    html = Path("static/index.html").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
     assert (
         'x-for="result in marketSearchResults" :key="result.repo + \':\' + result.skill"'
         in html
@@ -2047,7 +2045,7 @@ def test_market_skill_install(client, monkeypatch):
 
 
 def test_market_skill_install_keeps_dialog_open_and_tracks_each_install():
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
     install_method = script.split("async installMarketSkill(result) {", 1)[1].split(
         "async installMarketExtension()", 1
     )[0]
@@ -2404,9 +2402,9 @@ def test_turn_survives_viewer_disconnect(client, monkeypatch, temporary_agent):
 
 
 def test_shared_session_page_offers_unshare_next_to_the_file_drawer():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
     english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
     chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
 
@@ -2458,7 +2456,7 @@ def test_shared_session_payload_reports_owner_management(client, temporary_agent
 
 
 def test_dead_share_link_sends_anonymous_visitors_to_sign_in():
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     block = script.split("async openSharedChat(token) {", 1)[1].split(
         "cancelShare() {", 1
@@ -2607,8 +2605,8 @@ def test_share_records_are_user_scoped_and_revocable(client, temporary_agent):
 
 
 def test_share_records_profile_ui_uses_revoke_confirmation_and_existing_link_check():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert '@click="openProfileShares()"' in html
     assert 'data-lucide="link-2-off"' in html
@@ -2623,12 +2621,12 @@ def test_share_records_profile_ui_uses_revoke_confirmation_and_existing_link_che
 
 
 def test_markdown_file_preview_can_create_a_public_share_link():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert 'data-lucide="share-2"' in html
-    assert 'x-show="fileViewer.canManageShare"' in html
-    assert "requestRevokeShare(fileViewer.artifactShare) : shareViewedFile()" in html
+    assert 'x-show="fileViewer?.canManageShare"' in html
+    assert "requestRevokeShare(fileViewer?.artifactShare) : shareViewedFile()" in html
     assert 'data-lucide="link-2-off"' in html
     assert "x-text=\"t('share.linkExpiredTitle')\"" in html
     assert "fileViewerExpired = true" in script
@@ -2639,7 +2637,7 @@ def test_markdown_file_preview_can_create_a_public_share_link():
 
 
 def test_share_and_message_actions_render_localized_labels():
-    html = Path("static/index.html").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
     english = json.loads(Path("static/locales/en.json").read_text(encoding="utf-8"))
     chinese = json.loads(Path("static/locales/zh-CN.json").read_text(encoding="utf-8"))
 
@@ -2678,8 +2676,8 @@ def test_share_and_message_actions_render_localized_labels():
 
 
 def test_chat_share_sits_in_the_header_and_creates_in_one_step():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     # The session share control belongs to the page header, left of the file drawer.
     header = html.split('<div class="chat-header">', 1)[1].split(
@@ -2704,7 +2702,7 @@ def test_chat_share_sits_in_the_header_and_creates_in_one_step():
     assert "t('share.anyoneWithLink')" in html
 
     # The dialog body keeps the house gap below the head divider (see .confirm-copy).
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
     assert '<div class="share-dialog-body">' in html
     assert ".share-dialog-body {" in styles
     assert "padding-top: 22px;" in styles

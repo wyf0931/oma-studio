@@ -1,4 +1,8 @@
-function platform() {
+import { marked } from "marked";
+import DOMPurify from "dompurify";
+import { createId, writeClipboardText } from "./browser.js";
+
+export default function platform() {
   return {
     settingsOpen: false,
     settingsTab: "general",
@@ -463,7 +467,7 @@ function platform() {
       );
     },
     async request(path, options = {}) {
-      const requestId = crypto.randomUUID();
+      const requestId = createId();
       const headers = new Headers(options.headers || {});
       headers.set("X-Request-ID", requestId);
       const response = await fetch(path, {
@@ -1875,8 +1879,8 @@ function platform() {
     syncHighlightTheme() {
       const lightTheme = document.getElementById("highlightjs-light-theme");
       const darkTheme = document.getElementById("highlightjs-dark-theme");
-      if (lightTheme) lightTheme.disabled = this.theme === "dark";
-      if (darkTheme) darkTheme.disabled = this.theme !== "dark";
+      if (lightTheme) lightTheme.sheet.disabled = this.theme === "dark";
+      if (darkTheme) darkTheme.sheet.disabled = this.theme !== "dark";
     },
     async openSettings() {
       this.settingsTab = "general";
@@ -2313,13 +2317,13 @@ function platform() {
         this.draft = "";
         this.resetConversationInput();
         this.messages.push({
-          _key: crypto.randomUUID(),
+          _key: createId(),
           role: "user",
           content: [{ type: "text", text: content }],
           _attachments: messageAttachments,
         });
         this.messages.push({
-          _key: crypto.randomUUID(),
+          _key: createId(),
           role: "assistant",
           content: [{ type: "text", text: "" }],
           _reasoningParts: [{ type: "thinking", thinking: "" }],
@@ -2366,7 +2370,7 @@ function platform() {
                 );
                 if (!hasFinal && event.assistant)
                   normalized.push({
-                    _key: crypto.randomUUID(),
+                    _key: createId(),
                     role: "assistant",
                     content: [{ type: "text", text: event.assistant }],
                     _reasoningParts: [],
@@ -2463,7 +2467,7 @@ function platform() {
         }
         if (!last || last.role !== "assistant" || !last._streaming)
           this.messages.push({
-            _key: crypto.randomUUID(),
+            _key: createId(),
             role: "assistant",
             content: [{ type: "text", text: "" }],
             _reasoningParts: [{ type: "thinking", thinking: "" }],
@@ -2614,9 +2618,14 @@ function platform() {
       );
       return candidates.length > 0 && candidates[candidates.length - 1]._key === message._key;
     },
-    copyMessage(message) {
+    async copyMessage(message) {
       const text = this.partsText(message.content);
-      navigator.clipboard?.writeText(text);
+      try {
+        await writeClipboardText(text);
+      } catch (error) {
+        this.showError(error);
+        return;
+      }
       this.copiedKey = message._key;
       setTimeout(() => {
         if (this.copiedKey === message._key) this.copiedKey = "";
@@ -2624,11 +2633,16 @@ function platform() {
     },
     // Injected code-block markup cannot use Alpine directives, so the button
     // calls back through the window bridge and toggles its own copied state.
-    copyCodeBlock(button) {
+    async copyCodeBlock(button) {
       const block = button?.closest?.(".code-block");
       const text = block?.querySelector("code")?.textContent || "";
       if (!text) return;
-      navigator.clipboard?.writeText(text);
+      try {
+        await writeClipboardText(text);
+      } catch (error) {
+        this.showError(error);
+        return;
+      }
       if (button._copyTimer) clearTimeout(button._copyTimer);
       button.classList.add("copied");
       button._copyTimer = setTimeout(() => button.classList.remove("copied"), 1500);
@@ -2710,7 +2724,7 @@ function platform() {
         this.shareUrl = `${location.origin}/share/${data.token}`;
         this.shareStep = "created";
         try {
-          await navigator.clipboard?.writeText(this.shareUrl);
+          await writeClipboardText(this.shareUrl);
         } catch {}
       } catch (e) {
         this.showError(e);
@@ -2718,9 +2732,14 @@ function platform() {
         this.creatingShare = false;
       }
     },
-    copyShareLink() {
+    async copyShareLink() {
       if (!this.shareUrl) return;
-      navigator.clipboard?.writeText(this.shareUrl);
+      try {
+        await writeClipboardText(this.shareUrl);
+      } catch (error) {
+        this.showError(error);
+        return;
+      }
       this.copiedShare = true;
       setTimeout(() => {
         this.copiedShare = false;
@@ -3729,7 +3748,7 @@ function platform() {
     },
     renderWebActivityItems(name, items) {
       window.omaPlatform = this;
-      const key = crypto.randomUUID();
+      const key = createId();
       this.webActivities[key] = { kind: name, items };
       const label =
         name === "web_search"
@@ -3948,6 +3967,3 @@ function platform() {
     },
   };
 }
-
-// Exposed for the Alpine x-data binding in index.html.
-window.platform = platform;

@@ -2,14 +2,45 @@
   "name": "oma-studio-ui",
   "private": true,
   "scripts": {
-    "build:css": "tailwindcss -i frontend/input.css -o static/typography.css --minify",
-    "format": "prettier --write static/app.js static/index.html",
-    "format:check": "prettier --check static/app.js static/index.html"
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "build:css": "npm run build",
+    "format": "prettier --write frontend/index.html \"frontend/src/**/*.js\" vite.config.js playwright.config.js eslint.config.js \"tests/frontend/**/*.js\" tests/frontend-config.test.mjs",
+    "format:check": "prettier --check frontend/index.html \"frontend/src/**/*.js\" vite.config.js playwright.config.js eslint.config.js \"tests/frontend/**/*.js\" tests/frontend-config.test.mjs",
+    "test:frontend": "playwright test",
+    "test:frontend:install": "playwright install --only-shell chromium firefox webkit",
+    "lint": "eslint frontend/src",
+    "test:compatibility:policy": "node --test tests/frontend-config.test.mjs"
   },
   "devDependencies": {
-    "@tailwindcss/cli": "^4.1.12",
+    "@playwright/test": "1.64.1",
     "@tailwindcss/typography": "^0.5.20",
+    "@tailwindcss/vite": "4.3.3",
+    "@vitejs/plugin-legacy": "8.2.3",
+    "browserslist": "4.29.3",
+    "eslint": "10.13.0",
+    "eslint-plugin-compat": "7.0.2",
+    "lightningcss": "1.33.0",
     "prettier": "^3.9.6",
-    "tailwindcss": "^4.1.12"
+    "tailwindcss": "4.3.3",
+    "terser": "5.51.2",
+    "vite": "8.3.4"
+  },
+  "dependencies": {
+    "alpinejs": "3.17.4",
+    "clipboard-polyfill": "4.1.1",
+    "core-js": "3.50.0",
+    "daisyui": "5.7.50",
+    "dompurify": "3.4.17",
+    "highlight.js": "11.11.1",
+    "i18next": "26.4.2",
+    "lucide": "1.59.0",
+    "marked": "15.0.7",
+    "mermaid": "11.17.2",
+    "uuid": "14.0.3"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

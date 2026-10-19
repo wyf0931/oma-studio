@@ -13,8 +13,8 @@ import json
 import re
 from pathlib import Path
 
-STYLES = Path("static/styles.css")
-INDEX = Path("static/index.html")
+STYLES = Path("frontend/src/styles.css")
+INDEX = Path("frontend/index.html")
 DOC = Path("docs/safari-ipad-compatibility.md")
 LOCALES = (Path("static/locales/en.json"), Path("static/locales/zh-CN.json"))
 

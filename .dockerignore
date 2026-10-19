@@ -13,7 +13,9 @@ node_modules
 research
 docs
 bin
-frontend
+dist
+test-results
+playwright-report
 *.md
 LICENSE
 Dockerfile

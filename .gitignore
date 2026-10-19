@@ -11,3 +11,7 @@ workspace/
 research/
 .superpowers/
 .DS_Store
+
+dist/
+playwright-report/
+test-results/

@@ -18,9 +18,9 @@ session transcripts**. Status: MVP, single user, localhost.
 | API | FastAPI + Pydantic | Request validation lives in Pydantic models in `app/main.py`. |
 | Storage | SQLModel + SQLite (file `~/.oma-studio/data/platform.sqlite3`) | Metadata only; SQLite is the sole metadata store. Legacy TinyDB JSON is a read-only archive that no code path reads. |
 | Agent runtime | Pi RPC subprocess | One short-lived Pi process per operation (send / stream / messages). |
-| Frontend | Plain static HTML/JS/CSS in `static/` | No bundler. Alpine.js + DaisyUI 5 + Tailwind browser build via CDN; Lucide is the required icon system for all UI icons. |
-| Markdown rendering | marked + DOMPurify + highlight.js + mermaid (CDN) | Sanitized HTML only; never inject raw model output. |
-| Typography CSS | Tailwind CLI (`npm run build:css`) | The only frontend build step; output is committed to `static/typography.css`. |
+| Frontend | Vite-built Alpine.js + DaisyUI 5 + Tailwind 4 | Source in `frontend/`, public assets in `static/`, output in ignored `dist/`. Lucide is the required icon system. |
+| Markdown rendering | marked + DOMPurify + highlight.js + mermaid (locked npm packages) | Sanitized HTML only; never inject raw model output. |
+| Frontend build/compatibility | Vite + Tailwind Vite plugin + Lightning CSS + core-js | `npm run build`; one `.browserslistrc`; generated `dist/` is not committed. |
 | Observability | stdlib JSONL logging + request IDs | Logs go to stdout and rotating `PI_LOG_DIR`; no external collector in the MVP. |
 
 ## Commands
@@ -29,6 +29,8 @@ session transcripts**. Status: MVP, single user, localhost.
 # Setup
 cp .env.example .env      # then set the storage paths (see file comments)
 uv sync                   # Python deps (also creates .venv)
+npm ci                    # locked frontend deps; Node >=22.12
+npm run build             # required before local server/API tests; Docker builds automatically
 pi --version              # Pi CLI must be on PATH, with a provider credential configured
 
 # Run (Docker Compose — app layer + process layer in one container, state via bind mounts)
@@ -43,13 +45,17 @@ uv run uvicorn app.main:app --env-file .env --reload
 uv run pytest -q
 
 # Frontend formatting (Prettier — required before publishing)
-npm install
-npm run format            # static/app.js + static/index.html
+npm ci
+npm run format            # frontend source, build config and browser tests
 npm run format:check      # merge-gate check
+npm run lint              # Web API compatibility against .browserslistrc
+npm run test:compatibility:policy
 
-# Frontend CSS (only when changing markdown presentation classes)
-npm install
-npm run build:css         # frontend/input.css -> static/typography.css (keep it committed)
+# Frontend production build and browser regression suite
+npm run build             # frontend/ + static/ -> dist/ (gitignored)
+npm run dev               # rebuild on edit; same production pipeline, served by FastAPI
+npm run test:frontend:install
+npm run test:frontend      # Chromium, Firefox, desktop/mobile WebKit
 ```
 
 ## Repository map
@@ -64,8 +70,10 @@ app/
   resources.py  Read-only discovery: extensions, skills, MCP servers, provider/model catalog
   files.py      Chat-generated file discovery + authorization (write/edit toolCall provenance)
   main.py       FastAPI app, routes, Pydantic payloads. NOTE: configures itself at import time
-static/         index.html, app.js (one Alpine component), styles.css, typography.css (generated)
-frontend/       input.css — Tailwind source for static/typography.css
+static/         Public images and locale JSON (copied into dist/)
+frontend/       index.html, input.css, src/platform.js (Alpine state), src/main.js (boot), src/styles.css
+dist/           Generated Vite frontend; ignored, served by FastAPI at /static
+vite.config.js  Locked dependency build, JS/polyfill/CSS targets from .browserslistrc
 tests/          Mirrors app modules; conftest provides `client` and `temporary_agent` fixtures
 bin/ops.sh      Container operations (start/stop/restart/status/logs) via Docker Compose
 Dockerfile      Single image: app layer (Python/FastAPI) + process layer (pi, rg, fd, git)
@@ -94,9 +102,9 @@ data/           Legacy runtime data (pre-normalization archive, gitignored, supe
 6. **`PI_CWD` is a working directory, not a sandbox.** The MVP has no auth and must not be
    exposed beyond localhost. Don't add "hardening" that implies a security boundary where
    none exists (e.g. path "jails" outside the authorized-files flow).
-7. **Single process, single static frontend.** FastAPI serves the API and `static/`; the
-   catch-all route returns `index.html`. Don't add a second server or a JS build system
-   without an explicit decision.
+7. **Single process, single static frontend.** FastAPI serves the API and the Vite `dist/` build; the
+   catch-all route renders the built `index.html`. The owner authorized Vite in #171.
+   Do not add a second production server or replace the UI framework without a decision.
 
 ## Development philosophy
 
@@ -124,24 +132,24 @@ data/           Legacy runtime data (pre-normalization archive, gitignored, supe
   README Configuration section in the same change.
 - **API changes:** README documents the full HTTP surface table — add/update rows when
   endpoints change.
-- **Static assets:** when editing `static/styles.css`, `static/app.js`, or
-  `static/typography.css`, bump the `?v=` cache-busting query in `static/index.html`.
+- **Frontend assets:** run `npm run build` after source changes. Vite content hashes
+  replace manual CSS/JS cache tokens. Never edit/commit `dist/`; keep public URLs stable.
 - **Observability:** every HTTP response carries `X-Request-ID`; correlate browser
   errors with the rotating JSONL file under `PI_LOG_DIR`. Never log prompts, model
   output, credentials, or other sensitive payloads.
-- **Icons:** use Lucide via the CDN UMD build and `data-lucide` attributes for all
+- **Icons:** use bundled npm Lucide and `data-lucide` attributes for all
   UI icons, including markup rendered from Alpine templates or `x-html`; do not
   add hand-written SVG icons, text glyph icons, or CSS mask icon assets. Keep the
-  single render helper in `static/app.js` and preserve its dynamic re-render
+  single render helper in `frontend/src/platform.js` and preserve its dynamic re-render
   coverage.
 - **Errors:** raise `HTTPException` with clear messages; map `PiRpcError` to 503.
 - **Style:** modern stdlib typing (`str | None`), dataclasses for settings, and
   formatting consistent with the surrounding code. Ruff is configured in
   `pyproject.toml` (Python); Prettier is configured in `.prettierrc` for
-  `static/app.js` and `static/index.html` — run `npm run format` before
+  frontend HTML/JS and build/browser-test config — run `npm run format` before
   publishing frontend changes.
 - **Never commit:** `data/`, `logs/`, `.env`, `.run/`, `research/`, `.superpowers/`,
-  `.playwright-cli/`, `node_modules/`, `.venv/` (all gitignored runtime/scratch).
+  `.playwright-cli/`, `dist/`, `test-results/`, `playwright-report/`, `node_modules/`, `.venv/` (all gitignored runtime/scratch).
 
 ## Multi-agent Issue loop
 
@@ -187,6 +195,9 @@ Before publishing, the worker must run formatting first, then validation:
 uv run ruff format app tests
 uv run ruff check
 npm run format:check
+npm run lint
+npm run test:compatibility:policy
+npm run build
 uvx pyright app tests
 uv run pytest -q
 git diff --check
@@ -209,8 +220,12 @@ git merge --no-ff <issue-branch> -m "merge: <issue summary>"
 uv run ruff format --check app tests
 uv run ruff check
 npm run format:check
+npm run lint
+npm run test:compatibility:policy
+npm run build
 uvx pyright app tests
 uv run pytest -q
+npm run test:frontend
 git push origin main
 ```
 
@@ -268,5 +283,6 @@ force-push it.
   disables all non-selected servers and passes `--mcp-config`; it is deleted via
   `cleanup_paths` on process close.
 - Dynamic HTML returned through Alpine `x-html` must not embed raw JSON in attributes; HTML entity decoding can make it invalid for `JSON.parse`. Store structured data in Alpine state and pass only a short key through the rendered markup.
-- Some CDN deps are intentionally unpinned majors (daisyui@5, Tailwind browser@4,
-  mermaid@11); changing this is a project decision, not a drive-by fix.
+- Browser targets live in `.browserslistrc`; npm dependencies are locked. Do not
+  reintroduce CDN scripts or the Tailwind browser compiler. Keep DaisyUI/Alpine/Lucide
+  and existing OMA UI/UX; see `docs/frontend-architecture.md` for the compatibility boundary.
