@@ -14,6 +14,8 @@ import { ApiError, asError } from "../../shared/types";
 import { createArtifactsState } from "./state";
 export type State = ReturnType<typeof createArtifactsState>;
 export interface Actions {
+  setUploadLimits(limits: { max_files: number; max_bytes: number }): void;
+  resetSession(): void;
   closeFiles(): void;
   resetFilePanel(): void;
   clearAttachments(includeLocal?: boolean): void;
@@ -615,7 +617,14 @@ export function createArtifacts(deps: Dependencies): Feature {
   function clearFileShare(token: string): void {
     if (state.fileViewer?.artifactShare?.token === token) state.fileViewer.artifactShare = null;
   }
+  function resetSession(): void {
+    Object.assign(state, createArtifactsState());
+  }
   return {
+    resetSession,
+    setUploadLimits: (limits) => {
+      state.uploadLimits = limits;
+    },
     state,
     toggleFiles,
     refreshOpenFiles,

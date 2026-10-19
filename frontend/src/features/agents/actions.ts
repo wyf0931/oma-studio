@@ -11,6 +11,7 @@ import { ApiError, asError } from "../../shared/types";
 import { createAgentsState } from "./state";
 export type State = ReturnType<typeof createAgentsState>;
 export interface Actions {
+  resetSession(): void;
   replaceResources(resources: DTO.Resources): void;
   loadAgents(): Promise<void>;
   refreshAgents(): Promise<DTO.Agent[]>;
@@ -531,7 +532,11 @@ export function createAgents(deps: Dependencies): Feature {
     state.resources = resources;
     if (resources.tools?.length) state.toolCatalog = resources.tools;
   }
+  function resetSession(): void {
+    Object.assign(state, createAgentsState());
+  }
   return {
+    resetSession,
     state,
     loadAgents,
     refreshAgents,

@@ -10,6 +10,7 @@ import { asError } from "../../shared/types";
 import { createSettingsState } from "./state";
 export type State = ReturnType<typeof createSettingsState>;
 export interface Actions {
+  resetSession(): void;
   closeSettings(): void;
   initializeThemePreference(): void;
   applyThemePreference(value: string): void;
@@ -192,7 +193,12 @@ export function createSettings(deps: Dependencies): Feature {
   function closeSettings(): void {
     state.settingsOpen = false;
   }
+  function resetSession(): void {
+    const { theme, themePreference, systemThemeQuery } = state;
+    Object.assign(state, createSettingsState(), { theme, themePreference, systemThemeQuery });
+  }
   return {
+    resetSession,
     state,
     initializeThemePreference,
     applyThemePreference,

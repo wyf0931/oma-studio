@@ -9,6 +9,7 @@ import { asError } from "../../shared/types";
 import { createAutopilotsState } from "./state";
 export type State = ReturnType<typeof createAutopilotsState>;
 export interface Actions {
+  resetSession(): void;
   selectAutopilotAgent(agentId: string): void;
   selectAutopilotEditAgent(agentId: string): void;
   openCronBuilder(): void;
@@ -236,7 +237,11 @@ export function createAutopilots(deps: Dependencies): Feature {
       deps.shell.showError(e);
     }
   }
+  function resetSession(): void {
+    Object.assign(state, createAutopilotsState());
+  }
   return {
+    resetSession,
     state,
     selectAutopilotAgent,
     selectAutopilotEditAgent,

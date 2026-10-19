@@ -13,6 +13,8 @@ import { asError } from "../../shared/types";
 import { createIdentityState } from "./state";
 export type State = ReturnType<typeof createIdentityState>;
 export interface Actions {
+  closeProfileMenu(): void;
+  resetSession(expired?: boolean): void;
   setCurrentUser(user: DTO.User | null): void;
   loadSession(): Promise<void>;
   login(): Promise<void>;
@@ -204,7 +206,16 @@ export function createIdentity(deps: Dependencies): Feature {
   function setCurrentUser(user: DTO.User | null): void {
     state.authUser = user;
   }
+  function resetSession(expired = false): void {
+    Object.assign(state, createIdentityState());
+    state.authChecked = true;
+    state.sessionExpired = expired;
+  }
   return {
+    resetSession,
+    closeProfileMenu: () => {
+      state.profileMenuOpen = false;
+    },
     state,
     loadSession,
     login,
