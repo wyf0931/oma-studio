@@ -19,7 +19,7 @@ export function createChatState() {
     chatReadController: null as AbortController | null,
     watchingChat: null as string | null,
     streamSource: null as EventSource | null,
-    pollTimer: null as ReturnType<typeof setInterval> | null,
+    pollTimer: null as ReturnType<typeof setTimeout> | null,
     copiedKey: "",
     messagesLoading: false,
     searchOpen: false,
