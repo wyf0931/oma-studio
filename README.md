@@ -8,7 +8,7 @@ Create an Agent with a clear role, working instructions, trusted tools, and reus
 
 [ohmyagent.ai](https://ohmyagent.ai) is the Oh My Agent project site. The hosted workspace is available at [studio.ohmyagent.ai](https://studio.ohmyagent.ai).
 
-OMA Studio is built with **FastAPI**, **Pi RPC mode**, and a lightweight **Alpine.js + DaisyUI** web interface.
+OMA Studio is built with **FastAPI**, **Pi RPC mode**, and a lightweight **Vue 3 + TypeScript + DaisyUI** web interface.
 
 The project keeps a clear division of responsibility:
 
@@ -100,7 +100,7 @@ The result is a small, inspectable workspace for turning good ways of working in
 ## Architecture
 
 ```text
-Browser (Alpine.js + DaisyUI)
+Browser (Vue 3 + TypeScript + DaisyUI)
         │ HTTP / SSE
         ▼
 FastAPI
@@ -520,7 +520,7 @@ Local development server with hot reload (no Docker):
 uv run uvicorn app.main:app --env-file .env --reload
 ```
 
-The existing Alpine.js + DaisyUI UI is built with Vite and served by the same
+The existing Vue 3 + TypeScript + DaisyUI UI is built with Vite and served by the same
 FastAPI process. Frontend source lives under `frontend/`; `static/` holds public
 images/locales, and `dist/` is the generated deployable bundle. Build once before
 starting the local server (Node >=22.12):
@@ -546,6 +546,8 @@ browser-time compiler. Core-js covers JavaScript features, not CSS or OS/WebKit
 keyboard/viewport behavior.
 
 ```bash
+npm run typecheck
+npm run test:typecheck:policy
 npm run format:check
 npm run lint
 npm run build

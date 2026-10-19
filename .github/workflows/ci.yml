@@ -22,6 +22,7 @@ jobs:
           npm run format:check
           npm run lint
           npm run test:compatibility:policy
+          npm run test:typecheck:policy
           npm run build
 
       # astral-sh/setup-uv v6.8.0

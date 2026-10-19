@@ -162,7 +162,7 @@ def test_below_baseline_notice_is_gated_and_dismissible():
     html = INDEX.read_text(encoding="utf-8")
     assert '<div class="unsupported-browser" role="status">' in html
     assert 'id="unsupported-browser-dismiss"' in html
-    assert "t('common.unsupportedBrowser')" in html
+    assert 'id="unsupported-browser-message"' in html
     for locale in LOCALES:
         data = json.loads(locale.read_text(encoding="utf-8"))
         assert data["common"]["unsupportedBrowser"]

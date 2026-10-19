@@ -5,7 +5,7 @@ Guidance for AI coding agents (pi, and any other agent) working in this reposito
 ## What this project is
 
 OMA Studio — an experimental, local-first agent platform. A single FastAPI process serves
-a static Alpine.js + DaisyUI frontend and a JSON API, and talks to the
+a static Vue 3 + TypeScript + DaisyUI frontend and a JSON API, and talks to the
 [Pi coding agent](https://github.com/earendil-works/pi) via `pi --mode rpc` (JSONL over
 stdin/stdout). SQLite stores platform metadata only; **Pi owns all message content and
 session transcripts**. Status: MVP, single user, localhost.
@@ -18,7 +18,7 @@ session transcripts**. Status: MVP, single user, localhost.
 | API | FastAPI + Pydantic | Request validation lives in Pydantic models in `app/main.py`. |
 | Storage | SQLModel + SQLite (file `~/.oma-studio/data/platform.sqlite3`) | Metadata only; SQLite is the sole metadata store. Legacy TinyDB JSON is a read-only archive that no code path reads. |
 | Agent runtime | Pi RPC subprocess | One short-lived Pi process per operation (send / stream / messages). |
-| Frontend | Vite-built Alpine.js + DaisyUI 5 + Tailwind 4 | Source in `frontend/`, public assets in `static/`, output in ignored `dist/`. Lucide is the required icon system. |
+| Frontend | Vite-built Vue 3 + TypeScript + DaisyUI 5 + Tailwind 4 | Source in `frontend/`, public assets in `static/`, output in ignored `dist/`. Lucide is the required icon system. |
 | Markdown rendering | marked + DOMPurify + highlight.js + mermaid (locked npm packages) | Sanitized HTML only; never inject raw model output. |
 | Frontend build/compatibility | Vite + Tailwind Vite plugin + Lightning CSS + core-js | `npm run build`; one `.browserslistrc`; generated `dist/` is not committed. |
 | Observability | stdlib JSONL logging + request IDs | Logs go to stdout and rotating `PI_LOG_DIR`; no external collector in the MVP. |
@@ -47,6 +47,8 @@ uv run pytest -q
 # Frontend formatting (Prettier — required before publishing)
 npm ci
 npm run format            # frontend source, build config and browser tests
+npm run typecheck
+npm run test:typecheck:policy
 npm run format:check      # merge-gate check
 npm run lint              # Web API compatibility against .browserslistrc
 npm run test:compatibility:policy
@@ -71,7 +73,7 @@ app/
   files.py      Chat-generated file discovery + authorization (write/edit toolCall provenance)
   main.py       FastAPI app, routes, Pydantic payloads. NOTE: configures itself at import time
 static/         Public images and locale JSON (copied into dist/)
-frontend/       index.html, input.css, src/platform.js (Alpine state), src/main.js (boot), src/styles.css
+frontend/       index.html, input.css, src/main.ts, src/app/, src/features/, src/shared/, src/ui/, src/styles.css
 dist/           Generated Vite frontend; ignored, served by FastAPI at /static
 vite.config.js  Locked dependency build, JS/polyfill/CSS targets from .browserslistrc
 tests/          Mirrors app modules; conftest provides `client` and `temporary_agent` fixtures
@@ -109,7 +111,7 @@ data/           Legacy runtime data (pre-normalization archive, gitignored, supe
 ## Development philosophy
 
 - **Don't reinvent wheels.** Prefer standard-library and community packages over
-  hand-rolled code: Pydantic for validation, SQLModel for storage, Alpine.js + DaisyUI for
+  hand-rolled code: Pydantic for validation, SQLModel for storage, Vue 3 + TypeScript + DaisyUI for
   UI, marked/DOMPurify/mermaid/highlight.js for rendering. Before writing a utility,
   check whether a small, well-maintained package already covers it.
   *Known deliberate exception:* the mini dotenv reader in `config.py` exists so that
@@ -137,16 +139,16 @@ data/           Legacy runtime data (pre-normalization archive, gitignored, supe
 - **Observability:** every HTTP response carries `X-Request-ID`; correlate browser
   errors with the rotating JSONL file under `PI_LOG_DIR`. Never log prompts, model
   output, credentials, or other sensitive payloads.
-- **Icons:** use bundled npm Lucide and `data-lucide` attributes for all
-  UI icons, including markup rendered from Alpine templates or `x-html`; do not
+- **Icons:** use bundled npm Lucide (`OmaIcon` / `@lucide/vue` in templates and `data-lucide` in dynamic HTML) for all
+  UI icons, including markup rendered from Vue templates or `v-html`; do not
   add hand-written SVG icons, text glyph icons, or CSS mask icon assets. Keep the
-  single render helper in `frontend/src/platform.js` and preserve its dynamic re-render
+  single scoped dynamic render helper in the application module and preserve its dynamic re-render
   coverage.
 - **Errors:** raise `HTTPException` with clear messages; map `PiRpcError` to 503.
 - **Style:** modern stdlib typing (`str | None`), dataclasses for settings, and
   formatting consistent with the surrounding code. Ruff is configured in
   `pyproject.toml` (Python); Prettier is configured in `.prettierrc` for
-  frontend HTML/JS and build/browser-test config — run `npm run format` before
+  frontend HTML/TS/Vue and build/browser-test config — run `npm run format` before
   publishing frontend changes.
 - **Never commit:** `data/`, `logs/`, `.env`, `.run/`, `research/`, `.superpowers/`,
   `.playwright-cli/`, `dist/`, `test-results/`, `playwright-report/`, `node_modules/`, `.venv/` (all gitignored runtime/scratch).
@@ -194,6 +196,8 @@ Before publishing, the worker must run formatting first, then validation:
 ```bash
 uv run ruff format app tests
 uv run ruff check
+npm run typecheck
+npm run test:typecheck:policy
 npm run format:check
 npm run lint
 npm run test:compatibility:policy
@@ -219,6 +223,8 @@ git pull --ff-only origin main
 git merge --no-ff <issue-branch> -m "merge: <issue summary>"
 uv run ruff format --check app tests
 uv run ruff check
+npm run typecheck
+npm run test:typecheck:policy
 npm run format:check
 npm run lint
 npm run test:compatibility:policy
@@ -282,7 +288,16 @@ force-push it.
 - When `pi-mcp-adapter` is enabled, `pi_rpc.py` writes a temporary MCP config that
   disables all non-selected servers and passes `--mcp-config`; it is deleted via
   `cleanup_paths` on process close.
-- Dynamic HTML returned through Alpine `x-html` must not embed raw JSON in attributes; HTML entity decoding can make it invalid for `JSON.parse`. Store structured data in Alpine state and pass only a short key through the rendered markup.
+- Dynamic HTML returned through Vue `v-html` must not embed raw JSON in attributes; HTML entity decoding can make it invalid for `JSON.parse`. Store structured data in feature state and pass only a short key through the rendered markup.
 - Browser targets live in `.browserslistrc`; npm dependencies are locked. Do not
-  reintroduce CDN scripts or the Tailwind browser compiler. Keep DaisyUI/Alpine/Lucide
+  reintroduce CDN scripts or the Tailwind browser compiler. Keep DaisyUI/Vue/Lucide
   and existing OMA UI/UX; see `docs/frontend-architecture.md` for the compatibility boundary.
+
+## Vue module rules
+
+- Feature state factories own fresh state per mount; action modules declare explicit typed dependencies.
+- Views use SFCs with TypeScript and named reactive scope bindings; never expose the workspace on window.
+- `npm run build` must run vue-tsc before Vite. Keep strict templates and strict TypeScript enabled.
+- Keep untyped network payloads unknown until the endpoint contract or boundary parser supplies a type.
+- Native template icons are Vue Lucide components; imperative replacement is confined to dynamic HTML containers.
+- Keep the existing FastAPI/static deployment and CSS appearance. Add Router/Pinia only for a concrete requirement.
