@@ -21,6 +21,9 @@ ERROR_CODES: dict[str, ErrorDefinition] = {
     "auth.invalidCredentials": ErrorDefinition(
         "auth.invalidCredentials", "Invalid username or password"
     ),
+    "account.currentPasswordIncorrect": ErrorDefinition(
+        "account.currentPasswordIncorrect", "Current password is incorrect"
+    ),
     "auth.usernameExists": ErrorDefinition(
         "auth.usernameExists", "Username already exists"
     ),

@@ -4672,6 +4672,56 @@ pre,
  width: min(360px, 100%);
  margin-top: 16px;
 }
+.account-section-title {
+ margin: 0 0 14px;
+ font-size: 15px;
+ font-weight: 600;
+}
+.account-info {
+ display: grid;
+ gap: 10px;
+ margin: 0 0 14px;
+ font-size: 13px;
+}
+.account-info > div {
+ display: grid;
+ grid-template-columns: 100px minmax(0, 1fr);
+ gap: 12px;
+}
+.account-info dt {
+ color: var(--muted);
+}
+.account-info dd {
+ margin: 0;
+ overflow-wrap: anywhere;
+}
+.account-form .fieldset {
+ min-width: 0;
+ padding: 0;
+ font-size: 13px;
+}
+.account-form .fieldset > label {
+ font-weight: 500;
+}
+.account-form .fieldset p {
+ margin-top: 2px;
+ line-height: 1.5;
+}
+.account-actions {
+ display: flex;
+ flex-wrap: wrap;
+ gap: 8px;
+ margin-top: 16px;
+}
+.settings-section .account-feedback {
+ margin-top: 12px;
+}
+.settings-section .account-feedback.text-error {
+ color: var(--color-error);
+}
+.settings-section .account-feedback.text-success {
+ color: var(--color-success);
+}
 .theme-options {
  display: grid;
  grid-template-columns: repeat(3, minmax(0, 1fr));

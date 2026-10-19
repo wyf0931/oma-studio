@@ -49,7 +49,7 @@
       disabled
     />
     <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20260923-safari-ios-only" />
+    <link rel="stylesheet" href="/static/styles.css?v=20261019-account-settings" />
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <!-- Baseline notice: CSS shows this only on engines below Safari 16.4, and the
@@ -228,7 +228,7 @@
                   <div><span x-text="profileAvatarInitials()"></span></div>
                 </div>
                 <span class="sidebar-profile-identity"
-                  ><b x-text="authUser?.username || t('nav.user')"></b><small x-text="profileRoleLabel()"></small
+                  ><b x-text="profileDisplayName()"></b><small x-text="profileRoleLabel()"></small
                 ></span>
                 <i class="sidebar-profile-chevron" data-lucide="chevron-up" aria-hidden="true"></i>
               </button>
@@ -2428,6 +2428,7 @@
       x-show="settingsOpen"
       x-cloak
       @click.self="settingsOpen = false"
+      @keydown.escape.window="if (settingsOpen) { settingsOpen = false; $event.preventDefault(); }"
     >
       <div class="modal-box settings-modal-box">
         <div class="settings-header">
@@ -2441,7 +2442,218 @@
             <button type="button" :class="{active: settingsTab === 'general'}" @click="openSettingsTab('general')">
               <i data-lucide="settings" aria-hidden="true"></i> <span x-text="t('settings.general')"></span>
             </button>
+            <button
+              type="button"
+              :class="{active: settingsTab === 'account'}"
+              @click="openSettingsTab('account')"
+              :aria-current="settingsTab === 'account' ? 'page' : null"
+            >
+              <i data-lucide="user-round" aria-hidden="true"></i> <span x-text="t('account.title')"></span>
+            </button>
           </aside>
+          <section class="settings-content" x-show="settingsTab === 'account'" :aria-label="t('account.title')">
+            <div class="settings-title">
+              <h3 x-text="t('account.title')"></h3>
+              <p x-text="t('account.subtitle')"></p>
+            </div>
+            <div class="settings-section">
+              <h4 class="account-section-title" x-text="t('account.info')"></h4>
+              <dl class="account-info">
+                <div>
+                  <dt x-text="t('account.username')"></dt>
+                  <dd><code x-text="authUser?.username"></code></dd>
+                </div>
+                <div>
+                  <dt x-text="t('account.role')"></dt>
+                  <dd x-text="profileRoleLabel()"></dd>
+                </div>
+                <div>
+                  <dt x-text="t('account.created')"></dt>
+                  <dd x-text="authUser?.created_at ? formatDateTime(authUser.created_at) : ''"></dd>
+                </div>
+              </dl>
+              <p x-text="t('account.usernameHelp')"></p>
+            </div>
+            <form
+              class="settings-section account-form"
+              @submit.prevent="saveAccountProfile()"
+              @input="accountProfileSaved = false; accountProfileError = ''"
+              :aria-busy="accountProfileSaving"
+            >
+              <h4 class="account-section-title" x-text="t('account.profile')"></h4>
+              <fieldset class="fieldset" :disabled="accountProfileSaving">
+                <label for="account-nickname" x-text="t('account.nickname')"></label>
+                <input
+                  id="account-nickname"
+                  class="input w-full"
+                  type="text"
+                  x-model="accountProfile.nickname"
+                  maxlength="80"
+                  autocomplete="nickname"
+                  aria-describedby="account-nickname-help"
+                />
+                <p id="account-nickname-help" x-text="t('account.nicknameHelp')"></p>
+                <label class="mt-3" for="account-email" x-text="t('account.email')"></label>
+                <input
+                  id="account-email"
+                  class="input w-full"
+                  type="email"
+                  x-model="accountProfile.email"
+                  maxlength="200"
+                  autocomplete="email"
+                  aria-describedby="account-email-help"
+                />
+                <p id="account-email-help" x-text="t('account.emailHelp')"></p>
+              </fieldset>
+              <p
+                class="account-feedback text-error"
+                role="alert"
+                x-show="accountProfileError"
+                x-text="accountProfileError"
+              ></p>
+              <p
+                class="account-feedback text-success"
+                role="status"
+                x-show="accountProfileSaved"
+                x-text="t('account.profileSaved')"
+              ></p>
+              <div class="account-actions">
+                <button
+                  class="btn btn-soft btn-primary"
+                  type="submit"
+                  :disabled="accountProfileSaving || !accountProfileDirty()"
+                >
+                  <span
+                    class="loading loading-spinner loading-xs"
+                    x-show="accountProfileSaving"
+                    aria-hidden="true"
+                  ></span
+                  ><span x-text="t('account.saveProfile')"></span>
+                </button>
+              </div>
+            </form>
+            <div class="settings-section account-form">
+              <h4 class="account-section-title" x-text="t('account.password')"></h4>
+              <div x-show="!accountPasswordOpen">
+                <p x-text="t('account.passwordSet')"></p>
+                <div class="account-actions">
+                  <button
+                    type="button"
+                    class="btn btn-soft"
+                    @click="openAccountPassword()"
+                    :disabled="accountPasswordSaving"
+                    x-text="t('account.changePassword')"
+                  ></button>
+                </div>
+              </div>
+              <form
+                x-show="accountPasswordOpen"
+                @submit.prevent="saveAccountPassword()"
+                :aria-busy="accountPasswordSaving"
+              >
+                <input type="text" name="username" :value="authUser?.username || ''" autocomplete="username" hidden />
+                <p id="account-password-help" x-text="t('account.passwordHelp')"></p>
+                <fieldset class="fieldset mt-3" :disabled="accountPasswordSaving">
+                  <label for="account-current-password" x-text="t('account.currentPassword')"></label>
+                  <div class="input w-full" :class="{'input-error': accountPasswordErrors.current}">
+                    <input
+                      id="account-current-password"
+                      x-ref="accountCurrentPassword"
+                      class="grow min-w-0"
+                      :type="accountShowCurrentPassword ? 'text' : 'password'"
+                      x-model="accountCurrentPassword"
+                      @input="accountPasswordErrors.current = ''"
+                      autocomplete="current-password"
+                      spellcheck="false"
+                      autocapitalize="off"
+                      :aria-invalid="!!accountPasswordErrors.current"
+                      aria-describedby="account-current-error"
+                    />
+                    <button
+                      class="btn btn-ghost btn-sm btn-square"
+                      type="button"
+                      @click="accountShowCurrentPassword = !accountShowCurrentPassword"
+                      :aria-label="t(accountShowCurrentPassword ? 'account.hideCurrentPassword' : 'account.showCurrentPassword')"
+                      :aria-pressed="accountShowCurrentPassword"
+                      aria-controls="account-current-password"
+                    >
+                      <i data-lucide="eye" x-show="!accountShowCurrentPassword" aria-hidden="true"></i
+                      ><i data-lucide="eye-off" x-show="accountShowCurrentPassword" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  <p
+                    id="account-current-error"
+                    class="account-feedback text-error"
+                    role="alert"
+                    x-show="accountPasswordErrors.current"
+                    x-text="accountPasswordErrors.current"
+                  ></p>
+                  <label class="mt-3" for="account-new-password" x-text="t('account.newPassword')"></label>
+                  <div class="input w-full" :class="{'input-error': accountPasswordErrors.new}">
+                    <input
+                      id="account-new-password"
+                      class="grow min-w-0"
+                      :type="accountShowNewPassword ? 'text' : 'password'"
+                      x-model="accountNewPassword"
+                      @input="accountPasswordErrors.new = ''"
+                      autocomplete="new-password"
+                      spellcheck="false"
+                      autocapitalize="off"
+                      :aria-invalid="!!accountPasswordErrors.new"
+                      aria-describedby="account-password-help account-new-error"
+                    />
+                    <button
+                      class="btn btn-ghost btn-sm btn-square"
+                      type="button"
+                      @click="accountShowNewPassword = !accountShowNewPassword"
+                      :aria-label="t(accountShowNewPassword ? 'account.hideNewPassword' : 'account.showNewPassword')"
+                      :aria-pressed="accountShowNewPassword"
+                      aria-controls="account-new-password"
+                    >
+                      <i data-lucide="eye" x-show="!accountShowNewPassword" aria-hidden="true"></i
+                      ><i data-lucide="eye-off" x-show="accountShowNewPassword" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  <p
+                    id="account-new-error"
+                    class="account-feedback text-error"
+                    role="alert"
+                    x-show="accountPasswordErrors.new"
+                    x-text="accountPasswordErrors.new"
+                  ></p>
+                </fieldset>
+                <p
+                  class="account-feedback text-error"
+                  role="alert"
+                  x-show="accountPasswordErrors.form"
+                  x-text="accountPasswordErrors.form"
+                ></p>
+                <div class="account-actions">
+                  <button class="btn btn-soft btn-primary" type="submit" :disabled="accountPasswordSaving">
+                    <span
+                      class="loading loading-spinner loading-xs"
+                      x-show="accountPasswordSaving"
+                      aria-hidden="true"
+                    ></span
+                    ><span x-text="t('account.updatePassword')"></span>
+                  </button>
+                  <button
+                    class="btn btn-ghost"
+                    type="button"
+                    @click="resetAccountPassword()"
+                    :disabled="accountPasswordSaving"
+                    x-text="t('common.cancel')"
+                  ></button>
+                </div>
+              </form>
+              <p
+                class="account-feedback text-success"
+                role="status"
+                x-show="accountPasswordSaved"
+                x-text="t('account.passwordSaved')"
+              ></p>
+            </div>
+          </section>
           <section class="settings-content" x-show="settingsTab === 'general'">
             <div class="settings-title">
               <h3 x-text="t('settings.general')"></h3>
@@ -2560,7 +2772,7 @@
               <tbody>
                 <template x-for="user in users" :key="user.id">
                   <tr class="bg-base-200">
-                    <td x-text="user.username"></td>
+                    <td x-text="user.nickname || user.username"></td>
                     <td><code x-text="user.username"></code></td>
                     <td x-text="user.email || '—'"></td>
                     <td>
@@ -3550,6 +3762,6 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20260923-thinking-collapse"></script>
+    <script src="/static/app.js?v=20261019-account-settings"></script>
   </body>
 </html>

@@ -312,6 +312,18 @@ port 8000 on loopback by default, so a reverse proxy on the same host is the onl
 `OMA_BIND_ADDRESS=0.0.0.0` only when a firewall you control already restricts access. If this
 deployment is placed behind an external NGINX reverse proxy, set `client_max_body_size 100m;` for the OMA Studio location so it matches `OMA_MAX_UPLOAD_MB`.
 
+### Account settings
+
+Signed-in users can open **Settings → Account** to edit an optional nickname and
+contact email, view account information, or change their password. Nicknames fall
+back to the login username when blank. Email is unverified contact information;
+it is not used for sign-in or password recovery.
+
+Password changes require the current password and a new password of 15–200
+characters. No email verification is required. The current session stays signed
+in, and other sessions for that user are revoked. Forgotten-password recovery
+and administrator password resets are not available.
+
 ### Providers and models
 
 Provider, model, and supported thinking levels are discovered from `~/.pi/agent/models.json`. Configure the global `PI_PROVIDER`, `PI_MODEL`, and `PI_THINKING_LEVEL` defaults in `.env`. An Agent can either use the linked Auto mode, which resolves all three defaults whenever a new Pi RPC session starts, or override all three values explicitly. The platform rejects partial Auto configurations and validates that an explicit model belongs to its Provider. Pi starts with `--thinking <level>`; the default level is `low`.
@@ -401,6 +413,8 @@ This MVP is a single FastAPI application with a static frontend. The main endpoi
 | `POST /api/auth/login` | Sign in with a username and password |
 | `GET /api/auth/session` | Read the current signed-in user |
 | `POST /api/auth/logout` | End the current session |
+| `PATCH /api/users/me` | Update the current user's optional nickname and contact email |
+| `POST /api/users/me/password` | Change the current user's password after verifying the current password; revoke other sessions |
 | `GET /api/users` | List users (admin only) |
 | `POST /api/users` | Add a normal user (admin only) |
 | `PATCH /api/users/{id}/status` | Enable or disable a user (admin only) |

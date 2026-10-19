@@ -9,9 +9,10 @@ from uuid import uuid4
 
 from sqlmodel import Session, select
 
-from .auth import hash_password, new_session_token, session_digest
+from .auth import hash_password, new_session_token, session_digest, verify_password
 from .storage import create_sqlite_engine, from_row, to_row
-from .storage_models import TABLE_MODELS
+from .storage_models import TABLE_MODELS, User
+from .storage_models import Session as UserSession
 
 DEFAULT_TOOLS = ["read", "write", "edit", "bash"]
 BUILTIN_TOOLS = DEFAULT_TOOLS + ["grep", "find", "ls"]
@@ -180,6 +181,36 @@ class Store:
             "users", lambda item: item.get("id") == user_id, {"status": status}
         )
         return self.get_user(user_id)
+
+    def update_user_profile(self, user_id: str, values: dict) -> dict | None:
+        # Nickname uses the existing extra_json metadata support; no schema upgrade is needed.
+        fields = {
+            key: value for key, value in values.items() if key in {"nickname", "email"}
+        }
+        self._update("users", lambda item: item.get("id") == user_id, fields)
+        return self.get_user(user_id)
+
+    def change_user_password(
+        self, user_id: str, current_password: str, new_password: str, token: str
+    ) -> bool:
+        # Update the credential and revoke other sessions in the same transaction.
+        with Session(self.engine) as session:
+            session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            user = session.get(User, user_id)
+            if not user or not verify_password(current_password, user.password_hash):
+                return False
+            user.password_hash = hash_password(new_password)
+            session.add(user)
+            others = session.exec(
+                select(UserSession).where(
+                    UserSession.user_id == user_id,
+                    UserSession.token_hash != session_digest(token),
+                )
+            ).all()
+            for other in others:
+                session.delete(other)
+            session.commit()
+        return True
 
     def delete_user(self, user_id: str) -> bool:
         self._remove("sessions", lambda item: item.get("user_id") == user_id)

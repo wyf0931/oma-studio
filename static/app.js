@@ -2,6 +2,18 @@ function platform() {
   return {
     settingsOpen: false,
     settingsTab: "general",
+    accountProfile: { nickname: "", email: "" },
+    accountProfileSaving: false,
+    accountProfileError: "",
+    accountProfileSaved: false,
+    accountPasswordOpen: false,
+    accountCurrentPassword: "",
+    accountNewPassword: "",
+    accountShowCurrentPassword: false,
+    accountShowNewPassword: false,
+    accountPasswordSaving: false,
+    accountPasswordErrors: { current: "", new: "", form: "" },
+    accountPasswordSaved: false,
     usageOpen: false,
     usersOpen: false,
     shareRecordsOpen: false,
@@ -260,6 +272,12 @@ function platform() {
     sessionExpired: false,
     async init() {
       window.omaPlatform = this;
+      this.$watch("settingsOpen", (open) => {
+        if (!open) this.resetAccountPassword();
+      });
+      this.$watch("authUser", (user) => {
+        if (!user) this.settingsOpen = false;
+      });
       this.observeIcons();
       this.observeImageArtifacts();
       this.sharedMode =
@@ -508,6 +526,7 @@ function platform() {
         this.authUser = data.user;
       } catch (error) {
         this.authUser = null;
+        this.settingsOpen = false;
         this.loginError = error.uiMessage || error.message;
       } finally {
         this.authChecked = true;
@@ -556,7 +575,10 @@ function platform() {
       }
     },
     profileAvatarInitials() {
-      return this.initials(this.authUser?.username || "User");
+      return this.initials(this.profileDisplayName());
+    },
+    profileDisplayName() {
+      return this.authUser?.nickname || this.authUser?.username || this.t("nav.user");
     },
     profileRoleLabel() {
       return this.authUser?.role === "admin" ? this.t("nav.administrator") : this.t("nav.member");
@@ -606,6 +628,7 @@ function platform() {
       this.chatViewToken += 1;
       this.authUser = null;
       this.authChecked = true;
+      this.settingsOpen = false;
       this.activeChat = null;
       this.agents = [];
       this.chats = [];
@@ -1857,6 +1880,10 @@ function platform() {
     },
     async openSettings() {
       this.settingsTab = "general";
+      this.accountProfile = { nickname: this.authUser?.nickname || "", email: this.authUser?.email || "" };
+      this.accountProfileError = "";
+      this.accountProfileSaved = false;
+      this.resetAccountPassword();
       this.settingsOpen = true;
       if (this.authUser?.role === "admin") await this.loadSystemSettings();
     },
@@ -2004,7 +2031,85 @@ function platform() {
       return `¥${this.usageNumber(value).toFixed(4)}`;
     },
     async openSettingsTab(tab) {
+      if (tab !== "account") this.resetAccountPassword();
       this.settingsTab = tab;
+    },
+    accountProfileDirty() {
+      return (
+        this.accountProfile.nickname.trim() !== (this.authUser?.nickname || "") ||
+        this.accountProfile.email.trim() !== (this.authUser?.email || "")
+      );
+    },
+    async saveAccountProfile() {
+      if (this.accountProfileSaving || !this.accountProfileDirty()) return;
+      this.accountProfileSaving = true;
+      this.accountProfileError = "";
+      this.accountProfileSaved = false;
+      try {
+        this.authUser = await this.api("/api/users/me", {
+          method: "PATCH",
+          body: JSON.stringify({
+            nickname: this.accountProfile.nickname.trim() || null,
+            email: this.accountProfile.email.trim() || null,
+          }),
+        });
+        this.accountProfile = { nickname: this.authUser.nickname || "", email: this.authUser.email || "" };
+        this.accountProfileSaved = true;
+      } catch (error) {
+        this.accountProfileError =
+          error.status === 422 ? this.t("account.profileInvalid") : error.uiMessage || error.message;
+      } finally {
+        this.accountProfileSaving = false;
+      }
+    },
+    resetAccountPassword() {
+      this.accountPasswordOpen = false;
+      this.accountCurrentPassword = "";
+      this.accountNewPassword = "";
+      this.accountShowCurrentPassword = false;
+      this.accountShowNewPassword = false;
+      this.accountPasswordErrors = { current: "", new: "", form: "" };
+      this.accountPasswordSaved = false;
+    },
+    openAccountPassword() {
+      this.resetAccountPassword();
+      this.accountPasswordOpen = true;
+      this.$nextTick(() => this.$refs.accountCurrentPassword?.focus());
+    },
+    async saveAccountPassword() {
+      if (this.accountPasswordSaving) return;
+      this.accountPasswordErrors = { current: "", new: "", form: "" };
+      this.accountPasswordSaved = false;
+      if (!this.accountCurrentPassword) this.accountPasswordErrors.current = this.t("account.currentPasswordRequired");
+      const passwordLength = Array.from(this.accountNewPassword).length;
+      if (passwordLength < 15 || passwordLength > 200)
+        this.accountPasswordErrors.new = this.t("account.passwordLength");
+      if (this.accountPasswordErrors.current || this.accountPasswordErrors.new) return;
+      this.accountPasswordSaving = true;
+      this.accountShowCurrentPassword = false;
+      this.accountShowNewPassword = false;
+      try {
+        await this.api("/api/users/me/password", {
+          method: "POST",
+          body: JSON.stringify({
+            current_password: this.accountCurrentPassword,
+            new_password: this.accountNewPassword,
+          }),
+        });
+        this.resetAccountPassword();
+        this.accountPasswordSaved = true;
+      } catch (error) {
+        if (error.code === "account.currentPasswordIncorrect") {
+          this.accountPasswordErrors.current = error.uiMessage;
+          this.accountCurrentPassword = "";
+          this.$nextTick(() => this.$refs.accountCurrentPassword?.focus());
+        } else {
+          this.accountPasswordErrors.form =
+            error.status === 422 ? this.t("account.passwordLength") : error.uiMessage || error.message;
+        }
+      } finally {
+        this.accountPasswordSaving = false;
+      }
     },
     async saveLanguage() {
       await this.setLanguage(this.language);

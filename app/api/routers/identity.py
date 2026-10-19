@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, field_validator
 
 from ...auth import verify_password
 from ...config import Settings
@@ -22,6 +22,25 @@ class UserCreate(BaseModel):
 
 class UserStatusUpdate(BaseModel):
     status: str = Field(pattern=r"^(active|disabled)$")
+
+
+class ProfileUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nickname: str | None = Field(default=None, max_length=80)
+    email: EmailStr | None = Field(default=None, max_length=200)
+
+    @field_validator("nickname", "email", mode="before")
+    @classmethod
+    def strip_optional_text(cls, value):
+        return value.strip() or None if isinstance(value, str) else value
+
+
+class PasswordChange(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: SecretStr = Field(min_length=1, max_length=200)
+    new_password: SecretStr = Field(min_length=15, max_length=200)
 
 
 def _require_admin(request: Request) -> dict:
@@ -68,6 +87,29 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
         if token:
             store.delete_session(token)
         response.delete_cookie(SESSION_COOKIE)
+        return {"ok": True}
+
+    @router.patch("/users/me")
+    async def update_profile(payload: ProfileUpdate, request: Request):
+        user = request.state.user
+        if not user:
+            raise HTTPException(401, "Authentication required")
+        updated = store.update_user_profile(
+            user["id"], payload.model_dump(exclude_unset=True)
+        )
+        return store.public_user(updated or user)
+
+    @router.post("/users/me/password")
+    async def change_password(payload: PasswordChange, request: Request):
+        user = request.state.user
+        token = request.cookies.get(SESSION_COOKIE)
+        if not user or not token:
+            raise HTTPException(401, "Authentication required")
+        current = payload.current_password.get_secret_value()
+        new = payload.new_password.get_secret_value()
+        if not store.change_user_password(user["id"], current, new, token):
+            # A wrong current password must not trigger the client's expired-session flow.
+            raise HTTPException(403, "Current password is incorrect")
         return {"ok": True}
 
     @router.get("/users")
