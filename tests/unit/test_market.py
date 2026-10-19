@@ -211,3 +211,31 @@ def test_uninstall_local_extension_rejects_nested_path(tmp_path):
     nested.mkdir(parents=True)
     with pytest.raises(ValueError):
         uninstall_local_extension(str(nested), [root])
+
+
+def test_marketplace_children_do_not_inherit_platform_passwords(monkeypatch):
+    from app.market import _run_pi_cli, _run_skills_cli
+
+    monkeypatch.setenv("OMA_ADMIN_PASSWORD", "private-bootstrap")
+    monkeypatch.setenv("OMA_DEFAULT_USER_PASSWORD", "private-default")
+    monkeypatch.setenv("OPENAI_API_KEY", "provider-key")
+    environments = []
+
+    class Process:
+        returncode = 0
+
+        async def communicate(self):
+            return b"ok", b""
+
+    async def spawn(*args, **kwargs):
+        environments.append(kwargs["env"])
+        return Process()
+
+    monkeypatch.setattr("app.market.asyncio.create_subprocess_exec", spawn)
+    asyncio.run(_run_skills_cli(["find", "example"], timeout=1))
+    asyncio.run(_run_pi_cli(["list"], timeout=1))
+    assert len(environments) == 2
+    for environment in environments:
+        assert "OMA_ADMIN_PASSWORD" not in environment
+        assert "OMA_DEFAULT_USER_PASSWORD" not in environment
+        assert environment["OPENAI_API_KEY"] == "provider-key"

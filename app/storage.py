@@ -65,6 +65,7 @@ def _backup_before_schema_upgrade(path: Path) -> Path:
             f"{path.name}.schema-v{SCHEMA_VERSION}.{stamp}.{uuid4().hex}.bak"
         )
     temporary = path.with_name(f".{backup.name}.{uuid4().hex}.tmp")
+    os.close(os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600))
     source = sqlite3.connect(path)
     destination = sqlite3.connect(temporary)
     try:
@@ -78,9 +79,18 @@ def _backup_before_schema_upgrade(path: Path) -> Path:
 
 
 def create_sqlite_engine(path: Path):
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    # Change only platform metadata files, never recursively touch the workspace.
+    for existing in [
+        path,
+        *[Path(f"{path}{suffix}") for suffix in ("-wal", "-shm", "-journal")],
+        *path.parent.glob(f"{path.name}.schema-v*.bak"),
+    ]:
+        if existing.exists():
+            existing.chmod(0o600)
     if _schema_needs_upgrade(path):
         _backup_before_schema_upgrade(path)
+    os.close(os.open(path, os.O_CREAT | os.O_WRONLY, 0o600))
     engine = create_engine(
         f"sqlite:///{path}",
         connect_args={"check_same_thread": False, "timeout": 30},

@@ -9,7 +9,13 @@ from uuid import uuid4
 
 from sqlmodel import Session, select
 
-from .auth import hash_password, new_session_token, session_digest, verify_password
+from .auth import (
+    hash_password,
+    new_session_token,
+    session_digest,
+    verify_and_update_password,
+    verify_password,
+)
 from .storage import create_sqlite_engine, from_row, to_row
 from .storage_models import TABLE_MODELS, User
 from .storage_models import Session as UserSession
@@ -177,10 +183,39 @@ class Store:
         return user
 
     def update_user_status(self, user_id: str, status: str) -> dict | None:
-        self._update(
-            "users", lambda item: item.get("id") == user_id, {"status": status}
-        )
+        with Session(self.engine) as session:
+            session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            user = session.get(User, user_id)
+            if not user:
+                return None
+            user.status = status
+            session.add(user)
+            if status != "active":
+                for token in session.exec(
+                    select(UserSession).where(UserSession.user_id == user_id)
+                ).all():
+                    session.delete(token)
+            session.commit()
         return self.get_user(user_id)
+
+    def authenticate_user(self, username: str, password: str) -> dict | None:
+        with Session(self.engine) as session:
+            session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            user = session.exec(select(User).where(User.username == username)).first()
+            if not user or user.status != "active":
+                return None
+            valid, updated_hash = verify_and_update_password(
+                password, user.password_hash
+            )
+            if not valid:
+                return None
+            if updated_hash:
+                user.password_hash = updated_hash
+            user.last_login_at = now_iso()
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            return from_row(user)
 
     def update_user_profile(self, user_id: str, values: dict) -> dict | None:
         # Nickname uses the existing extra_json metadata support; no schema upgrade is needed.
@@ -197,7 +232,11 @@ class Store:
         with Session(self.engine) as session:
             session.connection().exec_driver_sql("BEGIN IMMEDIATE")
             user = session.get(User, user_id)
-            if not user or not verify_password(current_password, user.password_hash):
+            if (
+                not user
+                or user.status != "active"
+                or not verify_password(current_password, user.password_hash)
+            ):
                 return False
             user.password_hash = hash_password(new_password)
             session.add(user)
@@ -239,7 +278,8 @@ class Store:
         if session.get("expires_at", "") <= now_iso():
             self._remove("sessions", lambda item: item.get("id") == session.get("id"))
             return None
-        return self.get_user(session["user_id"])
+        user = self.get_user(session["user_id"])
+        return user if user and user.get("status") == "active" else None
 
     def delete_session(self, token: str) -> None:
         self._remove(

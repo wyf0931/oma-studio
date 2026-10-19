@@ -338,3 +338,20 @@ def test_stream_prompt_forwards_vision_attachments_to_pi():
     assert captured["images"] == [
         {"type": "image", "mimeType": "image/png", "data": "abc"}
     ]
+
+
+def test_pi_environment_removes_platform_passwords_but_keeps_provider_config(
+    monkeypatch,
+):
+    monkeypatch.setenv("OMA_ADMIN_PASSWORD", "private-bootstrap")
+    monkeypatch.setenv("OMA_DEFAULT_USER_PASSWORD", "private-default")
+    monkeypatch.setenv("OPENAI_API_KEY", "provider-key")
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.test")
+    settings = SimpleNamespace(jina_api_key="jina-provider-key")
+    runtime = PiRuntimeManager(settings, store=None)
+    environment = runtime._environment()
+    assert "OMA_ADMIN_PASSWORD" not in environment
+    assert "OMA_DEFAULT_USER_PASSWORD" not in environment
+    assert environment["OPENAI_API_KEY"] == "provider-key"
+    assert environment["JINA_API_KEY"] == "jina-provider-key"
+    assert environment["HTTPS_PROXY"] == "http://proxy.test"

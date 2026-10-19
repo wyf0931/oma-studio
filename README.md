@@ -257,7 +257,8 @@ secrets: `OMA_DEPLOY_KEY` (deploy-only SSH private key), `OMA_DEPLOY_HOST`,
 and `OMA_DEPLOY_USER`. The platform now uses its own username/password
 session auth. Configure `OMA_ADMIN_PASSWORD` for the built-in admin bootstrap
 and `OMA_DEFAULT_USER_PASSWORD` for passwords assigned to admin-created users.
-Passwords are stored as salted scrypt hashes. Share pages (`/share/*`) and
+New passwords are stored as salted Argon2id hashes; historical scrypt hashes are
+upgraded after a successful login without changing the password. Share pages (`/share/*`) and
 their public API (`/api/share/*`) remain token-gated and do not require a
 login.
 
@@ -323,6 +324,29 @@ Password changes require the current password and a new password of 15–200
 characters. No email verification is required. The current session stays signed
 in, and other sessions for that user are revoked. Forgotten-password recovery
 and administrator password resets are not available.
+
+Disabling an account immediately revokes its sessions; reactivation requires a
+new login. Authentication validation errors omit submitted values and validation
+context, including password inputs.
+
+Login allows five attempts per client/username in five minutes and twenty per
+username across clients. Current-password verification allows five attempts per
+user in five minutes. Successful checks reset the corresponding account counters;
+both flows also share a thirty-failure client budget per five minutes. Exhausted
+budgets return `429` with `Retry-After` and recover automatically. Counters are
+in memory and reset on app restart; multiple workers would need shared storage.
+Client addresses come from ASGI/Uvicorn's trusted-proxy handling, not arbitrary
+forwarding headers parsed by the application. Configure only your actual reverse
+proxy as trusted; otherwise clients behind it share a client budget.
+
+Platform SQLite files, sidecars and schema backups are restricted to owner access
+(`0600`) on startup; new data directories use `0700`. Existing file ownership is
+preserved. The database itself is not encrypted, so protect host access and
+external backups as well. Platform bootstrap/default passwords remain protected
+configuration secrets and are not forwarded to Pi or Marketplace CLI child
+processes. Provider credentials needed by those tools remain available. This
+does not isolate processes running as the same OS user; runtime isolation is
+tracked separately in [#123](https://github.com/wyf0931/oma-studio/issues/123).
 
 ### Providers and models
 

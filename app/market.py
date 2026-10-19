@@ -7,6 +7,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from .config import subprocess_environment
+
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 RESULT_RE = re.compile(
     r"^\s*(?P<repo>[^\s@]+)@(?P<skill>[^\s]+)\s+"
@@ -116,7 +118,7 @@ def parse_skill_preview(output: str) -> list[dict[str, str]]:
 
 
 async def _run_skills_cli(command: list[str], timeout: float) -> str:
-    environment = os.environ.copy()
+    environment = subprocess_environment()
     environment["DISABLE_TELEMETRY"] = "1"
     environment.setdefault(
         "NPM_CONFIG_CACHE", str(Path(tempfile.gettempdir()) / "oma-npm-cache")
@@ -325,6 +327,7 @@ async def _run_pi_cli(command: list[str], timeout: float) -> str:
     process = await asyncio.create_subprocess_exec(
         "pi",
         *command,
+        env=subprocess_environment(),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )

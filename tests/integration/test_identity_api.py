@@ -26,7 +26,9 @@ def identity(tmp_path):
     @app.exception_handler(HTTPException)
     async def errors(request: Request, exc: HTTPException):
         return JSONResponse(
-            error_payload(exc.detail, exc.status_code), status_code=exc.status_code
+            error_payload(exc.detail, exc.status_code),
+            status_code=exc.status_code,
+            headers=exc.headers,
         )
 
     app.include_router(create_router(get_settings(), store))
@@ -195,3 +197,110 @@ def test_account_mutations_require_login(identity):
         ).status_code
         == 401
     )
+
+
+def test_disabling_revokes_sessions_and_reactivation_needs_fresh_login(identity):
+    client, store, user, token, expires = identity
+    second = store.create_session(user["id"], expires)
+    store.update_user_status(user["id"], "disabled")
+    assert not store.get_session_user(token)
+    assert not store.get_session_user(second)
+    assert client.get("/api/auth/session").json()["user"] is None
+    assert (
+        client.post(
+            "/api/users/me/password",
+            json={
+                "current_password": "original password",
+                "new_password": "a brand new password",
+            },
+        ).status_code
+        == 401
+    )
+    assert (
+        client.post(
+            "/api/auth/login",
+            json={"username": "member", "password": "original password"},
+        ).status_code
+        == 401
+    )
+    store.update_user_status(user["id"], "active")
+    assert not store.get_session_user(token)
+    assert (
+        client.post(
+            "/api/auth/login",
+            json={"username": "member", "password": "original password"},
+        ).status_code
+        == 200
+    )
+    # Defense in depth: even an external status edit cannot leave a usable cookie.
+    store._update(
+        "users", lambda item: item["id"] == user["id"], {"status": "disabled"}
+    )
+    assert client.get("/api/auth/session").json()["user"] is None
+
+
+def test_login_rehashes_legacy_password_without_changing_it(identity):
+    import hashlib
+
+    client, store, user, _, _ = identity
+    salt = b"0123456789abcdef"
+    digest = hashlib.scrypt(
+        b"original password", salt=salt, n=16384, r=8, p=1, dklen=32
+    )
+    legacy = f"scrypt$16384$8$1${salt.hex()}${digest.hex()}"
+    store._update(
+        "users", lambda item: item["id"] == user["id"], {"password_hash": legacy}
+    )
+    assert (
+        client.post(
+            "/api/auth/login", json={"username": "member", "password": "wrong"}
+        ).status_code
+        == 401
+    )
+    assert store.get_user(user["id"])["password_hash"] == legacy
+    response = client.post(
+        "/api/auth/login", json={"username": "member", "password": "original password"}
+    )
+    assert response.status_code == 200
+    assert "password_hash" not in response.json()
+    assert store.get_user(user["id"])["password_hash"].startswith("$argon2id$")
+
+
+def test_login_limits_ignore_spoofed_forwarding_headers(identity):
+    client, _, _, _, _ = identity
+    for index in range(5):
+        assert (
+            client.post(
+                "/api/auth/login",
+                json={"username": "nonexistent", "password": "wrong"},
+                headers={"X-Forwarded-For": f"192.0.2.{index}"},
+            ).status_code
+            == 401
+        )
+    blocked = client.post(
+        "/api/auth/login",
+        json={"username": "nonexistent", "password": "wrong"},
+        headers={"X-Forwarded-For": "198.51.100.1"},
+    )
+    assert blocked.status_code == 429
+    assert 1 <= int(blocked.headers["Retry-After"]) <= 300
+    assert blocked.json()["code"] == "auth.rateLimited"
+    # The rejected name does not consume an unrelated user's per-account budget.
+    assert (
+        client.post(
+            "/api/auth/login",
+            json={"username": "member", "password": "original password"},
+        ).status_code
+        == 200
+    )
+
+
+def test_password_attempt_limits_keep_the_session(identity):
+    client, _, _, _, _ = identity
+    payload = {"current_password": "wrong", "new_password": "a brand new password"}
+    for _ in range(5):
+        assert client.post("/api/users/me/password", json=payload).status_code == 403
+    blocked = client.post("/api/users/me/password", json=payload)
+    assert blocked.status_code == 429
+    assert blocked.headers["Retry-After"]
+    assert client.get("/api/auth/session").json()["user"]["username"] == "member"

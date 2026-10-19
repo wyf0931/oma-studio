@@ -25,7 +25,7 @@ class ApplicationContext:
 
 def create_context() -> ApplicationContext:
     settings = get_settings()
-    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    settings.data_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     settings.pi_session_dir.mkdir(parents=True, exist_ok=True)
     configure_logging(settings.log_dir)
 

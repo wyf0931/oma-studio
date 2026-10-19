@@ -77,7 +77,8 @@
     "usernameExists": "Username already exists",
     "userNotFound": "User not found",
     "adminCannotDisable": "The admin account cannot be disabled",
-    "adminCannotDelete": "The admin account cannot be deleted"
+    "adminCannotDelete": "The admin account cannot be deleted",
+    "rateLimited": "Too many attempts. Try again in {{seconds}} seconds."
   },
   "settings": {
     "title": "Settings",

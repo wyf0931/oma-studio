@@ -77,7 +77,8 @@
     "usernameExists": "用户名已存在",
     "userNotFound": "用户不存在",
     "adminCannotDisable": "不能禁用管理员账号",
-    "adminCannotDelete": "不能删除管理员账号"
+    "adminCannotDelete": "不能删除管理员账号",
+    "rateLimited": "尝试次数过多，请在 {{seconds}} 秒后重试。"
   },
   "settings": {
     "title": "设置",

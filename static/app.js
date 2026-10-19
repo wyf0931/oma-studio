@@ -554,7 +554,7 @@ function platform() {
         this.renderIconsSoon();
       } catch (error) {
         this.authUser = null;
-        this.loginError = error.message;
+        this.loginError = error.uiMessage || error.message;
       } finally {
         this.loginLoading = false;
       }
