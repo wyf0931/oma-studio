@@ -3,6 +3,8 @@ from shutil import copyfile
 
 from fastapi import HTTPException
 
+from .frontend import frontend_directory
+
 AVATAR_DIRNAME = "avatars"
 MAX_AVATAR_BYTES = 5 * 1024 * 1024
 _AVATAR_SIGNATURES = {
@@ -20,9 +22,7 @@ def avatar_dir(data_dir: Path) -> Path:
 def seed_default_avatar(data_dir: Path, agent: dict) -> dict:
     if agent.get("avatar_path"):
         return agent
-    source = (
-        Path(__file__).parent.parent / "static" / "assets" / "default-assistant.jpg"
-    )
+    source = frontend_directory() / "assets" / "default-assistant.jpg"
     if not source.is_file():
         return agent
     target_dir = avatar_dir(data_dir)

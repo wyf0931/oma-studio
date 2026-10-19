@@ -2,9 +2,9 @@ from pathlib import Path
 
 
 def test_usage_statistics_has_a_single_sidebar_entry_and_dialog():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert 'data-lucide="chart-pie"' in html
     assert '@click="openProfileUsage()"' in html
@@ -54,7 +54,7 @@ def test_usage_statistics_has_a_single_sidebar_entry_and_dialog():
 
 
 def test_usage_statistics_normalizes_pi_usage_field_variants():
-    script = Path("static/app.js").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
 
     assert '"input_tokens", "inputTokens"' in script
     assert '"cache_read", "cache_read_tokens", "cached_tokens"' in script
@@ -63,9 +63,9 @@ def test_usage_statistics_normalizes_pi_usage_field_variants():
 
 
 def test_users_are_managed_in_a_dedicated_dialog_not_settings_tab():
-    html = Path("static/index.html").read_text(encoding="utf-8")
-    script = Path("static/app.js").read_text(encoding="utf-8")
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    html = Path("frontend/index.html").read_text(encoding="utf-8")
+    script = Path("frontend/src/platform.js").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert "usersOpen" in script
     assert "openProfileUsers()" in script
@@ -92,7 +92,7 @@ def test_users_are_managed_in_a_dedicated_dialog_not_settings_tab():
 
 
 def test_share_records_dialog_uses_a_single_table_boundary():
-    styles = Path("static/styles.css").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
 
     assert ".share-records-dialog .usage-header" in styles
     assert "border-bottom: 0;" in styles

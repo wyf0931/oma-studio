@@ -4,6 +4,15 @@
 # State (platform data, sessions, workspace, Pi home) stays on the host
 # through bind mounts — nothing is baked into the image.
 
+FROM node:24.20.0-bookworm-slim AS frontend-build
+WORKDIR /frontend
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY vite.config.js .browserslistrc ./
+COPY frontend ./frontend
+COPY static ./static
+RUN npm run build
+
 FROM node:24.20.0-bookworm-slim
 
 # Process-layer tools. fd ships as fd-find on Debian. curl and jq are useful
@@ -44,7 +53,7 @@ RUN UV_PYTHON=/usr/bin/python3 sh -c '[ -z "$UV_PROXY" ] || export HTTPS_PROXY="
 
 COPY app ./app
 COPY extensions ./extensions
-COPY static ./static
+COPY --from=frontend-build /frontend/dist ./dist
 
 # Non-root: keeps bind-mounted file ownership predictable
 USER node

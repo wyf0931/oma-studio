@@ -28,28 +28,7 @@
         display: none !important;
       }
     </style>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/i18next@26.4.2/dist/umd/i18next.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js"></script>
-    <link
-      id="highlightjs-light-theme"
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github.min.css"
-    />
-    <link
-      id="highlightjs-dark-theme"
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github-dark.min.css"
-      disabled
-    />
-    <link rel="stylesheet" href="/static/typography.css?v=20260908" />
-    <link rel="stylesheet" href="/static/styles.css?v=20261019-account-settings" />
+    <script type="module" src="/src/main.js"></script>
   </head>
   <body x-data="platform()" @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">
     <!-- Baseline notice: CSS shows this only on engines below Safari 16.4, and the
@@ -807,12 +786,12 @@
               <i data-lucide="arrow-left" aria-hidden="true"></i>
             </button>
             <div class="file-view-header">
-              <span class="file-view-path" x-text="fileViewer.path"></span>
+              <span class="file-view-path" x-text="fileViewer?.path"></span>
             </div>
             <div class="file-view-actions">
               <a
                 class="file-view-download btn btn-ghost btn-circle"
-                x-show="!fileViewer.isShared"
+                x-show="!fileViewer?.isShared"
                 :href="fileViewerDownloadUrl()"
                 :download="fileViewerDownloadName()"
                 :title="t('files.download')"
@@ -823,22 +802,22 @@
               <button
                 type="button"
                 class="file-view-share btn btn-ghost btn-circle"
-                x-show="fileViewer.canManageShare"
-                @click="fileViewer.artifactShare ? requestRevokeShare(fileViewer.artifactShare) : shareViewedFile()"
+                x-show="fileViewer?.canManageShare"
+                @click="fileViewer?.artifactShare ? requestRevokeShare(fileViewer?.artifactShare) : shareViewedFile()"
                 :disabled="sharingViewedFile"
-                :aria-label="fileViewer.artifactShare ? t('share.revokeFile') : t('share.shareFile')"
-                :title="fileViewer.artifactShare ? t('share.revokeFile') : t('share.shareFile')"
+                :aria-label="fileViewer?.artifactShare ? t('share.revokeFile') : t('share.shareFile')"
+                :title="fileViewer?.artifactShare ? t('share.revokeFile') : t('share.shareFile')"
               >
                 <span class="loading loading-spinner loading-xs" x-show="sharingViewedFile"></span>
                 <i
                   data-lucide="share-2"
                   aria-hidden="true"
-                  x-show="!sharingViewedFile && !fileViewer.artifactShare"
+                  x-show="!sharingViewedFile && !fileViewer?.artifactShare"
                 ></i>
                 <i
                   data-lucide="link-2-off"
                   aria-hidden="true"
-                  x-show="!sharingViewedFile && fileViewer.artifactShare"
+                  x-show="!sharingViewedFile && fileViewer?.artifactShare"
                 ></i>
               </button>
             </div>
@@ -3762,6 +3741,5 @@
         ></template>
       </div>
     </dialog>
-    <script src="/static/app.js?v=20261019-auth-security"></script>
   </body>
 </html>

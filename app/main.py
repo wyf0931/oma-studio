@@ -1,11 +1,9 @@
 import logging
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from .api.routers.agents import create_router as create_agents_router
 from .api.routers.autopilots import (
@@ -33,6 +31,7 @@ from .autopilots import AutopilotScheduler
 from .core.application import create_app, create_context
 from .errors import error_payload
 from .files import read_session_messages, resolve_chat_file
+from .frontend import FrontendFiles, frontend_directory
 from .og import load_template, render_social_metadata
 
 context = create_context()
@@ -206,8 +205,8 @@ app.include_router(
 )
 app.include_router(create_usage_router(settings, store))
 
-static_dir = Path(__file__).parent.parent / "static"
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
+static_dir = frontend_directory()
+app.mount("/static", FrontendFiles(directory=static_dir), name="static")
 
 
 @app.get("/favicon.ico", include_in_schema=False)
@@ -215,7 +214,6 @@ async def favicon():
     return FileResponse(static_dir / "favicon.ico", media_type="image/x-icon")
 
 
-SPA_TEMPLATE = load_template(static_dir)
 DEFAULT_OG_TITLE = "OMA Studio — AI Agent Platform"
 DEFAULT_OG_DESCRIPTION = (
     "OMA Studio is a local-first platform for creating, managing, and collaborating "
@@ -231,13 +229,13 @@ def _spa_page(
 ) -> HTMLResponse:
     image_url = str(request.url_for("static", path="oma-logo-transparent.png"))
     html = render_social_metadata(
-        SPA_TEMPLATE,
+        load_template(static_dir),
         title=title,
         description=description,
         canonical_url=str(request.url),
         image_url=image_url,
     )
-    return HTMLResponse(html)
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
 
 def _shared_chat(token: str) -> dict | None:
