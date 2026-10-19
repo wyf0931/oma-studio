@@ -1,39 +1,19 @@
-import { asError } from "../../shared/types";
-import type { Workspace } from "../../app/workspace";
-import { nextTick } from "vue";
-
+import type { Actions as IdentityActions, State as IdentityState } from "../identity/actions";
+import type { Actions as I18nActions, State as I18nState } from "../../shared/i18n";
+import type { Actions as ApiActions } from "../../shared/api";
+import type { Actions as ShellActions } from "../../app/actions";
+import { reactive, nextTick } from "vue";
 import type * as DTO from "../../shared/types";
+import { asError } from "../../shared/types";
 
-// Explicit dependency contract for this feature; the composition root supplies it.
-type Context = Pick<
-  Workspace,
-  | "accountCurrentPassword"
-  | "accountNewPassword"
-  | "accountPasswordErrors"
-  | "accountPasswordOpen"
-  | "accountPasswordSaved"
-  | "accountPasswordSaving"
-  | "accountProfile"
-  | "accountProfileDirty"
-  | "accountProfileError"
-  | "accountProfileSaved"
-  | "accountProfileSaving"
-  | "accountShowCurrentPassword"
-  | "accountShowNewPassword"
-  | "api"
-  | "authUser"
-  | "language"
-  | "loadSystemSettings"
-  | "resetAccountPassword"
-  | "setLanguage"
-  | "settingsOpen"
-  | "settingsTab"
-  | "showError"
-  | "showToast"
-  | "systemTimezone"
-  | "t"
->;
+import { createSettingsState } from "./state";
+export type State = ReturnType<typeof createSettingsState>;
 export interface Actions {
+  closeSettings(): void;
+  initializeThemePreference(): void;
+  applyThemePreference(value: string): void;
+  syncFavicon(): void;
+  syncHighlightTheme(): void;
   openSettings(): Promise<void>;
   openSettingsTab(tab: string): Promise<void>;
   accountProfileDirty(): boolean;
@@ -45,121 +25,189 @@ export interface Actions {
   loadSystemSettings(): Promise<void>;
   saveSystemTimezone(): Promise<void>;
 }
-export const settingsActions: Actions = {
-  async openSettings(this: Context): Promise<void> {
-    this.settingsTab = "general";
-    this.accountProfile = { nickname: this.authUser?.nickname || "", email: this.authUser?.email || "" };
-    this.accountProfileError = "";
-    this.accountProfileSaved = false;
-    this.resetAccountPassword();
-    this.settingsOpen = true;
-    if (this.authUser?.role === "admin") await this.loadSystemSettings();
-  },
-  async openSettingsTab(this: Context, tab: string): Promise<void> {
-    if (tab !== "account") this.resetAccountPassword();
-    this.settingsTab = tab;
-  },
-  accountProfileDirty(this: Context): boolean {
+export interface Feature extends Actions {
+  state: State;
+}
+export interface Dependencies {
+  identity: Pick<IdentityActions, "setCurrentUser"> & { state: Readonly<Pick<IdentityState, "authUser">> };
+  i18n: Pick<I18nActions, "setLanguage" | "t"> & { state: Readonly<Pick<I18nState, "language">> };
+  api: Pick<ApiActions, "api">;
+  shell: Pick<ShellActions, "showError" | "showToast">;
+  onCleanup(cleanup: () => void): void;
+}
+export function createSettings(deps: Dependencies): Feature {
+  const state = reactive(createSettingsState());
+  function initializeThemePreference(): void {
+    const preference = localStorage.getItem("oma-theme-preference");
+    applyThemePreference(preference || "system");
+    state.systemThemeQuery = window.matchMedia?.("(prefers-color-scheme: dark)") || null;
+    const onThemeChange = () => {
+      if (state.themePreference === "system") applyThemePreference("system");
+    };
+    state.systemThemeQuery?.addEventListener("change", onThemeChange);
+    deps.onCleanup(() => state.systemThemeQuery?.removeEventListener("change", onThemeChange));
+  }
+  function applyThemePreference(value: string): void {
+    state.themePreference = ["system", "light", "dark"].includes(value || "") ? value : "system";
+    const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+    state.theme = state.themePreference === "system" ? (prefersDark ? "dark" : "light") : state.themePreference;
+    document.documentElement.dataset.theme = state.theme;
+    syncHighlightTheme();
+    syncFavicon();
+    localStorage.setItem("oma-theme-preference", state.themePreference);
+  }
+  function syncFavicon(): void {
+    const favicon = document.querySelector<HTMLLinkElement>("#app-favicon");
+    if (favicon)
+      favicon.href = `/static/${state.theme === "dark" ? "favicon-dark-32.png" : "favicon-32.png"}?v=20260917-theme`;
+  }
+  function syncHighlightTheme(): void {
+    const lightTheme = document.querySelector<HTMLStyleElement>("#highlightjs-light-theme");
+    const darkTheme = document.querySelector<HTMLStyleElement>("#highlightjs-dark-theme");
+    if (lightTheme?.sheet) lightTheme.sheet.disabled = state.theme === "dark";
+    if (darkTheme?.sheet) darkTheme.sheet.disabled = state.theme !== "dark";
+  }
+  async function openSettings(): Promise<void> {
+    state.settingsTab = "general";
+    state.accountProfile = {
+      nickname: deps.identity.state.authUser?.nickname || "",
+      email: deps.identity.state.authUser?.email || "",
+    };
+    state.accountProfileError = "";
+    state.accountProfileSaved = false;
+    resetAccountPassword();
+    state.settingsOpen = true;
+    if (deps.identity.state.authUser?.role === "admin") await loadSystemSettings();
+  }
+  async function openSettingsTab(tab: string): Promise<void> {
+    if (tab !== "account") resetAccountPassword();
+    state.settingsTab = tab;
+  }
+  function accountProfileDirty(): boolean {
     return (
-      this.accountProfile.nickname.trim() !== (this.authUser?.nickname || "") ||
-      this.accountProfile.email.trim() !== (this.authUser?.email || "")
+      state.accountProfile.nickname.trim() !== (deps.identity.state.authUser?.nickname || "") ||
+      state.accountProfile.email.trim() !== (deps.identity.state.authUser?.email || "")
     );
-  },
-  async saveAccountProfile(this: Context): Promise<void> {
-    if (this.accountProfileSaving || !this.accountProfileDirty()) return;
-    this.accountProfileSaving = true;
-    this.accountProfileError = "";
-    this.accountProfileSaved = false;
+  }
+  async function saveAccountProfile(): Promise<void> {
+    if (state.accountProfileSaving || !accountProfileDirty()) return;
+    state.accountProfileSaving = true;
+    state.accountProfileError = "";
+    state.accountProfileSaved = false;
     try {
-      this.authUser = await this.api<DTO.User>("/api/users/me", {
+      const user = await deps.api.api<DTO.User>("/api/users/me", {
         method: "PATCH",
         body: JSON.stringify({
-          nickname: this.accountProfile.nickname.trim() || null,
-          email: this.accountProfile.email.trim() || null,
+          nickname: state.accountProfile.nickname.trim() || null,
+          email: state.accountProfile.email.trim() || null,
         }),
       });
-      this.accountProfile = { nickname: this.authUser.nickname || "", email: this.authUser.email || "" };
-      this.accountProfileSaved = true;
+      deps.identity.setCurrentUser(user);
+      state.accountProfile = { nickname: user.nickname || "", email: user.email || "" };
+      state.accountProfileSaved = true;
     } catch (cause) {
       const error = asError(cause);
-      this.accountProfileError =
-        error.status === 422 ? this.t("account.profileInvalid") : error.uiMessage || error.message;
+      state.accountProfileError =
+        error.status === 422 ? deps.i18n.t("account.profileInvalid") : error.uiMessage || error.message;
     } finally {
-      this.accountProfileSaving = false;
+      state.accountProfileSaving = false;
     }
-  },
-  resetAccountPassword(this: Context): void {
-    this.accountPasswordOpen = false;
-    this.accountCurrentPassword = "";
-    this.accountNewPassword = "";
-    this.accountShowCurrentPassword = false;
-    this.accountShowNewPassword = false;
-    this.accountPasswordErrors = { current: "", new: "", form: "" };
-    this.accountPasswordSaved = false;
-  },
-  openAccountPassword(this: Context): void {
-    this.resetAccountPassword();
-    this.accountPasswordOpen = true;
+  }
+  function resetAccountPassword(): void {
+    state.accountPasswordOpen = false;
+    state.accountCurrentPassword = "";
+    state.accountNewPassword = "";
+    state.accountShowCurrentPassword = false;
+    state.accountShowNewPassword = false;
+    state.accountPasswordErrors = { current: "", new: "", form: "" };
+    state.accountPasswordSaved = false;
+  }
+  function openAccountPassword(): void {
+    resetAccountPassword();
+    state.accountPasswordOpen = true;
     nextTick(() => document.querySelector<HTMLInputElement>('[data-ref="accountCurrentPassword"]')?.focus());
-  },
-  async saveAccountPassword(this: Context): Promise<void> {
-    if (this.accountPasswordSaving) return;
-    this.accountPasswordErrors = { current: "", new: "", form: "" };
-    this.accountPasswordSaved = false;
-    if (!this.accountCurrentPassword) this.accountPasswordErrors.current = this.t("account.currentPasswordRequired");
-    const passwordLength = Array.from(this.accountNewPassword).length;
-    if (passwordLength < 15 || passwordLength > 200) this.accountPasswordErrors.new = this.t("account.passwordLength");
-    if (this.accountPasswordErrors.current || this.accountPasswordErrors.new) return;
-    this.accountPasswordSaving = true;
-    this.accountShowCurrentPassword = false;
-    this.accountShowNewPassword = false;
+  }
+  async function saveAccountPassword(): Promise<void> {
+    if (state.accountPasswordSaving) return;
+    state.accountPasswordErrors = { current: "", new: "", form: "" };
+    state.accountPasswordSaved = false;
+    if (!state.accountCurrentPassword)
+      state.accountPasswordErrors.current = deps.i18n.t("account.currentPasswordRequired");
+    const passwordLength = Array.from(state.accountNewPassword).length;
+    if (passwordLength < 15 || passwordLength > 200)
+      state.accountPasswordErrors.new = deps.i18n.t("account.passwordLength");
+    if (state.accountPasswordErrors.current || state.accountPasswordErrors.new) return;
+    state.accountPasswordSaving = true;
+    state.accountShowCurrentPassword = false;
+    state.accountShowNewPassword = false;
     try {
-      await this.api("/api/users/me/password", {
+      await deps.api.api("/api/users/me/password", {
         method: "POST",
         body: JSON.stringify({
-          current_password: this.accountCurrentPassword,
-          new_password: this.accountNewPassword,
+          current_password: state.accountCurrentPassword,
+          new_password: state.accountNewPassword,
         }),
       });
-      this.resetAccountPassword();
-      this.accountPasswordSaved = true;
+      resetAccountPassword();
+      state.accountPasswordSaved = true;
     } catch (cause) {
       const error = asError(cause);
       if (error.code === "account.currentPasswordIncorrect") {
-        this.accountPasswordErrors.current = error.uiMessage;
-        this.accountCurrentPassword = "";
+        state.accountPasswordErrors.current = error.uiMessage;
+        state.accountCurrentPassword = "";
         nextTick(() => document.querySelector<HTMLInputElement>('[data-ref="accountCurrentPassword"]')?.focus());
       } else {
-        this.accountPasswordErrors.form =
-          error.status === 422 ? this.t("account.passwordLength") : error.uiMessage || error.message;
+        state.accountPasswordErrors.form =
+          error.status === 422 ? deps.i18n.t("account.passwordLength") : error.uiMessage || error.message;
       }
     } finally {
-      this.accountPasswordSaving = false;
+      state.accountPasswordSaving = false;
     }
-  },
-  async saveLanguage(this: Context): Promise<void> {
-    await this.setLanguage(this.language);
-  },
-  async loadSystemSettings(this: Context): Promise<void> {
+  }
+  async function saveLanguage(): Promise<void> {
+    await deps.i18n.setLanguage(deps.i18n.state.language);
+  }
+  async function loadSystemSettings(): Promise<void> {
     try {
-      this.systemTimezone = (await this.api<{ timezone: string }>("/api/settings")).timezone;
+      state.systemTimezone = (await deps.api.api<{ timezone: string }>("/api/settings")).timezone;
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     }
-  },
-  async saveSystemTimezone(this: Context): Promise<void> {
+  }
+  async function saveSystemTimezone(): Promise<void> {
     try {
-      this.systemTimezone = (
-        await this.api<{ timezone: string }>("/api/settings/timezone", {
+      state.systemTimezone = (
+        await deps.api.api<{ timezone: string }>("/api/settings/timezone", {
           method: "PATCH",
-          body: JSON.stringify({ timezone: this.systemTimezone }),
+          body: JSON.stringify({ timezone: state.systemTimezone }),
         })
       ).timezone;
-      this.showToast("System timezone updated");
+      deps.shell.showToast("System timezone updated");
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     }
-  },
-};
+  }
+  function closeSettings(): void {
+    state.settingsOpen = false;
+  }
+  return {
+    state,
+    initializeThemePreference,
+    applyThemePreference,
+    syncFavicon,
+    syncHighlightTheme,
+    openSettings,
+    openSettingsTab,
+    accountProfileDirty,
+    saveAccountProfile,
+    resetAccountPassword,
+    openAccountPassword,
+    saveAccountPassword,
+    saveLanguage,
+    loadSystemSettings,
+    saveSystemTimezone,
+    closeSettings,
+  };
+}

@@ -1,39 +1,13 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useAutopilots } from "./context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const {
-  applyCronBuilder,
-  autopilotCron,
-  buildCron,
-  cronBuilderOpen,
-  cronDay,
-  cronDayOfMonth,
-  cronDaysOfMonth,
-  cronFrequency,
-  cronHour,
-  cronHours,
-  cronMinute,
-  cronMonth,
-  cronMonths,
-  setCronFrequency,
-  toggleCronDay,
-} = useWorkspaceScope([
-  "applyCronBuilder",
-  "autopilotCron",
-  "buildCron",
-  "cronBuilderOpen",
-  "cronDay",
-  "cronDayOfMonth",
-  "cronDaysOfMonth",
-  "cronFrequency",
-  "cronHour",
-  "cronHours",
-  "cronMinute",
-  "cronMonth",
-  "cronMonths",
-  "setCronFrequency",
-  "toggleCronDay",
-]);
+const autopilotsFeature = useAutopilots();
+const { autopilotCron, cronBuilderOpen, cronDay, cronDayOfMonth, cronFrequency, cronHour, cronMinute, cronMonth } =
+  toRefs(autopilotsFeature.state);
+const { applyCronBuilder, buildCron, cronDaysOfMonth, cronHours, cronMonths, setCronFrequency, toggleCronDay } =
+  autopilotsFeature;
 </script>
 <template>
   <dialog

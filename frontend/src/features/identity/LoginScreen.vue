@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { useWorkspaceScope } from "../../app/scope";
-const { authChecked, authUser, login, loginError, loginLoading, loginPassword, loginUsername, sharedMode, t } =
-  useWorkspaceScope([
-    "authChecked",
-    "authUser",
-    "login",
-    "loginError",
-    "loginLoading",
-    "loginPassword",
-    "loginUsername",
-    "sharedMode",
-    "t",
-  ]);
+import { toRefs } from "vue";
+import { useIdentity } from "./context";
+import { useShares } from "../shares/context";
+import { useI18n } from "../../shared/i18n-context";
+
+const identityFeature = useIdentity();
+const { authChecked, authUser, loginError, loginLoading, loginPassword, loginUsername } = toRefs(identityFeature.state);
+const { login } = identityFeature;
+const sharesFeature = useShares();
+const { sharedMode } = toRefs(sharesFeature.state);
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <main class="login-screen" v-show="authChecked && !authUser && !sharedMode">

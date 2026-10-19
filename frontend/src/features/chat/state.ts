@@ -1,10 +1,7 @@
 import type * as DTO from "../../shared/types";
+
 export function createChatState() {
   return {
-    linkDrawerOpen: false,
-    linkDrawerTitle: "",
-    linkDrawerItems: [] as DTO.WebItem[],
-    webActivities: {} as Record<string, { kind: string; items: DTO.WebItem[] }>,
     chats: [] as DTO.Chat[],
     activeChat: null as DTO.Chat | null,
     editingChatTitle: false,
@@ -24,15 +21,6 @@ export function createChatState() {
     pollTimer: null as ReturnType<typeof setInterval> | null,
     copiedKey: "",
     messagesLoading: false,
-    sessionUsage: {
-      input: 0,
-      output: 0,
-      cacheRead: 0,
-      cost: 0,
-      search: 0,
-      fetch: 0,
-    },
-    reasoningOpen: {} as Record<string, boolean>,
     searchOpen: false,
     chatSearchQuery: "",
     chatSearchAgentFilter: "",

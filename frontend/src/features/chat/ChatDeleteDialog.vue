@@ -1,7 +1,14 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useChat } from "./context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const { confirmDeleteChat, deleteChatTarget, t } = useWorkspaceScope(["confirmDeleteChat", "deleteChatTarget", "t"]);
+const chatFeature = useChat();
+const { deleteChatTarget } = toRefs(chatFeature.state);
+const { confirmDeleteChat } = chatFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <dialog

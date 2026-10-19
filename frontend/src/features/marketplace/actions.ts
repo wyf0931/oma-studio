@@ -1,55 +1,16 @@
-import { ApiError, asError } from "../../shared/types";
-import type { Workspace } from "../../app/workspace";
-
+import type { Actions as AgentsActions, State as AgentsState } from "../agents/actions";
+import type { State as IdentityState } from "../identity/actions";
+import type { Actions as ApiActions } from "../../shared/api";
+import type { Actions as ShellActions } from "../../app/actions";
+import type { Actions as I18nActions } from "../../shared/i18n";
+import { reactive } from "vue";
 import type * as DTO from "../../shared/types";
+import { ApiError, asError } from "../../shared/types";
 
-// Explicit dependency contract for this feature; the composition root supplies it.
-type Context = Pick<
-  Workspace,
-  | "agents"
-  | "api"
-  | "authUser"
-  | "loadMarketAgents"
-  | "marketAgents"
-  | "marketAgentsLoading"
-  | "marketCatalogSearch"
-  | "marketDeleteAgentTarget"
-  | "marketDeletingAgent"
-  | "marketExtensionAction"
-  | "marketExtensionPackage"
-  | "marketInstallAgentTarget"
-  | "marketInstallOpen"
-  | "marketInstallingAgent"
-  | "marketInstallingSkills"
-  | "marketMcpAction"
-  | "marketMcpAddOpen"
-  | "marketMcpConfig"
-  | "marketOwner"
-  | "marketPublishTarget"
-  | "marketPublishVersion"
-  | "marketPublishing"
-  | "marketResourceSource"
-  | "marketSearch"
-  | "marketSearchError"
-  | "marketSearchLoading"
-  | "marketSearchResults"
-  | "marketSkillGitHubSource"
-  | "marketSkillInstalled"
-  | "marketSkillResultKey"
-  | "marketSkillSourceKey"
-  | "marketTab"
-  | "marketUninstallTarget"
-  | "marketUpdateAgentTarget"
-  | "marketUpdatingAgent"
-  | "refreshAgents"
-  | "refreshResources"
-  | "requestMarketplaceAgentUpdate"
-  | "resources"
-  | "showError"
-  | "showToast"
-  | "t"
->;
+import { createMarketplaceState } from "./state";
+export type State = ReturnType<typeof createMarketplaceState>;
 export interface Actions {
+  publishAgent(agent: DTO.Agent): void;
   loadMarketAgents(): Promise<void>;
   marketAgentItems(): DTO.Agent[];
   marketCatalogItems(kind: string): DTO.Resource[];
@@ -80,225 +41,240 @@ export interface Actions {
   confirmInstallMarketAgent(): Promise<void>;
   confirmMarketplaceAgentUpdate(): Promise<void>;
 }
-export const marketplaceActions: Actions = {
-  async loadMarketAgents(this: Context): Promise<void> {
-    this.marketAgentsLoading = true;
+export interface Feature extends Actions {
+  state: State;
+}
+export interface Dependencies {
+  agents: Pick<AgentsActions, "refreshAgents" | "refreshResources" | "replaceResources"> & {
+    state: Readonly<Pick<AgentsState, "agents" | "resources">>;
+  };
+  identity: { state: Readonly<Pick<IdentityState, "authUser">> };
+  api: Pick<ApiActions, "api">;
+  shell: Pick<ShellActions, "showError" | "showToast">;
+  i18n: Pick<I18nActions, "t">;
+}
+export function createMarketplace(deps: Dependencies): Feature {
+  const state = reactive(createMarketplaceState());
+  async function loadMarketAgents(): Promise<void> {
+    state.marketAgentsLoading = true;
     try {
-      this.marketAgents = (await this.api<{ agents: DTO.Agent[] }>("/api/market/agents")).agents || [];
+      state.marketAgents = (await deps.api.api<{ agents: DTO.Agent[] }>("/api/market/agents")).agents || [];
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     } finally {
-      this.marketAgentsLoading = false;
+      state.marketAgentsLoading = false;
     }
-  },
-  marketAgentItems(this: Context): DTO.Agent[] {
-    const query = this.marketCatalogSearch.trim().toLowerCase();
-    if (!query) return this.marketAgents;
-    return this.marketAgents.filter((item) =>
+  }
+  function marketAgentItems(): DTO.Agent[] {
+    const query = state.marketCatalogSearch.trim().toLowerCase();
+    if (!query) return state.marketAgents;
+    return state.marketAgents.filter((item) =>
       `${item.name || ""} ${item.description || ""} ${item.instruction || ""} ${item.author || ""} ${(item.tags || []).join(" ")}`
         .toLowerCase()
         .includes(query),
     );
-  },
-  marketCatalogItems(this: Context, kind: string): DTO.Resource[] {
-    const items = this.resources[kind as "extensions" | "skills" | "mcp_servers"] || [];
-    const query = this.marketCatalogSearch.trim().toLowerCase();
+  }
+  function marketCatalogItems(kind: string): DTO.Resource[] {
+    const items = deps.agents.state.resources[kind as "extensions" | "skills" | "mcp_servers"] || [];
+    const query = state.marketCatalogSearch.trim().toLowerCase();
     if (!query) return items;
     return items.filter((item) => `${item.name || ""} ${item.description || ""}`.toLowerCase().includes(query));
-  },
-  async searchMarketSkills(this: Context): Promise<void> {
-    const query = this.marketSearch.trim();
+  }
+  async function searchMarketSkills(): Promise<void> {
+    const query = state.marketSearch.trim();
     if (!query) {
-      this.marketSearchResults = [];
-      this.marketSearchError = "Enter a skill or topic to search.";
+      state.marketSearchResults = [];
+      state.marketSearchError = "Enter a skill or topic to search.";
       return;
     }
-    this.marketSearchLoading = true;
-    this.marketSearchError = "";
+    state.marketSearchLoading = true;
+    state.marketSearchError = "";
     try {
-      const githubSource = this.marketSkillGitHubSource(query);
-      const data = await this.api<{ results: DTO.SkillResult[] }>(
+      const githubSource = marketSkillGitHubSource(query);
+      const data = await deps.api.api<{ results: DTO.SkillResult[] }>(
         githubSource ? "/api/market/skills/preview" : "/api/market/skills/search",
         {
           method: "POST",
           body: JSON.stringify(
-            githubSource ? { source: githubSource } : { query, owner: this.marketOwner.trim() || null },
+            githubSource ? { source: githubSource } : { query, owner: state.marketOwner.trim() || null },
           ),
         },
       );
-      this.marketSearchResults = data.results || [];
+      state.marketSearchResults = data.results || [];
     } catch (cause) {
       const error = asError(cause);
-      this.marketSearchResults = [];
-      this.marketSearchError = error.message;
+      state.marketSearchResults = [];
+      state.marketSearchError = error.message;
     } finally {
-      this.marketSearchLoading = false;
+      state.marketSearchLoading = false;
     }
-  },
-  marketSkillGitHubSource(this: Context, value: string): string {
+  }
+  function marketSkillGitHubSource(value: string): string {
     const source = value.trim().replace(/\/$/, "");
     return /^(?:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+|https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?(?:\/tree\/[^/]+(?:\/.*)?)?|git@github\.com:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?|ssh:\/\/git@github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?)$/i.test(
       source,
     )
       ? source
       : "";
-  },
-  openMarketInstall(this: Context): void {
-    this.marketSearch = "";
-    this.marketOwner = "";
-    this.marketSearchResults = [];
-    this.marketSearchError = "";
-    this.marketExtensionPackage = "";
-    this.marketInstallOpen = true;
-  },
-  closeMarketInstall(this: Context): void {
-    if (this.marketInstallingSkills.length || this.marketExtensionAction) return;
-    this.marketInstallOpen = false;
-    this.marketSearchError = "";
-  },
-  openMarketMcpAdd(this: Context): void {
-    this.marketMcpConfig =
+  }
+  function openMarketInstall(): void {
+    state.marketSearch = "";
+    state.marketOwner = "";
+    state.marketSearchResults = [];
+    state.marketSearchError = "";
+    state.marketExtensionPackage = "";
+    state.marketInstallOpen = true;
+  }
+  function closeMarketInstall(): void {
+    if (state.marketInstallingSkills.length || state.marketExtensionAction) return;
+    state.marketInstallOpen = false;
+    state.marketSearchError = "";
+  }
+  function openMarketMcpAdd(): void {
+    state.marketMcpConfig =
       '{\n  "mcpServers": {\n    "server-name": {\n      "type": "http",\n      "url": "https://example.com/mcp"\n    }\n  }\n}';
-    this.marketMcpAddOpen = true;
-  },
-  closeMarketMcpAdd(this: Context): void {
-    if (!this.marketMcpAction) this.marketMcpAddOpen = false;
-  },
-  marketMcpNames(this: Context): string[] {
+    state.marketMcpAddOpen = true;
+  }
+  function closeMarketMcpAdd(): void {
+    if (!state.marketMcpAction) state.marketMcpAddOpen = false;
+  }
+  function marketMcpNames(): string[] {
     try {
-      const servers = JSON.parse(this.marketMcpConfig)?.mcpServers;
+      const servers = JSON.parse(state.marketMcpConfig)?.mcpServers;
       return servers && typeof servers === "object" && !Array.isArray(servers) ? Object.keys(servers) : [];
     } catch {
       return [];
     }
-  },
-  async addMarketMcpServers(this: Context): Promise<void> {
-    this.marketMcpAction = true;
+  }
+  async function addMarketMcpServers(): Promise<void> {
+    state.marketMcpAction = true;
     try {
-      const data = await this.api<{ servers: DTO.Resource[]; resources: DTO.Resources }>("/api/market/mcp-servers", {
-        method: "POST",
-        body: JSON.stringify({ config: this.marketMcpConfig }),
-      });
-      this.resources = data.resources;
-      this.marketMcpAddOpen = false;
-      this.showToast(`MCP server${data.servers.length === 1 ? "" : "s"} added`);
+      const data = await deps.api.api<{ servers: DTO.Resource[]; resources: DTO.Resources }>(
+        "/api/market/mcp-servers",
+        {
+          method: "POST",
+          body: JSON.stringify({ config: state.marketMcpConfig }),
+        },
+      );
+      deps.agents.replaceResources(data.resources);
+      state.marketMcpAddOpen = false;
+      deps.shell.showToast(`MCP server${data.servers.length === 1 ? "" : "s"} added`);
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     } finally {
-      this.marketMcpAction = false;
+      state.marketMcpAction = false;
     }
-  },
-  marketSkillInstalled(this: Context, result: DTO.SkillResult): boolean {
-    const sourceKey = this.marketSkillSourceKey(result.repo);
-    return this.resources.skills.some(
+  }
+  function marketSkillInstalled(result: DTO.SkillResult): boolean {
+    const sourceKey = marketSkillSourceKey(result.repo);
+    return deps.agents.state.resources.skills.some(
       (item) =>
-        item.name === result.skill &&
-        (!sourceKey || !item.source || this.marketSkillSourceKey(item.source) === sourceKey),
+        item.name === result.skill && (!sourceKey || !item.source || marketSkillSourceKey(item.source) === sourceKey),
     );
-  },
-  marketSkillSourceKey(this: Context, source: string): string {
+  }
+  function marketSkillSourceKey(source: string): string {
     return String(source || "")
       .trim()
       .replace(/^https:\/\/github\.com\//i, "")
       .replace(/\.git\/?$/i, "")
       .replace(/\/$/, "")
       .toLowerCase();
-  },
-  marketSkillResultKey(this: Context, result: DTO.SkillResult): string {
+  }
+  function marketSkillResultKey(result: DTO.SkillResult): string {
     return `${result.repo || ""}:${result.skill}`;
-  },
-  async installMarketSkill(this: Context, result: DTO.SkillResult): Promise<void> {
-    const resultKey = this.marketSkillResultKey(result);
-    if (this.marketInstallingSkills.includes(resultKey) || this.marketSkillInstalled(result)) return;
-    this.marketInstallingSkills.push(resultKey);
-    this.marketSearchError = "";
+  }
+  async function installMarketSkill(result: DTO.SkillResult): Promise<void> {
+    const resultKey = marketSkillResultKey(result);
+    if (state.marketInstallingSkills.includes(resultKey) || marketSkillInstalled(result)) return;
+    state.marketInstallingSkills.push(resultKey);
+    state.marketSearchError = "";
     try {
-      await this.api("/api/market/skills/install", {
+      await deps.api.api("/api/market/skills/install", {
         method: "POST",
         body: JSON.stringify({ source: result.repo, skill: result.skill }),
       });
-      await this.refreshResources();
-      this.showToast(`Skill ${result.skill} installed`);
+      await deps.agents.refreshResources();
+      deps.shell.showToast(`Skill ${result.skill} installed`);
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     } finally {
-      this.marketInstallingSkills = this.marketInstallingSkills.filter((key) => key !== resultKey);
+      state.marketInstallingSkills = state.marketInstallingSkills.filter((key) => key !== resultKey);
     }
-  },
-  async installMarketExtension(this: Context): Promise<void> {
-    const packageInput = this.marketExtensionPackage.trim();
+  }
+  async function installMarketExtension(): Promise<void> {
+    const packageInput = state.marketExtensionPackage.trim();
     if (!packageInput) {
-      this.showError(new ApiError("Enter an npm package id"));
+      deps.shell.showError(new ApiError("Enter an npm package id"));
       return;
     }
-    this.marketExtensionAction = true;
+    state.marketExtensionAction = true;
     try {
-      const data = await this.api<{ package: string }>("/api/market/extensions/install", {
+      const data = await deps.api.api<{ package: string }>("/api/market/extensions/install", {
         method: "POST",
         body: JSON.stringify({ package: packageInput }),
       });
-      await this.refreshResources();
+      await deps.agents.refreshResources();
       const installed = data.package?.replace(/^npm:/, "") || packageInput;
-      this.marketInstallOpen = false;
-      this.marketExtensionPackage = "";
-      this.showToast(`Extension ${installed} installed`);
+      state.marketInstallOpen = false;
+      state.marketExtensionPackage = "";
+      deps.shell.showToast(`Extension ${installed} installed`);
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     } finally {
-      this.marketExtensionAction = false;
+      state.marketExtensionAction = false;
     }
-  },
-  marketResourceSource(this: Context, kind: string, item: DTO.Resource): string {
+  }
+  function marketResourceSource(kind: string, item: DTO.Resource): string {
     if (item?.source) return item.source;
     if (kind === "extensions" && item?.path?.includes("/npm/node_modules/")) return `npm:${item.name}`;
     if (kind === "extensions" && item?.path) return item.path;
     if (kind === "skills" && item?.name) return item.name;
     return "";
-  },
-  marketResourceAuthor(this: Context, kind: string, item: DTO.Resource): string {
+  }
+  function marketResourceAuthor(kind: string, item: DTO.Resource): string {
     const author = typeof item?.author === "string" ? item.author.trim() : "";
     const sourceAuthor = kind === "skills" && item?.source ? (item.source.split("/", 1)[0] || "").trim() : "";
     return (author || sourceAuthor || "admin").slice(0, 10);
-  },
-  marketSearchPlaceholder(this: Context): string {
+  }
+  function marketSearchPlaceholder(): string {
     const key = {
       skills: "marketplace.searchSkills",
       extensions: "marketplace.searchExtensions",
       mcp_servers: "marketplace.searchMcpServers",
       agents: "marketplace.searchAgents",
       agent_teams: "marketplace.searchAgentTeams",
-    }[this.marketTab];
-    return this.t(key || "marketplace.searchResources");
-  },
-  openMarketUninstall(this: Context, kind: string, item: DTO.Resource): void {
-    if (!this.marketResourceSource(kind, item)) return;
-    this.marketUninstallTarget = { kind, item };
-  },
-  async confirmMarketUninstall(this: Context): Promise<void> {
-    const target = this.marketUninstallTarget;
+    }[state.marketTab];
+    return deps.i18n.t(key || "marketplace.searchResources");
+  }
+  function openMarketUninstall(kind: string, item: DTO.Resource): void {
+    if (!marketResourceSource(kind, item)) return;
+    state.marketUninstallTarget = { kind, item };
+  }
+  async function confirmMarketUninstall(): Promise<void> {
+    const target = state.marketUninstallTarget;
     if (!target) return;
     const { kind, item } = target;
     if (kind === "mcp_servers") {
       try {
-        const data = await this.api<{ servers: DTO.Resource[]; resources: DTO.Resources }>(
+        const data = await deps.api.api<{ servers: DTO.Resource[]; resources: DTO.Resources }>(
           `/api/market/mcp-servers/${encodeURIComponent(item.name)}`,
           { method: "DELETE" },
         );
-        this.resources = data.resources;
-        this.marketUninstallTarget = null;
-        this.showToast(`MCP server ${item.name} deleted`);
+        deps.agents.replaceResources(data.resources);
+        state.marketUninstallTarget = null;
+        deps.shell.showToast(`MCP server ${item.name} deleted`);
       } catch (cause) {
         const error = asError(cause);
-        this.showError(error);
+        deps.shell.showError(error);
       }
       return;
     }
     const path = kind === "extensions" ? "/api/market/extensions/uninstall" : "/api/market/skills/uninstall";
-    const packageSource = this.marketResourceSource(kind, item);
+    const packageSource = marketResourceSource(kind, item);
     const payload =
       kind === "extensions"
         ? packageSource.startsWith("npm:")
@@ -309,104 +285,141 @@ export const marketplaceActions: Actions = {
             skill: item.name,
           };
     try {
-      await this.api(path, {
+      await deps.api.api(path, {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      await this.refreshResources();
-      this.marketUninstallTarget = null;
-      this.showToast(`${kind === "extensions" ? "Extension" : "Skill"} ${item.name} uninstalled`);
+      await deps.agents.refreshResources();
+      state.marketUninstallTarget = null;
+      deps.shell.showToast(`${kind === "extensions" ? "Extension" : "Skill"} ${item.name} uninstalled`);
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     }
-  },
-  async confirmPublishAgent(this: Context): Promise<void> {
-    const agent = this.marketPublishTarget;
-    if (!agent || this.marketPublishing) return;
-    this.marketPublishing = true;
+  }
+  async function confirmPublishAgent(): Promise<void> {
+    const agent = state.marketPublishTarget;
+    if (!agent || state.marketPublishing) return;
+    state.marketPublishing = true;
     try {
-      const data = await this.api<{ agent: DTO.Agent }>(`/api/agents/${agent.id}/publish`, {
+      const data = await deps.api.api<{ agent: DTO.Agent }>(`/api/agents/${agent.id}/publish`, {
         method: "POST",
-        body: JSON.stringify({ version: this.marketPublishVersion }),
+        body: JSON.stringify({ version: state.marketPublishVersion }),
       });
-      this.marketPublishTarget = null;
-      await this.loadMarketAgents();
-      this.showToast(`Agent ${data.agent.name} ${data.agent.version} published`);
+      state.marketPublishTarget = null;
+      await loadMarketAgents();
+      deps.shell.showToast(`Agent ${data.agent.name} ${data.agent.version} published`);
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     } finally {
-      this.marketPublishing = false;
+      state.marketPublishing = false;
     }
-  },
-  installMarketAgent(this: Context, agent: DTO.Agent): void {
-    this.marketInstallAgentTarget = agent;
-  },
-  requestMarketplaceAgentUpdate(this: Context, agent: DTO.Agent): void {
+  }
+  function installMarketAgent(agent: DTO.Agent): void {
+    state.marketInstallAgentTarget = agent;
+  }
+  function requestMarketplaceAgentUpdate(agent: DTO.Agent): void {
     if (!agent?.marketplace_update_available) return;
-    this.marketUpdateAgentTarget = agent;
-  },
-  requestMarketListingUpdate(this: Context, item: DTO.Agent): void {
-    const agent = this.agents.find(
+    state.marketUpdateAgentTarget = agent;
+  }
+  function requestMarketListingUpdate(item: DTO.Agent): void {
+    const agent = deps.agents.state.agents.find(
       (candidate) => candidate.marketplace_update_available && item.installed_agent_ids?.includes(candidate.id),
     );
-    if (agent) this.requestMarketplaceAgentUpdate(agent);
-  },
-  deleteMarketAgent(this: Context, agent: DTO.Agent): void {
-    if (this.authUser?.role === "admin") this.marketDeleteAgentTarget = agent;
-  },
-  async confirmDeleteMarketAgent(this: Context): Promise<void> {
-    const agent = this.marketDeleteAgentTarget;
-    if (!agent || this.marketDeletingAgent) return;
-    this.marketDeletingAgent = true;
+    if (agent) requestMarketplaceAgentUpdate(agent);
+  }
+  function deleteMarketAgent(agent: DTO.Agent): void {
+    if (deps.identity.state.authUser?.role === "admin") state.marketDeleteAgentTarget = agent;
+  }
+  async function confirmDeleteMarketAgent(): Promise<void> {
+    const agent = state.marketDeleteAgentTarget;
+    if (!agent || state.marketDeletingAgent) return;
+    state.marketDeletingAgent = true;
     try {
-      await this.api(`/api/market/agents/${agent.id}`, { method: "DELETE" });
-      this.marketAgents = this.marketAgents.filter((item) => item.id !== agent.id);
-      this.marketDeleteAgentTarget = null;
-      this.showToast(`Agent ${agent.name} removed from Marketplace`);
+      await deps.api.api(`/api/market/agents/${agent.id}`, { method: "DELETE" });
+      state.marketAgents = state.marketAgents.filter((item) => item.id !== agent.id);
+      state.marketDeleteAgentTarget = null;
+      deps.shell.showToast(`Agent ${agent.name} removed from Marketplace`);
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     } finally {
-      this.marketDeletingAgent = false;
+      state.marketDeletingAgent = false;
     }
-  },
-  async confirmInstallMarketAgent(this: Context): Promise<void> {
-    const agent = this.marketInstallAgentTarget;
-    if (!agent || this.marketInstallingAgent) return;
-    this.marketInstallingAgent = true;
+  }
+  async function confirmInstallMarketAgent(): Promise<void> {
+    const agent = state.marketInstallAgentTarget;
+    if (!agent || state.marketInstallingAgent) return;
+    state.marketInstallingAgent = true;
     try {
-      const data = await this.api<{ agent: DTO.Agent }>(`/api/market/agents/${agent.id}/install`, {
+      const data = await deps.api.api<{ agent: DTO.Agent }>(`/api/market/agents/${agent.id}/install`, {
         method: "POST",
         body: JSON.stringify({ version: agent.version }),
       });
-      await this.refreshAgents();
-      this.marketInstallAgentTarget = null;
-      this.showToast(`Agent ${data.agent.name} installed`);
+      await deps.agents.refreshAgents();
+      state.marketInstallAgentTarget = null;
+      deps.shell.showToast(`Agent ${data.agent.name} installed`);
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     } finally {
-      this.marketInstallingAgent = false;
+      state.marketInstallingAgent = false;
     }
-  },
-  async confirmMarketplaceAgentUpdate(this: Context): Promise<void> {
-    const agent = this.marketUpdateAgentTarget;
-    if (!agent || this.marketUpdatingAgent) return;
-    this.marketUpdatingAgent = true;
+  }
+  async function confirmMarketplaceAgentUpdate(): Promise<void> {
+    const agent = state.marketUpdateAgentTarget;
+    if (!agent || state.marketUpdatingAgent) return;
+    state.marketUpdatingAgent = true;
     try {
-      const updated = await this.api<DTO.Agent>(`/api/agents/${agent.id}/market-update`, {
+      const updated = await deps.api.api<DTO.Agent>(`/api/agents/${agent.id}/market-update`, {
         method: "POST",
       });
-      await Promise.all([this.refreshAgents(), this.loadMarketAgents()]);
-      this.marketUpdateAgentTarget = null;
-      this.showToast(`Agent ${updated.name} updated`);
+      await Promise.all([deps.agents.refreshAgents(), loadMarketAgents()]);
+      state.marketUpdateAgentTarget = null;
+      deps.shell.showToast(`Agent ${updated.name} updated`);
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     } finally {
-      this.marketUpdatingAgent = false;
+      state.marketUpdatingAgent = false;
     }
-  },
-};
+  }
+  function publishAgent(agent: DTO.Agent): void {
+    state.marketPublishTarget = agent;
+    state.marketPublishVersion = "v1.0.0";
+  }
+  return {
+    state,
+    loadMarketAgents,
+    marketAgentItems,
+    marketCatalogItems,
+    searchMarketSkills,
+    marketSkillGitHubSource,
+    openMarketInstall,
+    closeMarketInstall,
+    openMarketMcpAdd,
+    closeMarketMcpAdd,
+    marketMcpNames,
+    addMarketMcpServers,
+    marketSkillInstalled,
+    marketSkillSourceKey,
+    marketSkillResultKey,
+    installMarketSkill,
+    installMarketExtension,
+    marketResourceSource,
+    marketResourceAuthor,
+    marketSearchPlaceholder,
+    openMarketUninstall,
+    confirmMarketUninstall,
+    confirmPublishAgent,
+    installMarketAgent,
+    requestMarketplaceAgentUpdate,
+    requestMarketListingUpdate,
+    deleteMarketAgent,
+    confirmDeleteMarketAgent,
+    confirmInstallMarketAgent,
+    confirmMarketplaceAgentUpdate,
+    publishAgent,
+  };
+}

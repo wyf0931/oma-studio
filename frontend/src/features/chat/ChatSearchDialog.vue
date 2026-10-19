@@ -1,34 +1,22 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useAgents } from "../agents/context";
+import { useChat } from "./context";
+import { useFormat } from "../../shared/format-context";
+import { useI18n } from "../../shared/i18n-context";
+
 import { vOutside } from "../../ui/events";
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const {
-  agentName,
-  agents,
-  chatSearchAgentFilter,
-  chatSearchAgentPickerOpen,
-  chatSearchQuery,
-  initials,
-  relativeTime,
-  searchChatResults,
-  searchOpen,
-  selectChatSearchAgent,
-  selectSearchChat,
-  t,
-} = useWorkspaceScope([
-  "agentName",
-  "agents",
-  "chatSearchAgentFilter",
-  "chatSearchAgentPickerOpen",
-  "chatSearchQuery",
-  "initials",
-  "relativeTime",
-  "searchChatResults",
-  "searchOpen",
-  "selectChatSearchAgent",
-  "selectSearchChat",
-  "t",
-]);
+const agentsFeature = useAgents();
+const { agents } = toRefs(agentsFeature.state);
+const { agentName } = agentsFeature;
+const chatFeature = useChat();
+const { chatSearchAgentFilter, chatSearchAgentPickerOpen, chatSearchQuery, searchOpen } = toRefs(chatFeature.state);
+const { searchChatResults, selectChatSearchAgent, selectSearchChat } = chatFeature;
+const formatFeature = useFormat();
+const { initials, relativeTime } = formatFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <dialog

@@ -1,6 +1,12 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useSettings } from "./context";
+import { useIdentity } from "../identity/context";
+import { useFormat } from "../../shared/format-context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
+const settingsFeature = useSettings();
 const {
   accountCurrentPassword,
   accountNewPassword,
@@ -9,61 +15,35 @@ const {
   accountPasswordSaved,
   accountPasswordSaving,
   accountProfile,
-  accountProfileDirty,
   accountProfileError,
   accountProfileSaved,
   accountProfileSaving,
   accountShowCurrentPassword,
   accountShowNewPassword,
+  settingsOpen,
+  settingsTab,
+  systemTimezone,
+  themePreference,
+} = toRefs(settingsFeature.state);
+const {
+  accountProfileDirty,
   applyThemePreference,
-  authUser,
-  formatDateTime,
-  language,
   openAccountPassword,
   openSettingsTab,
-  profileRoleLabel,
   resetAccountPassword,
   saveAccountPassword,
   saveAccountProfile,
   saveLanguage,
   saveSystemTimezone,
-  settingsOpen,
-  settingsTab,
-  systemTimezone,
-  t,
-  themePreference,
-} = useWorkspaceScope([
-  "accountCurrentPassword",
-  "accountNewPassword",
-  "accountPasswordErrors",
-  "accountPasswordOpen",
-  "accountPasswordSaved",
-  "accountPasswordSaving",
-  "accountProfile",
-  "accountProfileDirty",
-  "accountProfileError",
-  "accountProfileSaved",
-  "accountProfileSaving",
-  "accountShowCurrentPassword",
-  "accountShowNewPassword",
-  "applyThemePreference",
-  "authUser",
-  "formatDateTime",
-  "language",
-  "openAccountPassword",
-  "openSettingsTab",
-  "profileRoleLabel",
-  "resetAccountPassword",
-  "saveAccountPassword",
-  "saveAccountProfile",
-  "saveLanguage",
-  "saveSystemTimezone",
-  "settingsOpen",
-  "settingsTab",
-  "systemTimezone",
-  "t",
-  "themePreference",
-]);
+} = settingsFeature;
+const identityFeature = useIdentity();
+const { authUser } = toRefs(identityFeature.state);
+const { profileRoleLabel } = identityFeature;
+const formatFeature = useFormat();
+const { formatDateTime } = formatFeature;
+const i18nFeature = useI18n();
+const { language } = toRefs(i18nFeature.state);
+const { t } = i18nFeature;
 </script>
 <template>
   <dialog

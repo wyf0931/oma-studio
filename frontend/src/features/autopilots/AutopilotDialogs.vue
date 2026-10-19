@@ -1,10 +1,17 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useAgents } from "../agents/context";
+import { useAutopilots } from "./context";
+import { useFormat } from "../../shared/format-context";
+import { useI18n } from "../../shared/i18n-context";
+
 import { vOutside } from "../../ui/events";
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
+const agentsFeature = useAgents();
+const { agents } = toRefs(agentsFeature.state);
+const { agentName } = agentsFeature;
+const autopilotsFeature = useAutopilots();
 const {
-  agentName,
-  agents,
   autopilotAgentId,
   autopilotCron,
   autopilotDialog,
@@ -15,30 +22,12 @@ const {
   autopilotName,
   autopilotSaving,
   autopilotStartsAt,
-  initials,
-  openCronBuilder,
-  saveAutopilot,
-  selectAutopilotEditAgent,
-  t,
-} = useWorkspaceScope([
-  "agentName",
-  "agents",
-  "autopilotAgentId",
-  "autopilotCron",
-  "autopilotDialog",
-  "autopilotEditAgentPickerOpen",
-  "autopilotEditing",
-  "autopilotEndsAt",
-  "autopilotInstruction",
-  "autopilotName",
-  "autopilotSaving",
-  "autopilotStartsAt",
-  "initials",
-  "openCronBuilder",
-  "saveAutopilot",
-  "selectAutopilotEditAgent",
-  "t",
-]);
+} = toRefs(autopilotsFeature.state);
+const { openCronBuilder, saveAutopilot, selectAutopilotEditAgent } = autopilotsFeature;
+const formatFeature = useFormat();
+const { initials } = formatFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <dialog

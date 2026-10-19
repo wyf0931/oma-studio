@@ -1,37 +1,24 @@
 <script setup lang="ts">
+import { useChat } from "../chat/context";
+import { useMarketplace } from "../marketplace/context";
+import { toRefs } from "vue";
+import { useAgents } from "./context";
+import { useShell } from "../../app/context";
+
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const {
-  agentAvatarMarkup,
-  agentItems,
-  agentSearch,
-  agentTagsMarkup,
-  agents,
-  chatCount,
-  deleteAgent,
-  dialog,
-  editAgent,
-  newAgent,
-  page,
-  publishAgent,
-  requestMarketplaceAgentUpdate,
-  t,
-} = useWorkspaceScope([
-  "agentAvatarMarkup",
-  "agentItems",
-  "agentSearch",
-  "agentTagsMarkup",
-  "agents",
-  "chatCount",
-  "deleteAgent",
-  "dialog",
-  "editAgent",
-  "newAgent",
-  "page",
-  "publishAgent",
-  "requestMarketplaceAgentUpdate",
-  "t",
-]);
+const agentsFeature = useAgents();
+const { agentSearch, agents, dialog } = toRefs(agentsFeature.state);
+const { agentAvatarMarkup, agentItems, agentTagsMarkup, deleteAgent, editAgent, newAgent } = agentsFeature;
+const shellFeature = useShell();
+const { page } = toRefs(shellFeature.state);
+const marketplaceFeature = useMarketplace();
+const { requestMarketplaceAgentUpdate } = marketplaceFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
+const { chatCount } = useChat();
+const { publishAgent } = useMarketplace();
 </script>
 <template>
   <section class="content-panel agents-page" v-show="page === 'agents'">

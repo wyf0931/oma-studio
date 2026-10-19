@@ -1,49 +1,36 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useAgents } from "../agents/context";
+import { useIdentity } from "../identity/context";
+import { useMarketplace } from "./context";
+import { useShell } from "../../app/context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
+const agentsFeature = useAgents();
+const { resources } = toRefs(agentsFeature.state);
+const { agentAvatarMarkup } = agentsFeature;
+const identityFeature = useIdentity();
+const { authUser } = toRefs(identityFeature.state);
+const marketplaceFeature = useMarketplace();
+const { marketAgentsLoading, marketCatalogSearch, marketTab, marketUninstallTarget } = toRefs(marketplaceFeature.state);
 const {
-  agentAvatarMarkup,
-  authUser,
   deleteMarketAgent,
   installMarketAgent,
   marketAgentItems,
-  marketAgentsLoading,
   marketCatalogItems,
-  marketCatalogSearch,
   marketResourceAuthor,
   marketResourceSource,
   marketSearchPlaceholder,
-  marketTab,
-  marketUninstallTarget,
   openMarketInstall,
   openMarketMcpAdd,
   openMarketUninstall,
-  page,
   requestMarketListingUpdate,
-  resources,
-  t,
-} = useWorkspaceScope([
-  "agentAvatarMarkup",
-  "authUser",
-  "deleteMarketAgent",
-  "installMarketAgent",
-  "marketAgentItems",
-  "marketAgentsLoading",
-  "marketCatalogItems",
-  "marketCatalogSearch",
-  "marketResourceAuthor",
-  "marketResourceSource",
-  "marketSearchPlaceholder",
-  "marketTab",
-  "marketUninstallTarget",
-  "openMarketInstall",
-  "openMarketMcpAdd",
-  "openMarketUninstall",
-  "page",
-  "requestMarketListingUpdate",
-  "resources",
-  "t",
-]);
+} = marketplaceFeature;
+const shellFeature = useShell();
+const { page } = toRefs(shellFeature.state);
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <section class="content-panel market-page" v-show="page === 'market'">

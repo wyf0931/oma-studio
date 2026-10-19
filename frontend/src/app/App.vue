@@ -2,8 +2,6 @@
 import OmaIcon from "../ui/Icon.vue";
 import { onMounted, onBeforeUnmount, provide } from "vue";
 import { installContentEvents } from "../ui/content-events";
-import { createWorkspace } from "./workspace";
-import { workspaceKey, useWorkspaceScope } from "./scope";
 import ChatPage from "../features/chat/ChatPage.vue";
 import LibraryPage from "../features/artifacts/LibraryPage.vue";
 import FileViewerPage from "../features/artifacts/FileViewerPage.vue";
@@ -28,61 +26,76 @@ import LinkDrawer from "../features/chat/LinkDrawer.vue";
 import ShareDialog from "../features/shares/ShareDialog.vue";
 import HistorySidebar from "../features/chat/HistorySidebar.vue";
 import LoginScreen from "../features/identity/LoginScreen.vue";
-const workspace = createWorkspace();
-provide(workspaceKey, workspace);
-const {
-  appReady,
-  authUser,
-  closeDrawersOutside,
-  dialog,
-  error,
-  mobileSidebarOpen,
-  newChat,
-  page,
-  sharedMode,
-  sidebarCollapsed,
-  t,
-  toastKind,
-  toastMessage,
-  toggleMobileSidebar,
-} = useWorkspaceScope(
-  [
-    "appReady",
-    "authUser",
-    "closeDrawersOutside",
-    "dialog",
-    "error",
-    "mobileSidebarOpen",
-    "newChat",
-    "page",
-    "sharedMode",
-    "sidebarCollapsed",
-    "t",
-    "toastKind",
-    "toastMessage",
-    "toggleMobileSidebar",
-  ],
-  workspace,
+
+import { toRefs } from "vue";
+import { createApplication } from "./application";
+import { shellKey } from "./context";
+import { i18nKey } from "../shared/i18n-context";
+import { domKey } from "../shared/dom-context";
+import { apiKey } from "../shared/api-context";
+import { formatKey } from "../shared/format-context";
+import { contentKey } from "../shared/content-context";
+import { presentationKey } from "../features/chat/presentation-context";
+import { agentsKey } from "../features/agents/context";
+import { artifactsKey } from "../features/artifacts/context";
+import { autopilotsKey } from "../features/autopilots/context";
+import { chatKey } from "../features/chat/context";
+import { identityKey } from "../features/identity/context";
+import { marketplaceKey } from "../features/marketplace/context";
+import { settingsKey } from "../features/settings/context";
+import { sharesKey } from "../features/shares/context";
+import { usageKey } from "../features/usage/context";
+const application = createApplication();
+provide(shellKey, application.shell);
+provide(i18nKey, application.i18n);
+provide(domKey, application.dom);
+provide(apiKey, application.api);
+provide(formatKey, application.format);
+provide(contentKey, application.content);
+provide(presentationKey, application.presentation);
+provide(agentsKey, application.agents);
+provide(artifactsKey, application.artifacts);
+provide(autopilotsKey, application.autopilots);
+provide(chatKey, application.chat);
+provide(identityKey, application.identity);
+provide(marketplaceKey, application.marketplace);
+provide(settingsKey, application.settings);
+provide(sharesKey, application.shares);
+provide(usageKey, application.usage);
+const shellFeature = application.shell;
+const { appReady, error, mobileSidebarOpen, page, sidebarCollapsed, toastKind, toastMessage } = toRefs(
+  shellFeature.state,
 );
+const { closeDrawersOutside, toggleMobileSidebar } = shellFeature;
+const identityFeature = application.identity;
+const { authUser } = toRefs(identityFeature.state);
+const agentsFeature = application.agents;
+const { dialog } = toRefs(agentsFeature.state);
+const chatFeature = application.chat;
+const { newChat } = chatFeature;
+const sharesFeature = application.shares;
+const { sharedMode } = toRefs(sharesFeature.state);
+const i18nFeature = application.i18n;
+const { t } = i18nFeature;
 onMounted(() => {
-  workspace.cleanups.push(installContentEvents(workspace));
+  application.shell.state.cleanups.push(
+    installContentEvents({
+      copyCodeBlock: application.chat.copyCodeBlock,
+      openWebActivity: application.presentation.openWebActivity,
+      setReasoningOpen: application.presentation.setReasoningOpen,
+    }),
+  );
   const onEscape = (event: KeyboardEvent) => {
-    if (event.key === "Escape" && workspace.settingsOpen) {
-      workspace.settingsOpen = false;
+    if (event.key === "Escape" && application.settings.state.settingsOpen) {
+      application.settings.state.settingsOpen = false;
       event.preventDefault();
     }
   };
   window.addEventListener("keydown", onEscape);
-  workspace.cleanups.push(() => window.removeEventListener("keydown", onEscape));
-  void workspace.init();
+  application.shell.state.cleanups.push(() => window.removeEventListener("keydown", onEscape));
+  void application.shell.init();
 });
-onBeforeUnmount(() => {
-  workspace.stopWatching();
-  workspace.abortChatReads();
-  workspace._iconObserver?.disconnect();
-  if (workspace.healthTimer) clearInterval(workspace.healthTimer);
-  for (const cleanup of workspace.cleanups) cleanup();
-});
+onBeforeUnmount(() => application.dispose());
 </script>
 <template>
   <div @keydown.escape="dialog = null" @click="closeDrawersOutside($event)">

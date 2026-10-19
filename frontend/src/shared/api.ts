@@ -1,20 +1,8 @@
-import { ApiError } from "./types";
-import type { Workspace } from "../app/workspace";
-
+import type * as DTO from "./types";
+import { ApiError, toRecord } from "./types";
 import { createId } from "../browser";
 
-// Explicit dependency contract for this feature; the composition root supplies it.
-type Context = Pick<
-  Workspace,
-  | "abortChatReads"
-  | "api"
-  | "chatReadController"
-  | "errorFromResponse"
-  | "handleUnauthorizedResponse"
-  | "mode"
-  | "request"
-  | "responseData"
->;
+import type { Actions as I18nActions } from "./i18n";
 export interface Actions {
   request(path: string, options?: RequestInit): Promise<{ response: Response; requestId: string }>;
   responseData<T = unknown>(
@@ -23,17 +11,16 @@ export interface Actions {
     requestPath: string,
   ): Promise<{ data: T; responseId: string }>;
   api<T = unknown>(path: string, options?: RequestInit): Promise<T>;
-  beginChatReads(): void;
-  abortChatReads(): void;
-  isAbortError(error: unknown): boolean;
-  chatRead<T = unknown>(path: string): Promise<T>;
+  errorFromResponse(response: Response, requestId: string, data?: unknown): DTO.ApiError;
 }
-export const apiActions: Actions = {
-  async request(
-    this: Context,
-    path: string,
-    options: RequestInit = {},
-  ): Promise<{ response: Response; requestId: string }> {
+export type Feature = Actions;
+export interface Dependencies {
+  getMode(): string;
+  onUnauthorized(response: Response, path: string, error: DTO.ApiError): void;
+  i18n: Pick<I18nActions, "t">;
+}
+export function createApi(deps: Dependencies): Feature {
+  async function request(path: string, options: RequestInit = {}): Promise<{ response: Response; requestId: string }> {
     const requestId = createId();
     const headers = new Headers(options.headers || {});
     headers.set("X-Request-ID", requestId);
@@ -43,9 +30,8 @@ export const apiActions: Actions = {
       headers,
     });
     return { response, requestId };
-  },
-  async responseData<T = unknown>(
-    this: Context,
+  }
+  async function responseData<T = unknown>(
     response: Response,
     requestId: string,
     requestPath: string,
@@ -63,38 +49,43 @@ export const apiActions: Actions = {
       await response.text();
     }
     if (!response.ok) {
-      const error = this.errorFromResponse(response, responseId, data);
-      this.handleUnauthorizedResponse(response, requestPath, error);
+      const error = errorFromResponse(response, responseId, data);
+      deps.onUnauthorized(response, requestPath, error);
       throw error;
     }
     if (data === null) throw new ApiError(`Server returned a non-JSON response (request_id: ${responseId})`);
     return { data: data as T, responseId };
-  },
-  async api<T = unknown>(this: Context, path: string, options: RequestInit = {}): Promise<T> {
-    const requestPath = path.includes("/messages") && !path.includes("?") ? `${path}?mode=${this.mode}` : path;
+  }
+  async function api<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
+    const requestPath = path.includes("/messages") && !path.includes("?") ? `${path}?mode=${deps.getMode()}` : path;
     const headers = new Headers(options.headers || {});
     if (options.body !== undefined && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
-    const { response, requestId } = await this.request(requestPath, { ...options, headers });
-    const { data, responseId } = await this.responseData<T>(response, requestId, requestPath);
+    const { response, requestId } = await request(requestPath, { ...options, headers });
+    const { data, responseId } = await responseData<T>(response, requestId, requestPath);
     if (data === null) {
       const error = new ApiError(`Server returned a non-JSON response (request_id: ${responseId})`);
       error.requestId = responseId;
       throw error;
     }
     return data;
-  },
-  beginChatReads(this: Context): void {
-    this.abortChatReads();
-    this.chatReadController = new AbortController();
-  },
-  abortChatReads(this: Context): void {
-    this.chatReadController?.abort();
-    this.chatReadController = null;
-  },
-  isAbortError(this: Context, error: unknown): boolean {
-    return error instanceof Error && error.name === "AbortError";
-  },
-  chatRead<T = unknown>(this: Context, path: string): Promise<T> {
-    return this.api<T>(path, { signal: this.chatReadController?.signal });
-  },
-};
+  }
+  function errorFromResponse(response: Response, requestId: string, data: unknown = null): DTO.ApiError {
+    const payload = toRecord(data);
+    const detail = typeof payload.detail === "string" ? payload.detail : `Server returned ${response.status}`;
+    const code = typeof payload.code === "string" ? payload.code : "";
+    const params = Object.fromEntries(
+      Object.entries(toRecord(payload.params)).filter(
+        (entry): entry is [string, string | number] => typeof entry[1] === "string" || typeof entry[1] === "number",
+      ),
+    );
+    const message = code ? deps.i18n.t(code, { ...params, defaultValue: detail }) : detail;
+    const error = new ApiError(`${message} (request_id: ${requestId})`);
+    error.uiMessage = message;
+    error.requestId = requestId;
+    error.status = response.status;
+    error.code = code || "";
+    error.params = params;
+    return error;
+  }
+  return { request, responseData, api, errorFromResponse };
+}

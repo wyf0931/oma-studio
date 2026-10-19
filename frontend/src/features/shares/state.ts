@@ -1,4 +1,5 @@
 import type * as DTO from "../../shared/types";
+
 export function createSharesState() {
   return {
     shareRecordsOpen: false,

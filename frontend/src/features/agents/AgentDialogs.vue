@@ -1,29 +1,20 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useAgents } from "./context";
+import { useIdentity } from "../identity/context";
+import { useChat } from "../chat/context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const {
-  agentAvatarMarkup,
-  agentSkills,
-  agentTagsMarkup,
-  authUser,
-  dialog,
-  modelName,
-  providerName,
-  resourceNames,
-  startQuickstart,
-  t,
-} = useWorkspaceScope([
-  "agentAvatarMarkup",
-  "agentSkills",
-  "agentTagsMarkup",
-  "authUser",
-  "dialog",
-  "modelName",
-  "providerName",
-  "resourceNames",
-  "startQuickstart",
-  "t",
-]);
+const agentsFeature = useAgents();
+const { dialog } = toRefs(agentsFeature.state);
+const { agentAvatarMarkup, agentSkills, agentTagsMarkup, modelName, providerName, resourceNames } = agentsFeature;
+const identityFeature = useIdentity();
+const { authUser } = toRefs(identityFeature.state);
+const chatFeature = useChat();
+const { startQuickstart } = chatFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <dialog class="modal modal-middle agent-dialog" :open="Boolean(!!dialog)" v-show="dialog" @click.self="dialog = null">

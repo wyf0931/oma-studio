@@ -7,6 +7,18 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   ...vue.configs["flat/essential"],
   {
+    files: ["frontend/src/features/**/*.ts", "frontend/src/shared/**/*.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ThisExpression",
+          message: "Feature logic must use owned state and explicit capabilities, never a bound application context.",
+        },
+      ],
+    },
+  },
+  {
     files: ["frontend/src/shared/**/*.ts"],
     rules: {
       "no-restricted-imports": [
@@ -14,7 +26,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ["../features/**", "../../features/**"],
+              group: ["../features/**", "../../features/**", "../app/**"],
               message: "Shared capabilities must not import feature implementations.",
             },
           ],

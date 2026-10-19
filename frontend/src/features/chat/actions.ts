@@ -1,93 +1,29 @@
+import type { Actions as SharesActions, State as SharesState } from "../shares/actions";
+import type { Actions as ArtifactsActions, State as ArtifactsState } from "../artifacts/actions";
+import type { Actions as AgentsActions, State as AgentsState } from "../agents/actions";
+import type { Actions as ShellActions, State as ShellState } from "../../app/actions";
+import type { Actions as ApiActions } from "../../shared/api";
+import type { Actions as DomActions } from "../../shared/dom";
+import type { Actions as PresentationActions } from "./presentation";
+import type { Actions as FormatActions } from "../../shared/format";
+import { reactive, nextTick } from "vue";
+import type * as DTO from "../../shared/types";
 import { ApiError, asError } from "../../shared/types";
-import type { Workspace } from "../../app/workspace";
-import { nextTick } from "vue";
-
 import { createId, writeClipboardText } from "../../browser";
 
-import type * as DTO from "../../shared/types";
-
-// Explicit dependency contract for this feature; the composition root supplies it.
-type Context = Pick<
-  Workspace,
-  | "abortChatReads"
-  | "activeChat"
-  | "agentName"
-  | "agentPickerOpen"
-  | "agents"
-  | "api"
-  | "beginChatReads"
-  | "cancelEditingChatTitle"
-  | "chatRead"
-  | "chatSearchAgentFilter"
-  | "chatSearchAgentPickerOpen"
-  | "chatSearchQuery"
-  | "chatTitleDraft"
-  | "chatTitleSaving"
-  | "chatViewToken"
-  | "chats"
-  | "chooseSkillCommand"
-  | "copiedKey"
-  | "deleteChatTarget"
-  | "draft"
-  | "editingChatTitle"
-  | "error"
-  | "escape"
-  | "files"
-  | "filesOpen"
-  | "filesTab"
-  | "finishWatch"
-  | "handleTurnEvent"
-  | "inputFiles"
-  | "isAbortError"
-  | "loading"
-  | "markStreamingAssistantMessageEnd"
-  | "messageVisible"
-  | "messages"
-  | "messagesFingerprint"
-  | "messagesLoading"
-  | "mode"
-  | "modeQuery"
-  | "newChat"
-  | "normalizeMessages"
-  | "normalizeResourcePath"
-  | "openChat"
-  | "page"
-  | "partsText"
-  | "pendingArtifacts"
-  | "pendingAttachments"
-  | "pendingUploads"
-  | "pollTimer"
-  | "reasoningOpen"
-  | "refreshOpenFiles"
-  | "request"
-  | "resetConversationInput"
-  | "resetShare"
-  | "resources"
-  | "responseData"
-  | "scrollMessagesToLatest"
-  | "searchOpen"
-  | "selectedAgentId"
-  | "sendMessage"
-  | "setMessagesIfChanged"
-  | "sharedMode"
-  | "showError"
-  | "skillCommandDismissed"
-  | "skillCommandIndex"
-  | "skillCommandItems"
-  | "skillCommandMatch"
-  | "skillCommandVisible"
-  | "startPolling"
-  | "stopPolling"
-  | "stopWatching"
-  | "streamSource"
-  | "updateStreamingAssistant"
-  | "updateStreamingThinking"
-  | "uploadFiles"
-  | "uploadSelection"
-  | "watchChat"
-  | "watchingChat"
->;
+import { createChatState } from "./state";
+export type State = ReturnType<typeof createChatState>;
 export interface Actions {
+  clearAttachmentCommand(): void;
+  setSharedConversation(chat: DTO.Chat | null, messages: DTO.Message[]): void;
+  setMessagesLoading(loading: boolean): void;
+  chooseAgent(id: string): void;
+  chatCount(id: string): number;
+  beginChatReads(): void;
+  abortChatReads(): void;
+  isAbortError(error: unknown): boolean;
+  chatRead<T = unknown>(path: string): Promise<T>;
+  startQuickstart(agent: DTO.Agent, prompt: string): void;
   loadChats(): Promise<void>;
   startEditingChatTitle(): void;
   cancelEditingChatTitle(): void;
@@ -117,9 +53,6 @@ export interface Actions {
   startPolling(chatId: string, viewToken?: number): void;
   stopPolling(): void;
   stopWatching(): void;
-  setReasoningOpen(input: HTMLInputElement): void;
-  stableMessageKey(message: DTO.Message, index: number): string;
-  messagesFingerprint(messages: DTO.Message[]): string;
   setMessagesIfChanged(rawMessages: DTO.Message[]): DTO.Message[];
   isActionableAssistant(message: DTO.Message): boolean;
   copyMessage(message: DTO.Message): Promise<void>;
@@ -128,271 +61,309 @@ export interface Actions {
   deleteChat(chat: DTO.Chat): void;
   confirmDeleteChat(): Promise<void>;
 }
-export const chatActions: Actions = {
-  async loadChats(this: Context): Promise<void> {
+export interface Feature extends Actions {
+  state: State;
+}
+export interface Dependencies {
+  shares: Pick<SharesActions, "resetShare"> & { state: Readonly<Pick<SharesState, "sharedMode">> };
+  artifacts: Pick<
+    ArtifactsActions,
+    "clearAttachments" | "pendingAttachments" | "refreshOpenFiles" | "resetFilePanel" | "restoreUploads" | "uploadFiles"
+  > & { state: Readonly<Pick<ArtifactsState, "pendingArtifacts" | "pendingUploads">> };
+  agents: Pick<AgentsActions, "agentName" | "normalizeResourcePath"> & {
+    state: Readonly<Pick<AgentsState, "agents" | "resources">>;
+  };
+  shell: Pick<ShellActions, "clearError" | "modeQuery" | "showError" | "showPage"> & {
+    state: Readonly<Pick<ShellState, "mode">>;
+  };
+  api: Pick<ApiActions, "api" | "request" | "responseData">;
+  dom: Pick<DomActions, "resetConversationInput" | "scrollMessagesToLatest">;
+  presentation: Pick<PresentationActions, "messageVisible" | "messagesFingerprint" | "normalizeMessages" | "partsText">;
+  format: Pick<FormatActions, "escape">;
+}
+export function createChat(deps: Dependencies): Feature {
+  const state = reactive(createChatState());
+  function beginChatReads(): void {
+    abortChatReads();
+    state.chatReadController = new AbortController();
+  }
+  function abortChatReads(): void {
+    state.chatReadController?.abort();
+    state.chatReadController = null;
+  }
+  function isAbortError(error: unknown): boolean {
+    return error instanceof Error && error.name === "AbortError";
+  }
+  function chatRead<T = unknown>(path: string): Promise<T> {
+    return deps.api.api<T>(path, { signal: state.chatReadController?.signal });
+  }
+  function startQuickstart(agent: DTO.Agent, prompt: string): void {
+    newChat();
+    state.selectedAgentId = agent.id;
+    state.draft = prompt;
+    nextTick(() => document.getElementById("new-chat-message")?.focus());
+  }
+  async function loadChats(): Promise<void> {
     try {
-      this.chats = (await this.api<{ chats: DTO.Chat[] }>("/api/chats")).chats;
+      state.chats = (await deps.api.api<{ chats: DTO.Chat[] }>("/api/chats")).chats;
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     }
-  },
-  startEditingChatTitle(this: Context): void {
-    if (this.sharedMode || !this.activeChat) return;
-    this.chatTitleDraft = this.activeChat.title || "";
-    this.editingChatTitle = true;
+  }
+  function startEditingChatTitle(): void {
+    if (deps.shares.state.sharedMode || !state.activeChat) return;
+    state.chatTitleDraft = state.activeChat.title || "";
+    state.editingChatTitle = true;
     nextTick(() => {
       document.getElementById("chat-title-input")?.focus();
     });
-  },
-  cancelEditingChatTitle(this: Context): void {
-    this.editingChatTitle = false;
-    this.chatTitleDraft = "";
-  },
-  async saveChatTitle(this: Context): Promise<void> {
-    if (!this.editingChatTitle || this.chatTitleSaving) return;
-    const chatId = this.activeChat?.id;
+  }
+  function cancelEditingChatTitle(): void {
+    state.editingChatTitle = false;
+    state.chatTitleDraft = "";
+  }
+  async function saveChatTitle(): Promise<void> {
+    if (!state.editingChatTitle || state.chatTitleSaving) return;
+    const chatId = state.activeChat?.id;
     if (!chatId) return;
-    const title = this.chatTitleDraft.trim();
+    const title = state.chatTitleDraft.trim();
     if (!title) {
-      this.showError(new ApiError("Chat title cannot be empty"));
-      this.chatTitleDraft = this.activeChat?.title || "";
+      deps.shell.showError(new ApiError("Chat title cannot be empty"));
+      state.chatTitleDraft = state.activeChat?.title || "";
       return;
     }
-    this.chatTitleSaving = true;
+    state.chatTitleSaving = true;
     try {
-      const updated = await this.api<DTO.Chat>(`/api/chats/${chatId}`, {
+      const updated = await deps.api.api<DTO.Chat>(`/api/chats/${chatId}`, {
         method: "PATCH",
         body: JSON.stringify({ title }),
       });
-      if (this.activeChat?.id === chatId) {
-        this.activeChat = updated;
-        const sidebarChat = this.chats.find((chat) => chat.id === updated.id);
+      if (state.activeChat?.id === chatId) {
+        state.activeChat = updated;
+        const sidebarChat = state.chats.find((chat) => chat.id === updated.id);
         if (sidebarChat) Object.assign(sidebarChat, updated);
         document.title = `${updated.title} · OMA studio`;
-        this.cancelEditingChatTitle();
+        cancelEditingChatTitle();
       }
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
     } finally {
-      this.chatTitleSaving = false;
+      state.chatTitleSaving = false;
     }
-  },
-  openChatSearch(this: Context): void {
-    this.chatSearchQuery = "";
-    this.chatSearchAgentFilter = "";
-    this.chatSearchAgentPickerOpen = false;
-    this.searchOpen = true;
-  },
-  searchChatResults(this: Context): DTO.Chat[] {
-    const query = this.chatSearchQuery.trim().toLowerCase();
-    const matches = this.chats.filter((chat) => {
-      const matchesAgent = !this.chatSearchAgentFilter || chat.agent_id === this.chatSearchAgentFilter;
+  }
+  function openChatSearch(): void {
+    state.chatSearchQuery = "";
+    state.chatSearchAgentFilter = "";
+    state.chatSearchAgentPickerOpen = false;
+    state.searchOpen = true;
+  }
+  function searchChatResults(): DTO.Chat[] {
+    const query = state.chatSearchQuery.trim().toLowerCase();
+    const matches = state.chats.filter((chat) => {
+      const matchesAgent = !state.chatSearchAgentFilter || chat.agent_id === state.chatSearchAgentFilter;
       const matchesQuery =
         !query ||
         chat.title.toLowerCase().includes(query) ||
-        this.agentName(chat.agent_id).toLowerCase().includes(query);
+        deps.agents.agentName(chat.agent_id).toLowerCase().includes(query);
       return matchesAgent && matchesQuery;
     });
-    return matches.slice(0, query || this.chatSearchAgentFilter ? 50 : 5);
-  },
-  selectChatSearchAgent(this: Context, agentId: string): void {
-    this.chatSearchAgentFilter = agentId;
-    this.chatSearchAgentPickerOpen = false;
-  },
-  selectSearchChat(this: Context, chat: DTO.Chat): void {
-    this.searchOpen = false;
-    this.openChat(chat);
-  },
-  newChat(this: Context): void {
-    const draftChat = this.activeChat?.status === "created" && this.pendingUploads.length ? this.activeChat : null;
-    if (draftChat) void this.api(`/api/chats/${draftChat.id}`, { method: "DELETE" }).catch(() => {});
-    this.stopWatching();
-    this.abortChatReads();
-    this.chatViewToken += 1;
-    this.resetShare();
-    this.cancelEditingChatTitle();
-    this.activeChat = null;
-    this.messages = [];
-    this.files = [];
-    this.inputFiles = [];
-    this.filesOpen = false;
-    this.filesTab = "outputs";
-    this.pendingUploads = [];
-    this.uploadSelection = [];
-    this.pendingArtifacts = [];
-    this.draft = "";
-    this.loading = false;
-    this.messagesLoading = false;
-    this.error = "";
-    this.page = "chat";
-    this.agentPickerOpen = false;
-    history.pushState({}, "", "/chat" + this.modeQuery());
-    if (this.agents.length) this.selectedAgentId = this.agents[0]!.id;
-  },
-  async openChat(this: Context, chat: DTO.Chat, updateUrl: boolean = true): Promise<void> {
-    this.stopWatching();
-    this.beginChatReads();
-    const viewToken = ++this.chatViewToken;
-    this.resetShare();
-    this.page = "chat";
-    this.cancelEditingChatTitle();
-    this.activeChat = chat;
-    this.loading = false;
-    this.files = [];
-    this.inputFiles = [];
-    this.filesOpen = false;
-    this.filesTab = "outputs";
-    this.pendingUploads = [];
-    this.pendingArtifacts = [];
-    this.resetConversationInput();
-    if (updateUrl) history.pushState({}, "", `/chat/${chat.id}` + this.modeQuery());
-    this.messages = [];
-    this.messagesLoading = true;
+    return matches.slice(0, query || state.chatSearchAgentFilter ? 50 : 5);
+  }
+  function selectChatSearchAgent(agentId: string): void {
+    state.chatSearchAgentFilter = agentId;
+    state.chatSearchAgentPickerOpen = false;
+  }
+  function selectSearchChat(chat: DTO.Chat): void {
+    state.searchOpen = false;
+    openChat(chat);
+  }
+  function newChat(): void {
+    const draftChat =
+      state.activeChat?.status === "created" && deps.artifacts.state.pendingUploads.length ? state.activeChat : null;
+    if (draftChat) void deps.api.api(`/api/chats/${draftChat.id}`, { method: "DELETE" }).catch(() => {});
+    stopWatching();
+    abortChatReads();
+    state.chatViewToken += 1;
+    deps.shares.resetShare();
+    cancelEditingChatTitle();
+    state.activeChat = null;
+    state.messages = [];
+    deps.artifacts.resetFilePanel();
+    deps.artifacts.clearAttachments();
+    state.draft = "";
+    state.loading = false;
+    state.messagesLoading = false;
+    deps.shell.clearError();
+    deps.shell.showPage("chat");
+    state.agentPickerOpen = false;
+    history.pushState({}, "", "/chat" + deps.shell.modeQuery());
+    if (deps.agents.state.agents.length) state.selectedAgentId = deps.agents.state.agents[0]!.id;
+  }
+  async function openChat(chat: DTO.Chat, updateUrl: boolean = true): Promise<void> {
+    stopWatching();
+    beginChatReads();
+    const viewToken = ++state.chatViewToken;
+    deps.shares.resetShare();
+    deps.shell.showPage("chat");
+    cancelEditingChatTitle();
+    state.activeChat = chat;
+    state.loading = false;
+    deps.artifacts.resetFilePanel();
+    deps.artifacts.clearAttachments(false);
+    deps.dom.resetConversationInput();
+    if (updateUrl) history.pushState({}, "", `/chat/${chat.id}` + deps.shell.modeQuery());
+    state.messages = [];
+    state.messagesLoading = true;
     try {
       const [data, currentChat] = await Promise.all([
-        this.chatRead<{ messages: DTO.Message[] }>(`/api/chats/${chat.id}/messages?mode=${this.mode}`),
-        chat.status === "created" ? Promise.resolve(chat) : this.chatRead<DTO.Chat>(`/api/chats/${chat.id}`),
+        chatRead<{ messages: DTO.Message[] }>(`/api/chats/${chat.id}/messages?mode=${deps.shell.state.mode}`),
+        chat.status === "created" ? Promise.resolve(chat) : chatRead<DTO.Chat>(`/api/chats/${chat.id}`),
       ]);
-      if (viewToken !== this.chatViewToken || this.activeChat?.id !== chat.id) return;
-      this.activeChat = currentChat;
-      const sidebarChat = this.chats.find((item) => item.id === chat.id);
+      if (viewToken !== state.chatViewToken || state.activeChat?.id !== chat.id) return;
+      state.activeChat = currentChat;
+      const sidebarChat = state.chats.find((item) => item.id === chat.id);
       if (sidebarChat) Object.assign(sidebarChat, currentChat);
-      this.loading = currentChat.status === "running";
-      this.messages = this.normalizeMessages(data.messages);
+      state.loading = currentChat.status === "running";
+      state.messages = deps.presentation.normalizeMessages(data.messages);
       if (currentChat.status === "created") {
-        this.pendingUploads =
-          (await this.chatRead<{ uploads: DTO.Artifact[] }>(`/api/chats/${chat.id}/uploads`)).uploads || [];
+        deps.artifacts.restoreUploads(
+          (await chatRead<{ uploads: DTO.Artifact[] }>(`/api/chats/${chat.id}/uploads`)).uploads || [],
+        );
       }
-      this.scrollMessagesToLatest();
+      deps.dom.scrollMessagesToLatest();
     } catch (cause) {
       const e = asError(cause);
-      if (!this.isAbortError(e) && viewToken === this.chatViewToken && this.activeChat?.id === chat.id)
-        this.showError(e);
+      if (!isAbortError(e) && viewToken === state.chatViewToken && state.activeChat?.id === chat.id)
+        deps.shell.showError(e);
     } finally {
-      if (viewToken === this.chatViewToken && this.activeChat?.id === chat.id) this.messagesLoading = false;
+      if (viewToken === state.chatViewToken && state.activeChat?.id === chat.id) state.messagesLoading = false;
     }
-    if (this.activeChat?.status === "running") void this.watchChat(chat.id);
-  },
-  async sendFirst(this: Context): Promise<void> {
-    if (!this.draft.trim() || !this.selectedAgentId) return;
+    if (state.activeChat?.status === "running") void watchChat(chat.id);
+  }
+  async function sendFirst(): Promise<void> {
+    if (!state.draft.trim() || !state.selectedAgentId) return;
     try {
-      const chat = await this.api<DTO.Chat>("/api/chats", {
+      const chat = await deps.api.api<DTO.Chat>("/api/chats", {
         method: "POST",
-        body: JSON.stringify({ agent_id: this.selectedAgentId }),
+        body: JSON.stringify({ agent_id: state.selectedAgentId }),
       });
-      this.selectedAgentId = chat.agent_id;
-      this.activeChat = chat;
-      this.chats.unshift(chat);
+      state.selectedAgentId = chat.agent_id;
+      state.activeChat = chat;
+      state.chats.unshift(chat);
       history.pushState({}, "", `/chat/${chat.id}`);
-      await this.sendMessage();
-      if (this.activeChat?.title === "New conversation") {
-        this.chats = this.chats.filter((item) => item.id !== chat.id);
-        this.activeChat = null;
-        this.messages = [];
-        history.pushState({}, "", "/chat" + this.modeQuery());
+      await sendMessage();
+      if (state.activeChat?.title === "New conversation") {
+        state.chats = state.chats.filter((item) => item.id !== chat.id);
+        state.activeChat = null;
+        state.messages = [];
+        history.pushState({}, "", "/chat" + deps.shell.modeQuery());
       }
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     }
-  },
-  skillCommandMatch(this: Context): { query: string; hasPrefix: boolean } | null {
-    const match = this.draft.match(/^\/(?:skill:)?([^\s]*)$/i);
+  }
+  function skillCommandMatch(): { query: string; hasPrefix: boolean } | null {
+    const match = state.draft.match(/^\/(?:skill:)?([^\s]*)$/i);
     if (!match) return null;
     const typed = match[1] || "";
     return {
       query: typed.toLowerCase(),
-      hasPrefix: /^\/skill:/i.test(this.draft),
+      hasPrefix: /^\/skill:/i.test(state.draft),
     };
-  },
-  skillCommandItems(this: Context): DTO.Resource[] {
-    const match = this.skillCommandMatch();
-    const agent = this.agents.find((item) => item.id === this.selectedAgentId);
+  }
+  function skillCommandItems(): DTO.Resource[] {
+    const match = skillCommandMatch();
+    const agent = deps.agents.state.agents.find((item) => item.id === state.selectedAgentId);
     if (!match || !agent) return [];
     const enabled = agent.skills || [];
-    return this.resources.skills
+    return deps.agents.state.resources.skills
       .filter((skill) =>
-        enabled.some((path) => this.normalizeResourcePath(path) === this.normalizeResourcePath(skill.path)),
+        enabled.some(
+          (path) => deps.agents.normalizeResourcePath(path) === deps.agents.normalizeResourcePath(skill.path),
+        ),
       )
       .filter((skill) => skill.name.toLowerCase().includes(match.query))
       .slice(0, 8);
-  },
-  skillCommandVisible(this: Context): boolean {
-    return Boolean(this.skillCommandMatch()) && !this.skillCommandDismissed;
-  },
-  updateSkillCommandState(this: Context): void {
-    if (this.skillCommandMatch()) this.skillCommandDismissed = false;
-    this.skillCommandIndex = 0;
-  },
-  handleSkillCommandKeydown(this: Context, event: KeyboardEvent): void {
-    if (!this.skillCommandVisible()) return;
-    const items = this.skillCommandItems();
+  }
+  function skillCommandVisible(): boolean {
+    return Boolean(skillCommandMatch()) && !state.skillCommandDismissed;
+  }
+  function updateSkillCommandState(): void {
+    if (skillCommandMatch()) state.skillCommandDismissed = false;
+    state.skillCommandIndex = 0;
+  }
+  function handleSkillCommandKeydown(event: KeyboardEvent): void {
+    if (!skillCommandVisible()) return;
+    const items = skillCommandItems();
     if (event.key === "Escape") {
       event.preventDefault();
-      this.skillCommandDismissed = true;
+      state.skillCommandDismissed = true;
     } else if (event.key === "ArrowDown" && items.length) {
       event.preventDefault();
-      this.skillCommandIndex = (this.skillCommandIndex + 1) % items.length;
+      state.skillCommandIndex = (state.skillCommandIndex + 1) % items.length;
     } else if (event.key === "ArrowUp" && items.length) {
       event.preventDefault();
-      this.skillCommandIndex = (this.skillCommandIndex - 1 + items.length) % items.length;
+      state.skillCommandIndex = (state.skillCommandIndex - 1 + items.length) % items.length;
     } else if ((event.key === "Enter" || event.key === "Tab") && items.length) {
       event.preventDefault();
-      this.chooseSkillCommand(items[this.skillCommandIndex]!);
+      chooseSkillCommand(items[state.skillCommandIndex]!);
     }
-  },
-  chooseSkillCommand(this: Context, skill: DTO.Resource): void {
-    this.draft = `/skill:${skill.name} `;
-    this.skillCommandDismissed = true;
-    this.skillCommandIndex = 0;
+  }
+  function chooseSkillCommand(skill: DTO.Resource): void {
+    state.draft = `/skill:${skill.name} `;
+    state.skillCommandDismissed = true;
+    state.skillCommandIndex = 0;
     nextTick(() => document.getElementById("new-chat-message")?.focus());
-  },
-  skillCommandHighlightHtml(this: Context): string {
-    const command = this.draft.match(/^\/skill:([^\s]+)/i);
-    if (!command) return this.escape(this.draft);
-    const agent = this.agents.find((item) => item.id === this.selectedAgentId);
+  }
+  function skillCommandHighlightHtml(): string {
+    const command = state.draft.match(/^\/skill:([^\s]+)/i);
+    if (!command) return deps.format.escape(state.draft);
+    const agent = deps.agents.state.agents.find((item) => item.id === state.selectedAgentId);
     const enabled = agent?.skills || [];
-    const skill = this.resources.skills.find(
+    const skill = deps.agents.state.resources.skills.find(
       (item) =>
         item.name.toLowerCase() === (command[1] || "").toLowerCase() &&
-        enabled.some((path) => this.normalizeResourcePath(path) === this.normalizeResourcePath(item.path)),
+        enabled.some(
+          (path) => deps.agents.normalizeResourcePath(path) === deps.agents.normalizeResourcePath(item.path),
+        ),
     );
-    if (!skill) return this.escape(this.draft);
-    return `<span class="skill-command-highlight-token">${this.escape(command[0])}</span>${this.escape(this.draft.slice(command[0].length))}`;
-  },
-  syncSkillCommandScroll(this: Context, event: Event): void {
+    if (!skill) return deps.format.escape(state.draft);
+    return `<span class="skill-command-highlight-token">${deps.format.escape(command[0])}</span>${deps.format.escape(state.draft.slice(command[0].length))}`;
+  }
+  function syncSkillCommandScroll(event: Event): void {
     const mirror = document.querySelector<HTMLElement>('[data-ref="skillCommandHighlight"]');
     if (!mirror || !(event.target instanceof HTMLTextAreaElement)) return;
     mirror.scrollTop = event.target.scrollTop;
     mirror.scrollLeft = event.target.scrollLeft;
-  },
-  async sendMessage(this: Context): Promise<void> {
-    const content = this.draft.trim();
-    if (!content || !this.activeChat || this.loading) return;
-    this.loading = true;
-    const chatId = this.activeChat.id;
-    const viewToken = this.chatViewToken;
-    const isCurrentView = () => viewToken === this.chatViewToken && this.activeChat?.id === chatId;
+  }
+  async function sendMessage(): Promise<void> {
+    const content = state.draft.trim();
+    if (!content || !state.activeChat || state.loading) return;
+    state.loading = true;
+    const chatId = state.activeChat.id;
+    const viewToken = state.chatViewToken;
+    const isCurrentView = () => viewToken === state.chatViewToken && state.activeChat?.id === chatId;
     try {
-      await this.uploadFiles(this.activeChat);
-      const messageAttachments = this.pendingAttachments().map((file) => ({
+      await deps.artifacts.uploadFiles(state.activeChat);
+      const messageAttachments = deps.artifacts.pendingAttachments().map((file) => ({
         id: file.id || `artifact:${file.path}`,
         name: file.filename || file.name,
         path: file.path,
         media_type: file.media_type || "application/octet-stream",
         size: file.size,
       }));
-      this.draft = "";
-      this.resetConversationInput();
-      this.messages.push({
+      state.draft = "";
+      deps.dom.resetConversationInput();
+      state.messages.push({
         _key: createId(),
         role: "user",
         content: [{ type: "text", text: content }],
         _attachments: messageAttachments,
       });
-      this.messages.push({
+      state.messages.push({
         _key: createId(),
         role: "assistant",
         content: [{ type: "text", text: "" }],
@@ -400,10 +371,10 @@ export const chatActions: Actions = {
         _tools: [],
         _streaming: true,
       });
-      const uploadIds = this.pendingUploads.map((file) => file.id);
-      const artifactPaths = this.pendingArtifacts.map((file) => file.path);
+      const uploadIds = deps.artifacts.state.pendingUploads.map((file) => file.id);
+      const artifactPaths = deps.artifacts.state.pendingArtifacts.map((file) => file.path);
       const requestPath = `/api/chats/${chatId}/messages`;
-      const { response, requestId } = await this.request(requestPath, {
+      const { response, requestId } = await deps.api.request(requestPath, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -411,10 +382,9 @@ export const chatActions: Actions = {
         body: JSON.stringify({ content, upload_ids: uploadIds, artifact_paths: artifactPaths }),
       });
       if (!response.ok) {
-        await this.responseData(response, requestId, requestPath);
+        await deps.api.responseData(response, requestId, requestPath);
       }
-      this.pendingUploads = [];
-      this.pendingArtifacts = [];
+      deps.artifacts.clearAttachments(false);
       if (!response.body) throw new ApiError("Server returned an empty stream");
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -430,14 +400,14 @@ export const chatActions: Actions = {
           if (!line) continue;
           const event = JSON.parse(line.slice(6)) as DTO.StreamEvent;
           if (event.type === "complete") {
-            const found = this.chats.find((c) => c.id === event.chat?.id);
+            const found = state.chats.find((c) => c.id === event.chat?.id);
             if (found && event.chat) Object.assign(found, event.chat);
             if (isCurrentView()) {
-              this.activeChat = event.chat;
-              const i = this.messages.length - 1;
-              const normalized = this.normalizeMessages(event.messages || []);
+              state.activeChat = event.chat;
+              const i = state.messages.length - 1;
+              const normalized = deps.presentation.normalizeMessages(event.messages || []);
               const hasFinal = normalized.some(
-                (message) => message.role === "assistant" && this.partsText(message.content),
+                (message) => message.role === "assistant" && deps.presentation.partsText(message.content),
               );
               if (!hasFinal && event.assistant)
                 normalized.push({
@@ -447,51 +417,51 @@ export const chatActions: Actions = {
                   _reasoningParts: [],
                   _streaming: false,
                 });
-              this.messages.splice(i, 1, ...normalized);
-              void this.refreshOpenFiles(chatId);
+              state.messages.splice(i, 1, ...normalized);
+              void deps.artifacts.refreshOpenFiles(chatId);
             }
           } else if (event.type === "error") {
             throw new ApiError(event.error);
           } else if (isCurrentView()) {
-            this.handleTurnEvent(event);
+            handleTurnEvent(event);
           }
         }
       }
     } catch (cause) {
       const e = asError(cause);
       if (isCurrentView()) {
-        this.showError(e);
-        this.loading = false;
-        if (chatId) void this.watchChat(chatId);
+        deps.shell.showError(e);
+        state.loading = false;
+        if (chatId) void watchChat(chatId);
       }
       return;
     } finally {
       if (isCurrentView()) {
-        this.loading = false;
-        this.messages = [...this.messages];
+        state.loading = false;
+        state.messages = [...state.messages];
       }
     }
-  },
-  markStreamingAssistantMessageEnd(this: Context): void {
-    const i = this.messages.length - 1;
-    const current = this.messages[i];
+  }
+  function markStreamingAssistantMessageEnd(): void {
+    const i = state.messages.length - 1;
+    const current = state.messages[i];
     if (!current) return;
-    if (current?.role === "assistant") this.messages[i] = { ...current, _thinkingBoundary: true };
-  },
-  updateStreamingAssistant(this: Context, value: string, append: boolean): void {
-    const i = this.messages.length - 1;
-    const current = this.messages[i];
+    if (current?.role === "assistant") state.messages[i] = { ...current, _thinkingBoundary: true };
+  }
+  function updateStreamingAssistant(value: string, append: boolean): void {
+    const i = state.messages.length - 1;
+    const current = state.messages[i];
     if (!current) return;
-    const text = append ? this.partsText(current.content) + value : value;
-    this.messages[i] = {
+    const text = append ? deps.presentation.partsText(current.content) + value : value;
+    state.messages[i] = {
       ...current,
       content: [{ type: "text", text }],
       _thinkingBoundary: false,
     };
-  },
-  updateStreamingThinking(this: Context, value: string): void {
-    const i = this.messages.length - 1;
-    const current = this.messages[i];
+  }
+  function updateStreamingThinking(value: string): void {
+    const i = state.messages.length - 1;
+    const current = state.messages[i];
     if (!current) return;
     const parts = [...(current._reasoningParts || [])];
     const last = parts[parts.length - 1];
@@ -502,47 +472,49 @@ export const chatActions: Actions = {
         ...last,
         thinking: (last.thinking || "") + value,
       };
-    this.messages[i] = {
+    state.messages[i] = {
       ...current,
       _reasoningParts: parts,
       _thinkingBoundary: false,
     };
-  },
-  handleTurnEvent(this: Context, event: DTO.TurnEvent): void {
-    if (event.type === "delta") this.updateStreamingAssistant(event.delta, true);
-    else if (event.type === "thinking_delta") this.updateStreamingThinking(event.delta);
-    else if (event.type === "assistant_message_end") this.markStreamingAssistantMessageEnd();
-    else if (event.type === "final") this.updateStreamingAssistant(event.text, false);
+  }
+  function handleTurnEvent(event: DTO.TurnEvent): void {
+    if (event.type === "delta") updateStreamingAssistant(event.delta, true);
+    else if (event.type === "thinking_delta") updateStreamingThinking(event.delta);
+    else if (event.type === "assistant_message_end") markStreamingAssistantMessageEnd();
+    else if (event.type === "final") updateStreamingAssistant(event.text, false);
     else if (event.type === "tool") {
-      const i = this.messages.length - 1;
-      if (!this.messages[i]) return;
-      this.messages[i] = {
-        ...this.messages[i],
-        _tools: [...(this.messages[i]!._tools || []), event],
+      const i = state.messages.length - 1;
+      if (!state.messages[i]) return;
+      state.messages[i] = {
+        ...state.messages[i],
+        _tools: [...(state.messages[i]!._tools || []), event],
       };
     }
-  },
-  async watchChat(this: Context, chatId: string): Promise<void> {
-    if (!chatId || this.watchingChat === chatId) return;
-    const viewToken = this.chatViewToken;
-    this.watchingChat = chatId;
+  }
+  async function watchChat(chatId: string): Promise<void> {
+    if (!chatId || state.watchingChat === chatId) return;
+    const viewToken = state.chatViewToken;
+    state.watchingChat = chatId;
     try {
-      const chat = await this.chatRead<DTO.Chat>(`/api/chats/${chatId}`);
-      if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
-      if (this.activeChat?.id === chatId) this.activeChat = chat;
-      const data = await this.chatRead<{ messages: DTO.Message[] }>(`/api/chats/${chatId}/messages?mode=${this.mode}`);
-      if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
-      const normalized = this.normalizeMessages(data.messages);
-      this.messages = normalized;
+      const chat = await chatRead<DTO.Chat>(`/api/chats/${chatId}`);
+      if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
+      if (state.activeChat?.id === chatId) state.activeChat = chat;
+      const data = await chatRead<{ messages: DTO.Message[] }>(
+        `/api/chats/${chatId}/messages?mode=${deps.shell.state.mode}`,
+      );
+      if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
+      const normalized = deps.presentation.normalizeMessages(data.messages);
+      state.messages = normalized;
       const last = normalized[normalized.length - 1];
       const finishedSnapshot = last?.role === "assistant" && !last._streaming;
       if (chat.status !== "running" || finishedSnapshot) {
-        this.watchingChat = null;
-        this.loading = false;
+        state.watchingChat = null;
+        state.loading = false;
         return;
       }
       if (!last || last.role !== "assistant" || !last._streaming)
-        this.messages.push({
+        state.messages.push({
           _key: createId(),
           role: "assistant",
           content: [{ type: "text", text: "" }],
@@ -551,7 +523,7 @@ export const chatActions: Actions = {
           _streaming: true,
         });
       const source = new EventSource(`/api/chats/${chatId}/stream`);
-      this.streamSource = source;
+      state.streamSource = source;
       source.onmessage = (m) => {
         let event: DTO.StreamEvent;
         try {
@@ -561,163 +533,143 @@ export const chatActions: Actions = {
         }
         if (event.type === "complete" || event.type === "error") {
           source.close();
-          if (viewToken === this.chatViewToken && this.activeChat?.id === chatId) {
-            this.streamSource = null;
-            this.watchingChat = null;
-            this.loading = false;
-            if (event.type === "error") this.showError(new ApiError(event.error));
-            void this.finishWatch(chatId, viewToken);
+          if (viewToken === state.chatViewToken && state.activeChat?.id === chatId) {
+            state.streamSource = null;
+            state.watchingChat = null;
+            state.loading = false;
+            if (event.type === "error") deps.shell.showError(new ApiError(event.error));
+            void finishWatch(chatId, viewToken);
           }
           return;
         }
-        if (viewToken === this.chatViewToken && this.activeChat?.id === chatId) this.handleTurnEvent(event);
+        if (viewToken === state.chatViewToken && state.activeChat?.id === chatId) handleTurnEvent(event);
       };
       source.onerror = () => {
         source.close();
-        if (viewToken === this.chatViewToken && this.activeChat?.id === chatId) {
-          this.streamSource = null;
-          this.watchingChat = null;
-          this.startPolling(chatId, viewToken);
+        if (viewToken === state.chatViewToken && state.activeChat?.id === chatId) {
+          state.streamSource = null;
+          state.watchingChat = null;
+          startPolling(chatId, viewToken);
         }
       };
     } catch (cause) {
       const e = asError(cause);
-      if (!this.isAbortError(e) && viewToken === this.chatViewToken && this.activeChat?.id === chatId) {
-        this.watchingChat = null;
-        this.showError(e);
+      if (!isAbortError(e) && viewToken === state.chatViewToken && state.activeChat?.id === chatId) {
+        state.watchingChat = null;
+        deps.shell.showError(e);
       }
     }
-  },
-  async finishWatch(this: Context, chatId: string, viewToken: number = this.chatViewToken): Promise<void> {
-    if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
+  }
+  async function finishWatch(chatId: string, viewToken: number = state.chatViewToken): Promise<void> {
+    if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
     try {
-      const data = await this.chatRead<{ messages: DTO.Message[] }>(`/api/chats/${chatId}/messages?mode=${this.mode}`);
-      if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
-      this.setMessagesIfChanged(data.messages);
-      const chat = await this.chatRead<DTO.Chat>(`/api/chats/${chatId}`);
-      if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
-      this.activeChat = chat;
-      const found = this.chats.find((c) => c.id === chatId);
+      const data = await chatRead<{ messages: DTO.Message[] }>(
+        `/api/chats/${chatId}/messages?mode=${deps.shell.state.mode}`,
+      );
+      if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
+      setMessagesIfChanged(data.messages);
+      const chat = await chatRead<DTO.Chat>(`/api/chats/${chatId}`);
+      if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
+      state.activeChat = chat;
+      const found = state.chats.find((c) => c.id === chatId);
       if (found) Object.assign(found, chat);
-      this.loading = false;
-      await this.refreshOpenFiles(chatId);
+      state.loading = false;
+      await deps.artifacts.refreshOpenFiles(chatId);
     } catch (cause) {
       const e = asError(cause);
-      if (!this.isAbortError(e) && viewToken === this.chatViewToken && this.activeChat?.id === chatId)
-        this.showError(e);
+      if (!isAbortError(e) && viewToken === state.chatViewToken && state.activeChat?.id === chatId)
+        deps.shell.showError(e);
     }
-  },
-  startPolling(this: Context, chatId: string, viewToken: number = this.chatViewToken): void {
-    this.stopPolling();
-    this.pollTimer = setInterval(async () => {
-      if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) {
-        this.stopPolling();
+  }
+  function startPolling(chatId: string, viewToken: number = state.chatViewToken): void {
+    stopPolling();
+    state.pollTimer = setInterval(async () => {
+      if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) {
+        stopPolling();
         return;
       }
       try {
-        const chat = await this.chatRead<DTO.Chat>(`/api/chats/${chatId}`);
-        if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) {
-          this.stopPolling();
+        const chat = await chatRead<DTO.Chat>(`/api/chats/${chatId}`);
+        if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) {
+          stopPolling();
           return;
         }
         if (chat.status !== "running") {
-          const data = await this.chatRead<{ messages: DTO.Message[] }>(
-            `/api/chats/${chatId}/messages?mode=${this.mode}`,
+          const data = await chatRead<{ messages: DTO.Message[] }>(
+            `/api/chats/${chatId}/messages?mode=${deps.shell.state.mode}`,
           );
-          if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
-          this.setMessagesIfChanged(data.messages);
-          this.activeChat = chat;
-          const found = this.chats.find((c) => c.id === chatId);
+          if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
+          setMessagesIfChanged(data.messages);
+          state.activeChat = chat;
+          const found = state.chats.find((c) => c.id === chatId);
           if (found) Object.assign(found, chat);
-          this.loading = false;
-          this.stopPolling();
-          await this.refreshOpenFiles(chatId);
+          state.loading = false;
+          stopPolling();
+          await deps.artifacts.refreshOpenFiles(chatId);
           return;
         }
-        const data = await this.chatRead<{ messages: DTO.Message[] }>(
-          `/api/chats/${chatId}/messages?mode=${this.mode}`,
+        const data = await chatRead<{ messages: DTO.Message[] }>(
+          `/api/chats/${chatId}/messages?mode=${deps.shell.state.mode}`,
         );
-        if (viewToken !== this.chatViewToken || this.activeChat?.id !== chatId) return;
-        const normalized = this.setMessagesIfChanged(data.messages);
+        if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
+        const normalized = setMessagesIfChanged(data.messages);
         const last = normalized[normalized.length - 1];
         if (last?.role === "assistant" && !last._streaming) {
-          this.loading = false;
-          this.stopPolling();
-          await this.refreshOpenFiles(chatId);
+          state.loading = false;
+          stopPolling();
+          await deps.artifacts.refreshOpenFiles(chatId);
         }
       } catch {}
     }, 3000);
-  },
-  stopPolling(this: Context): void {
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer);
-      this.pollTimer = null;
+  }
+  function stopPolling(): void {
+    if (state.pollTimer) {
+      clearInterval(state.pollTimer);
+      state.pollTimer = null;
     }
-  },
-  stopWatching(this: Context): void {
-    if (this.streamSource) {
-      this.streamSource.close();
-      this.streamSource = null;
+  }
+  function stopWatching(): void {
+    if (state.streamSource) {
+      state.streamSource.close();
+      state.streamSource = null;
     }
-    this.watchingChat = null;
-    this.stopPolling();
-  },
-  setReasoningOpen(this: Context, input: HTMLInputElement): void {
-    const key = input.dataset.reasoningKey;
-    if (key) this.reasoningOpen[key] = input.checked;
-  },
-  stableMessageKey(this: Context, message: DTO.Message, index: number): string {
-    return message.id || `${message.role || "message"}:${message.timestamp || ""}:${index}`;
-  },
-  messagesFingerprint(this: Context, messages: DTO.Message[]): string {
-    return messages
-      .map((message) => {
-        const parts = (message.content || [])
-          .map(
-            (part) =>
-              `${part.type || ""}:${part.text || part.thinking || part.name || ""}:${JSON.stringify(part.arguments || "")}`,
-          )
-          .join("\u001f");
-        return `${message.role || ""}|${message.stopReason || ""}|${message._streaming ? "1" : "0"}|${JSON.stringify(message._usage || {})}|${parts}`;
-      })
-      .join("\u001e");
-  },
-  setMessagesIfChanged(this: Context, rawMessages: DTO.Message[]): DTO.Message[] {
-    const normalized = this.normalizeMessages(rawMessages);
-    if (this.messagesFingerprint(normalized) !== this.messagesFingerprint(this.messages)) this.messages = normalized;
+    state.watchingChat = null;
+    stopPolling();
+  }
+  function setMessagesIfChanged(rawMessages: DTO.Message[]): DTO.Message[] {
+    const normalized = deps.presentation.normalizeMessages(rawMessages);
+    if (deps.presentation.messagesFingerprint(normalized) !== deps.presentation.messagesFingerprint(state.messages))
+      state.messages = normalized;
     return normalized;
-  },
-  isActionableAssistant(this: Context, message: DTO.Message): boolean {
-    if (this.sharedMode || this.loading) return false;
+  }
+  function isActionableAssistant(message: DTO.Message): boolean {
+    if (deps.shares.state.sharedMode || state.loading) return false;
     if (message.role !== "assistant" || message._streaming) return false;
-    if (!this.partsText(message.content).trim()) return false;
-    const candidates = this.messages.filter(
+    if (!deps.presentation.partsText(message.content).trim()) return false;
+    const candidates = state.messages.filter(
       (item) =>
         item.role === "assistant" &&
         !item._streaming &&
-        this.partsText(item.content).trim() &&
-        this.messageVisible(item),
+        deps.presentation.partsText(item.content).trim() &&
+        deps.presentation.messageVisible(item),
     );
     return candidates.length > 0 && candidates[candidates.length - 1]?._key === message._key;
-  },
-  async copyMessage(this: Context, message: DTO.Message): Promise<void> {
-    const text = this.partsText(message.content);
+  }
+  async function copyMessage(message: DTO.Message): Promise<void> {
+    const text = deps.presentation.partsText(message.content);
     try {
       await writeClipboardText(text);
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
       return;
     }
-    this.copiedKey = message._key || "";
+    state.copiedKey = message._key || "";
     setTimeout(() => {
-      if (this.copiedKey === message._key) this.copiedKey = "";
+      if (state.copiedKey === message._key) state.copiedKey = "";
     }, 1500);
-  },
-  async copyCodeBlock(
-    this: Context,
-    button: HTMLElement & { _copyTimer?: ReturnType<typeof setTimeout> },
-  ): Promise<void> {
+  }
+  async function copyCodeBlock(button: HTMLElement & { _copyTimer?: ReturnType<typeof setTimeout> }): Promise<void> {
     const block = button?.closest?.(".code-block");
     const text = block?.querySelector("code")?.textContent || "";
     if (!text) return;
@@ -725,39 +677,105 @@ export const chatActions: Actions = {
       await writeClipboardText(text);
     } catch (cause) {
       const error = asError(cause);
-      this.showError(error);
+      deps.shell.showError(error);
       return;
     }
     if (button._copyTimer) clearTimeout(button._copyTimer);
     button.classList.add("copied");
     button._copyTimer = setTimeout(() => button.classList.remove("copied"), 1500);
-  },
-  async abort(this: Context): Promise<void> {
-    if (!this.activeChat) return;
+  }
+  async function abort(): Promise<void> {
+    if (!state.activeChat) return;
     try {
-      await this.api(`/api/chats/${this.activeChat.id}/abort`, {
+      await deps.api.api(`/api/chats/${state.activeChat.id}/abort`, {
         method: "POST",
       });
-      this.loading = false;
+      state.loading = false;
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     }
-  },
-  deleteChat(this: Context, chat: DTO.Chat): void {
-    this.deleteChatTarget = chat;
-  },
-  async confirmDeleteChat(this: Context): Promise<void> {
-    const chat = this.deleteChatTarget;
+  }
+  function deleteChat(chat: DTO.Chat): void {
+    state.deleteChatTarget = chat;
+  }
+  async function confirmDeleteChat(): Promise<void> {
+    const chat = state.deleteChatTarget;
     if (!chat) return;
     try {
-      await this.api(`/api/chats/${chat.id}`, { method: "DELETE" });
-      this.chats = this.chats.filter((item) => item.id !== chat.id);
-      this.deleteChatTarget = null;
-      if (this.activeChat?.id === chat.id) this.newChat();
+      await deps.api.api(`/api/chats/${chat.id}`, { method: "DELETE" });
+      state.chats = state.chats.filter((item) => item.id !== chat.id);
+      state.deleteChatTarget = null;
+      if (state.activeChat?.id === chat.id) newChat();
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      deps.shell.showError(e);
     }
-  },
-};
+  }
+  function chooseAgent(id: string): void {
+    state.selectedAgentId = id;
+    state.agentPickerOpen = false;
+  }
+  function chatCount(id: string): number {
+    return state.chats.filter((c) => c.agent_id === id).length;
+  }
+  function clearAttachmentCommand(): void {
+    state.draft = state.draft.replace(/(?:^|\s)@[^\s]*$/, (value) => (value.startsWith(" ") ? " " : ""));
+  }
+  function setSharedConversation(chat: DTO.Chat | null, messages: DTO.Message[]): void {
+    state.activeChat = chat;
+    state.messages = messages;
+  }
+  function setMessagesLoading(loading: boolean): void {
+    state.messagesLoading = loading;
+  }
+  return {
+    state,
+    beginChatReads,
+    abortChatReads,
+    isAbortError,
+    chatRead,
+    startQuickstart,
+    loadChats,
+    startEditingChatTitle,
+    cancelEditingChatTitle,
+    saveChatTitle,
+    openChatSearch,
+    searchChatResults,
+    selectChatSearchAgent,
+    selectSearchChat,
+    newChat,
+    openChat,
+    sendFirst,
+    skillCommandMatch,
+    skillCommandItems,
+    skillCommandVisible,
+    updateSkillCommandState,
+    handleSkillCommandKeydown,
+    chooseSkillCommand,
+    skillCommandHighlightHtml,
+    syncSkillCommandScroll,
+    sendMessage,
+    markStreamingAssistantMessageEnd,
+    updateStreamingAssistant,
+    updateStreamingThinking,
+    handleTurnEvent,
+    watchChat,
+    finishWatch,
+    startPolling,
+    stopPolling,
+    stopWatching,
+    setMessagesIfChanged,
+    isActionableAssistant,
+    copyMessage,
+    copyCodeBlock,
+    abort,
+    deleteChat,
+    confirmDeleteChat,
+    chooseAgent,
+    chatCount,
+    clearAttachmentCommand,
+    setSharedConversation,
+    setMessagesLoading,
+  };
+}

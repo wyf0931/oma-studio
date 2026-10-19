@@ -1,80 +1,26 @@
+import type { Actions as SettingsActions, State as SettingsState } from "../features/settings/actions";
+import type { Actions as IdentityActions, State as IdentityState } from "../features/identity/actions";
+import type { Actions as SharesActions, State as SharesState } from "../features/shares/actions";
+import type { Actions as AgentsActions, State as AgentsState } from "../features/agents/actions";
+import type { Actions as ChatActions, State as ChatState } from "../features/chat/actions";
+import type { Actions as ArtifactsActions, State as ArtifactsState } from "../features/artifacts/actions";
+import type { State as PresentationState } from "../features/chat/presentation";
+import type { Actions as DomActions } from "../shared/dom";
+import type { Actions as I18nActions } from "../shared/i18n";
+import type { Actions as ApiActions } from "../shared/api";
+import type { Actions as AutopilotsActions } from "../features/autopilots/actions";
+import type { Actions as MarketplaceActions } from "../features/marketplace/actions";
+import { reactive, watch } from "vue";
 import type * as DTO from "../shared/types";
 import { ApiError, asError } from "../shared/types";
-import type { Workspace } from "./workspace";
-import { watch, nextTick } from "vue";
 
-import { createIcons, icons } from "lucide";
-
-// Explicit dependency contract for this feature; the composition root supplies it.
-type Context = Pick<
-  Workspace,
-  | "abortChatReads"
-  | "activeChat"
-  | "activeProcesses"
-  | "agents"
-  | "api"
-  | "appReady"
-  | "applyThemePreference"
-  | "authChecked"
-  | "authUser"
-  | "chatViewToken"
-  | "chats"
-  | "cleanups"
-  | "draft"
-  | "error"
-  | "filesOpen"
-  | "healthTimer"
-  | "initI18n"
-  | "initializeThemePreference"
-  | "linkDrawerOpen"
-  | "loadAgents"
-  | "loadAutopilots"
-  | "loadChats"
-  | "loadFileViewer"
-  | "loadHealth"
-  | "loadLibrary"
-  | "loadMarketAgents"
-  | "loadResources"
-  | "loadSession"
-  | "loading"
-  | "localizedMessage"
-  | "messages"
-  | "mobileSidebarOpen"
-  | "mode"
-  | "modeQuery"
-  | "newChat"
-  | "observeIcons"
-  | "observeImageArtifacts"
-  | "openChat"
-  | "openSharedChat"
-  | "page"
-  | "profileMenuOpen"
-  | "renderIcons"
-  | "renderIconsSoon"
-  | "resetAccountPassword"
-  | "resources"
-  | "routeFromUrl"
-  | "runError"
-  | "selectedAgentId"
-  | "settingsOpen"
-  | "sharedMode"
-  | "showError"
-  | "sidebarCollapsed"
-  | "stopWatching"
-  | "syncFavicon"
-  | "syncHighlightTheme"
-  | "syncModeFromUrl"
-  | "systemThemeQuery"
-  | "theme"
-  | "themePreference"
-  | "toastKind"
-  | "toastMessage"
-  | "uploadLimits"
->;
+import { createAppState } from "./shell-state";
+export type State = ReturnType<typeof createAppState>;
 export interface Actions {
+  showPage(page: DTO.Page): void;
+  setBootReady(ready: boolean): void;
+  clearError(): void;
   init(): Promise<void>;
-  renderIcons(): void;
-  renderIconsSoon(): void;
   loadHealth(): Promise<void>;
   showToast(message: string, kind?: string): void;
   modeQuery(): string;
@@ -83,115 +29,145 @@ export interface Actions {
   brandClick(): void;
   toggleMobileSidebar(): void;
   comingSoon(name: string): void;
-  initializeThemePreference(): void;
-  applyThemePreference(value: string): void;
-  syncFavicon(): void;
-  syncHighlightTheme(): void;
   routeFromUrl(): Promise<void>;
   closeDrawersOutside(event: Event): void;
   showError(cause: unknown): void;
+  handleUnauthorizedResponse(response: Response, path: string, error: DTO.ApiError): void;
 }
-export const appActions: Actions = {
-  async init(this: Context): Promise<void> {
-    this.cleanups.push(
+export interface Feature extends Actions {
+  state: State;
+}
+export interface Dependencies {
+  settings: Pick<SettingsActions, "initializeThemePreference" | "resetAccountPassword"> & {
+    state: Pick<SettingsState, "settingsOpen">;
+  };
+  identity: Pick<IdentityActions, "loadSession"> & {
+    state: Pick<IdentityState, "authChecked" | "authUser" | "loginError" | "profileMenuOpen" | "sessionExpired">;
+  };
+  shares: Pick<SharesActions, "openSharedChat"> & { state: Pick<SharesState, "sharedMode"> };
+  agents: Pick<AgentsActions, "loadAgents" | "loadResources"> & { state: Pick<AgentsState, "agents" | "resources"> };
+  chat: Pick<ChatActions, "abortChatReads" | "loadChats" | "newChat" | "openChat" | "stopWatching"> & {
+    state: Pick<
+      ChatState,
+      | "activeChat"
+      | "chatViewToken"
+      | "chats"
+      | "draft"
+      | "loading"
+      | "messages"
+      | "messagesLoading"
+      | "selectedAgentId"
+    >;
+  };
+  artifacts: Pick<ArtifactsActions, "loadFileViewer" | "loadLibrary"> & {
+    state: Pick<ArtifactsState, "files" | "filesOpen" | "uploadLimits">;
+  };
+  presentation: { state: Pick<PresentationState, "linkDrawerOpen"> };
+  dom: Pick<DomActions, "observeIcons" | "observeImageArtifacts" | "renderIconsSoon">;
+  i18n: Pick<I18nActions, "initI18n" | "localizedMessage">;
+  api: Pick<ApiActions, "api">;
+  autopilots: Pick<AutopilotsActions, "loadAutopilots">;
+  marketplace: Pick<MarketplaceActions, "loadMarketAgents">;
+}
+export function createShell(deps: Dependencies): Feature {
+  const state = reactive(createAppState());
+  async function init(): Promise<void> {
+    state.cleanups.push(
       watch(
-        () => this.settingsOpen,
+        () => deps.settings.state.settingsOpen,
         (open) => {
-          if (!open) this.resetAccountPassword();
+          if (!open) deps.settings.resetAccountPassword();
         },
       ),
     );
-    this.cleanups.push(
+    state.cleanups.push(
       watch(
-        () => this.authUser,
+        () => deps.identity.state.authUser,
         (user) => {
-          if (!user) this.settingsOpen = false;
+          if (!user) deps.settings.state.settingsOpen = false;
         },
       ),
     );
-    this.observeIcons();
-    this.observeImageArtifacts();
-    this.sharedMode =
+    deps.dom.observeIcons();
+    deps.dom.observeImageArtifacts();
+    deps.shares.state.sharedMode =
       window.location.pathname.startsWith("/share/") || new URLSearchParams(location.search).has("share");
-    if (this.sharedMode) this.authChecked = true;
-    this.initializeThemePreference();
-    await this.initI18n();
-    if (!this.sharedMode) {
-      await this.loadSession();
-      if (!this.authUser) {
-        this.appReady = true;
-        this.renderIconsSoon();
+    if (deps.shares.state.sharedMode) deps.identity.state.authChecked = true;
+    deps.settings.initializeThemePreference();
+    await deps.i18n.initI18n();
+    if (!deps.shares.state.sharedMode) {
+      await deps.identity.loadSession();
+      if (!deps.identity.state.authUser) {
+        state.appReady = true;
+        deps.dom.renderIconsSoon();
         return;
       }
     } else {
       // Public share views stay anonymous, but a dead link must know whether a
       // session exists before deciding what to render (see openSharedChat).
-      await this.loadSession();
+      await deps.identity.loadSession();
     }
     const onPopState = () => {
-      void this.routeFromUrl();
+      void routeFromUrl();
     };
     window.addEventListener("popstate", onPopState);
-    this.cleanups.push(() => window.removeEventListener("popstate", onPopState));
+    state.cleanups.push(() => window.removeEventListener("popstate", onPopState));
     try {
-      if (this.sharedMode) {
+      if (deps.shares.state.sharedMode) {
         // Public share view: the regular workspace APIs are auth-gated, so
         // only the token-gated share payload is fetched.
-        await this.routeFromUrl();
+        await routeFromUrl();
         return;
       }
-      await Promise.all([this.loadAgents(), this.loadChats(), this.loadHealth(), this.loadResources()]);
-      if (this.agents.length) this.selectedAgentId = this.agents[0]!.id;
-      if (!new URLSearchParams(location.search).has("mode")) this.mode = this.resources.mode || "production";
-      this.healthTimer = setInterval(() => this.loadHealth(), 5000);
-      await this.routeFromUrl();
+      await Promise.all([deps.agents.loadAgents(), deps.chat.loadChats(), loadHealth(), deps.agents.loadResources()]);
+      if (deps.agents.state.agents.length) deps.chat.state.selectedAgentId = deps.agents.state.agents[0]!.id;
+      if (!new URLSearchParams(location.search).has("mode"))
+        state.mode = deps.agents.state.resources.mode || "production";
+      state.healthTimer = setInterval(() => loadHealth(), 5000);
+      await routeFromUrl();
     } catch (cause) {
       const e = asError(cause);
-      this.showError(e);
+      showError(e);
     } finally {
-      this.appReady = true;
-      this.renderIconsSoon();
+      state.appReady = true;
+      deps.dom.renderIconsSoon();
     }
-  },
-  renderIcons(this: Context): void {
-    document.querySelectorAll<HTMLElement>("[data-rendered-content]").forEach((root) => createIcons({ icons, root }));
-  },
-  renderIconsSoon(this: Context): void {
-    nextTick(() => requestAnimationFrame(() => this.renderIcons()));
-  },
-  async loadHealth(this: Context): Promise<void> {
+  }
+  async function loadHealth(): Promise<void> {
     try {
-      const health = await this.api<{
+      const health = await deps.api.api<{
         active_processes: number;
         upload_limits?: { max_files: number; max_bytes: number };
       }>("/api/health");
-      this.activeProcesses = health.active_processes || 0;
-      if (health.upload_limits) this.uploadLimits = health.upload_limits;
+      state.activeProcesses = health.active_processes || 0;
+      if (health.upload_limits) deps.artifacts.state.uploadLimits = health.upload_limits;
     } catch {}
-  },
-  showToast(this: Context, message: string, kind: string = "success"): void {
-    this.error = "";
-    this.toastMessage = this.localizedMessage(message);
-    this.toastKind = kind;
+  }
+  function showToast(message: string, kind: string = "success"): void {
+    state.error = "";
+    state.toastMessage = deps.i18n.localizedMessage(message);
+    state.toastKind = kind;
     setTimeout(() => {
-      this.toastMessage = "";
+      state.toastMessage = "";
     }, 5000);
-  },
-  modeQuery(this: Context): string {
+  }
+  function modeQuery(): string {
     const value = new URLSearchParams(location.search).get("mode");
     return ["development", "production"].includes(value || "") ? `?mode=${value}` : "";
-  },
-  syncModeFromUrl(this: Context): void {
+  }
+  function syncModeFromUrl(): void {
     const value = new URLSearchParams(location.search).get("mode");
-    this.mode = ["development", "production"].includes(value || "") ? value! : this.resources.mode || "production";
-  },
-  go(this: Context, page: DTO.Page): void {
+    state.mode = ["development", "production"].includes(value || "")
+      ? value!
+      : deps.agents.state.resources.mode || "production";
+  }
+  function go(page: DTO.Page): void {
     if (page !== "chat") {
-      this.stopWatching();
-      this.abortChatReads();
-      this.chatViewToken += 1;
+      deps.chat.stopWatching();
+      deps.chat.abortChatReads();
+      deps.chat.state.chatViewToken += 1;
     }
-    this.page = page;
+    state.page = page;
     const path =
       page === "agents"
         ? "/agents"
@@ -201,105 +177,80 @@ export const appActions: Actions = {
             ? "/library"
             : page === "autopilots"
               ? "/autopilots"
-              : this.activeChat
-                ? `/chat/${this.activeChat.id}`
+              : deps.chat.state.activeChat
+                ? `/chat/${deps.chat.state.activeChat.id}`
                 : "/chat";
-    history.pushState({}, "", path + this.modeQuery());
-    if (page === "library") this.loadLibrary(1);
-    if (page === "autopilots") this.loadAutopilots();
-    if (page === "market") this.loadMarketAgents();
-  },
-  brandClick(this: Context): void {
-    if (this.sidebarCollapsed) this.sidebarCollapsed = false;
-    else this.newChat();
-  },
-  toggleMobileSidebar(this: Context): void {
-    this.mobileSidebarOpen = !this.mobileSidebarOpen;
-  },
-  comingSoon(this: Context, name: string): void {
-    this.showError(new ApiError(`${name} is reserved for the next iteration.`));
-  },
-  initializeThemePreference(this: Context): void {
-    const preference = localStorage.getItem("oma-theme-preference");
-    this.applyThemePreference(preference || "system");
-    this.systemThemeQuery = window.matchMedia?.("(prefers-color-scheme: dark)") || null;
-    const onThemeChange = () => {
-      if (this.themePreference === "system") this.applyThemePreference("system");
-    };
-    this.systemThemeQuery?.addEventListener("change", onThemeChange);
-    this.cleanups.push(() => this.systemThemeQuery?.removeEventListener("change", onThemeChange));
-  },
-  applyThemePreference(this: Context, value: string): void {
-    this.themePreference = ["system", "light", "dark"].includes(value || "") ? value : "system";
-    const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-    this.theme = this.themePreference === "system" ? (prefersDark ? "dark" : "light") : this.themePreference;
-    document.documentElement.dataset.theme = this.theme;
-    this.syncHighlightTheme();
-    this.syncFavicon();
-    localStorage.setItem("oma-theme-preference", this.themePreference);
-  },
-  syncFavicon(this: Context): void {
-    const favicon = document.querySelector<HTMLLinkElement>("#app-favicon");
-    if (favicon)
-      favicon.href = `/static/${this.theme === "dark" ? "favicon-dark-32.png" : "favicon-32.png"}?v=20260917-theme`;
-  },
-  syncHighlightTheme(this: Context): void {
-    const lightTheme = document.querySelector<HTMLStyleElement>("#highlightjs-light-theme");
-    const darkTheme = document.querySelector<HTMLStyleElement>("#highlightjs-dark-theme");
-    if (lightTheme?.sheet) lightTheme.sheet.disabled = this.theme === "dark";
-    if (darkTheme?.sheet) darkTheme.sheet.disabled = this.theme !== "dark";
-  },
-  async routeFromUrl(this: Context): Promise<void> {
-    this.syncModeFromUrl();
+    history.pushState({}, "", path + modeQuery());
+    if (page === "library") deps.artifacts.loadLibrary(1);
+    if (page === "autopilots") deps.autopilots.loadAutopilots();
+    if (page === "market") deps.marketplace.loadMarketAgents();
+  }
+  function brandClick(): void {
+    if (state.sidebarCollapsed) state.sidebarCollapsed = false;
+    else deps.chat.newChat();
+  }
+  function toggleMobileSidebar(): void {
+    state.mobileSidebarOpen = !state.mobileSidebarOpen;
+  }
+  function comingSoon(name: string): void {
+    showError(new ApiError(`${name} is reserved for the next iteration.`));
+  }
+  async function routeFromUrl(): Promise<void> {
+    syncModeFromUrl();
     if (window.location.pathname === "/file-view") {
-      this.page = "file";
-      await this.loadFileViewer();
+      state.page = "file";
+      await deps.artifacts.loadFileViewer();
       return;
     }
     if (window.location.pathname === "/library") {
-      this.page = "library";
-      await this.loadLibrary(1);
+      state.page = "library";
+      await deps.artifacts.loadLibrary(1);
       return;
     }
     if (window.location.pathname === "/market") {
-      this.page = "market";
-      await this.loadMarketAgents();
+      state.page = "market";
+      await deps.marketplace.loadMarketAgents();
       return;
     }
     if (window.location.pathname === "/autopilots") {
-      this.page = "autopilots";
-      await this.loadAutopilots();
+      state.page = "autopilots";
+      await deps.autopilots.loadAutopilots();
       return;
     }
     const shareMatch = window.location.pathname.match(/^\/share\/([^/]+)$/);
     if (shareMatch) {
-      await this.openSharedChat(decodeURIComponent(shareMatch[1]!));
+      await deps.shares.openSharedChat(decodeURIComponent(shareMatch[1]!));
       return;
     }
     if (window.location.pathname === "/agents") {
-      this.page = "agents";
+      state.page = "agents";
       return;
     }
     const match = window.location.pathname.match(/^\/chat\/([^/]+)$/);
-    this.page = "chat";
+    state.page = "chat";
     if (match) {
-      const chat = this.chats.find((item) => item.id === decodeURIComponent(match[1]!));
-      if (chat) await this.openChat(chat, false);
+      const chat = deps.chat.state.chats.find((item) => item.id === decodeURIComponent(match[1]!));
+      if (chat) await deps.chat.openChat(chat, false);
       else {
-        this.activeChat = null;
-        this.messages = [];
-        this.showError(new ApiError("Chat not found"));
+        deps.chat.state.activeChat = null;
+        deps.chat.state.messages = [];
+        showError(new ApiError("Chat not found"));
       }
     } else {
-      this.activeChat = null;
-      this.messages = [];
-      this.draft = "";
-      this.loading = false;
+      deps.chat.state.activeChat = null;
+      deps.chat.state.messages = [];
+      deps.chat.state.draft = "";
+      deps.chat.state.loading = false;
     }
-  },
-  closeDrawersOutside(this: Context, event: Event): void {
+  }
+  function closeDrawersOutside(event: Event): void {
     if (!(event.target instanceof Element)) return;
-    if (!this.filesOpen && !this.linkDrawerOpen && !this.profileMenuOpen) return;
+    if (
+      !deps.artifacts.state.filesOpen &&
+      !deps.presentation.state.linkDrawerOpen &&
+      !deps.identity.state.profileMenuOpen
+    )
+      return;
     if (
       event.target.closest?.(".files-drawer") ||
       event.target.closest?.(".files-toggle") ||
@@ -307,24 +258,83 @@ export const appActions: Actions = {
       event.target.closest?.(".sidebar-profile")
     )
       return;
-    this.filesOpen = false;
-    this.linkDrawerOpen = false;
-    this.profileMenuOpen = false;
-  },
-  showError(this: Context, cause: unknown): void {
+    deps.artifacts.state.filesOpen = false;
+    deps.presentation.state.linkDrawerOpen = false;
+    deps.identity.state.profileMenuOpen = false;
+  }
+  function showError(cause: unknown): void {
     const error = asError(cause);
     if (error?.sessionExpired) return;
-    this.toastMessage = "";
-    this.error = error.uiMessage || this.localizedMessage(error.message || String(error));
-    this.runError = this.error;
-    const current = this.messages[this.messages.length - 1];
+    state.toastMessage = "";
+    state.error = error.uiMessage || deps.i18n.localizedMessage(error.message || String(error));
+    state.runError = state.error;
+    const current = deps.chat.state.messages[deps.chat.state.messages.length - 1];
     if (current?.role === "assistant") {
       current._streaming = false;
       current.content = [];
     }
     setTimeout(() => {
-      this.error = "";
-      this.runError = "";
+      state.error = "";
+      state.runError = "";
     }, 5000);
-  },
-};
+  }
+  function handleUnauthorizedResponse(response: Response, path: string, error: DTO.ApiError): void {
+    if (
+      response.status !== 401 ||
+      deps.shares.state.sharedMode ||
+      path === "/api/auth/login" ||
+      path === "/api/auth/session"
+    )
+      return;
+    error.sessionExpired = true;
+    if (deps.identity.state.sessionExpired) return;
+    deps.identity.state.sessionExpired = true;
+    deps.chat.stopWatching();
+    deps.chat.abortChatReads();
+    deps.chat.state.chatViewToken += 1;
+    deps.identity.state.authUser = null;
+    deps.identity.state.authChecked = true;
+    deps.settings.state.settingsOpen = false;
+    deps.chat.state.activeChat = null;
+    deps.agents.state.agents = [];
+    deps.chat.state.chats = [];
+    deps.chat.state.messages = [];
+    deps.artifacts.state.files = [];
+    deps.chat.state.loading = false;
+    deps.chat.state.messagesLoading = false;
+    state.page = "chat";
+    state.runError = "";
+    deps.identity.state.loginError = "";
+    state.appReady = true;
+    history.replaceState({}, "", "/chat" + modeQuery());
+    showToast("Your login session has expired. Please sign in again.", "warning");
+  }
+  function showPage(page: DTO.Page): void {
+    state.page = page;
+  }
+  function setBootReady(ready: boolean): void {
+    state.appReady = ready;
+  }
+  function clearError(): void {
+    state.error = "";
+  }
+  return {
+    state,
+    init,
+    loadHealth,
+    showToast,
+    modeQuery,
+    syncModeFromUrl,
+    go,
+    brandClick,
+    toggleMobileSidebar,
+    comingSoon,
+    routeFromUrl,
+    closeDrawersOutside,
+    showError,
+    handleUnauthorizedResponse,
+    showPage,
+    setBootReady,
+    clearError,
+  };
+}

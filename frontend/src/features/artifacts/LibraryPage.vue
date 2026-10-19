@@ -1,15 +1,19 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useAgents } from "../agents/context";
+import { useArtifacts } from "./context";
+import { useFormat } from "../../shared/format-context";
+import { useShell } from "../../app/context";
+import { useI18n } from "../../shared/i18n-context";
+
 import { useDebouncedCallback } from "../../ui/events";
 import { vOutside } from "../../ui/events";
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
+const agentsFeature = useAgents();
+const { agents } = toRefs(agentsFeature.state);
+const { agentName } = agentsFeature;
+const artifactsFeature = useArtifacts();
 const {
-  agentName,
-  agents,
-  downloadUrl,
-  formatBytes,
-  formatDateTime,
-  initials,
   libraryAgentFilter,
   libraryAgentPickerOpen,
   libraryFiles,
@@ -17,35 +21,16 @@ const {
   libraryPage,
   libraryPages,
   librarySearch,
-  loadLibrary,
-  openLibraryChat,
-  openLibraryFile,
-  page,
-  selectLibraryAgent,
-  t,
-} = useWorkspaceScope([
-  "agentName",
-  "agents",
-  "downloadUrl",
-  "formatBytes",
-  "formatDateTime",
-  "initials",
-  "libraryAgentFilter",
-  "libraryAgentPickerOpen",
-  "libraryFiles",
-  "libraryLoading",
-  "libraryPage",
-  "libraryPages",
-  "librarySearch",
-  "loadLibrary",
-  "openLibraryChat",
-  "openLibraryFile",
-  "page",
-  "selectLibraryAgent",
-  "t",
-]);
+} = toRefs(artifactsFeature.state);
+const { downloadUrl, loadLibrary, openLibraryChat, openLibraryFile, selectLibraryAgent } = artifactsFeature;
+const formatFeature = useFormat();
+const { formatBytes, formatDateTime, initials } = formatFeature;
+const shellFeature = useShell();
+const { page } = toRefs(shellFeature.state);
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 const debounceSearch = useDebouncedCallback(() => {
-  void loadLibrary.value(1);
+  void loadLibrary(1);
 });
 </script>
 <template>

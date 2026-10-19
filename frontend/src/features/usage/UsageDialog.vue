@@ -1,39 +1,21 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useIdentity } from "../identity/context";
+import { useFormat } from "../../shared/format-context";
+import { useUsage } from "./context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const {
-  authUser,
-  formatCompactNumber,
-  setUsageRange,
-  t,
-  usageChartAreaPoints,
-  usageChartLabels,
-  usageChartPoints,
-  usageCost,
-  usageData,
-  usageDateLabel,
-  usageError,
-  usageLoading,
-  usageOpen,
-  usageRange,
-  usageTab,
-} = useWorkspaceScope([
-  "authUser",
-  "formatCompactNumber",
-  "setUsageRange",
-  "t",
-  "usageChartAreaPoints",
-  "usageChartLabels",
-  "usageChartPoints",
-  "usageCost",
-  "usageData",
-  "usageDateLabel",
-  "usageError",
-  "usageLoading",
-  "usageOpen",
-  "usageRange",
-  "usageTab",
-]);
+const identityFeature = useIdentity();
+const { authUser } = toRefs(identityFeature.state);
+const formatFeature = useFormat();
+const { formatCompactNumber } = formatFeature;
+const usageFeature = useUsage();
+const { usageData, usageError, usageLoading, usageOpen, usageRange, usageTab } = toRefs(usageFeature.state);
+const { setUsageRange, usageChartAreaPoints, usageChartLabels, usageChartPoints, usageCost, usageDateLabel } =
+  usageFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <dialog

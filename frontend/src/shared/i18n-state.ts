@@ -1,4 +1,5 @@
 import type * as DTO from "./types";
+
 export function createI18nState() {
   return {
     language: ["en", "zh-CN"].includes(localStorage.getItem("oma-language") || "en")

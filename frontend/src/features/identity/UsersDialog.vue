@@ -1,27 +1,17 @@
 <script setup lang="ts">
+import { toRefs } from "vue";
+import { useFormat } from "../../shared/format-context";
+import { useIdentity } from "./context";
+import { useI18n } from "../../shared/i18n-context";
+
 import OmaIcon from "../../ui/Icon.vue";
-import { useWorkspaceScope } from "../../app/scope";
-const {
-  formatDateTime,
-  openAddUser,
-  requestDeleteUser,
-  statusLabel,
-  t,
-  toggleManagedUser,
-  users,
-  usersLoading,
-  usersOpen,
-} = useWorkspaceScope([
-  "formatDateTime",
-  "openAddUser",
-  "requestDeleteUser",
-  "statusLabel",
-  "t",
-  "toggleManagedUser",
-  "users",
-  "usersLoading",
-  "usersOpen",
-]);
+const formatFeature = useFormat();
+const { formatDateTime, statusLabel } = formatFeature;
+const identityFeature = useIdentity();
+const { users, usersLoading, usersOpen } = toRefs(identityFeature.state);
+const { openAddUser, requestDeleteUser, toggleManagedUser } = identityFeature;
+const i18nFeature = useI18n();
+const { t } = i18nFeature;
 </script>
 <template>
   <dialog

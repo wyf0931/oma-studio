@@ -1,8 +1,9 @@
-import type { Workspace } from "../app/workspace";
 // Dynamic sanitized HTML is not compiled as a Vue template. Delegate only known controls.
-export function installContentEvents(
-  actions: Pick<Workspace, "copyCodeBlock" | "openWebActivity" | "setReasoningOpen">,
-): () => void {
+export function installContentEvents(actions: {
+  copyCodeBlock(button: HTMLElement): Promise<void>;
+  openWebActivity(button: HTMLElement): void;
+  setReasoningOpen(input: HTMLInputElement): void;
+}): () => void {
   const click = (event: MouseEvent) => {
     if (!(event.target instanceof Element)) return;
     const container = event.target.closest("[data-rendered-content]");
