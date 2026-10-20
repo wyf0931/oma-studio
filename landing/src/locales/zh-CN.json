@@ -1,0 +1,30 @@
+{
+  "skip": "跳到内容",
+  "brand": "OMA Studio 首页",
+  "pageTitle": "OMA Studio — 让好方法，持续工作。",
+  "navigation": {
+    "label": "主导航",
+    "product": "产品",
+    "useCases": "使用场景",
+    "features": "功能",
+    "about": "关于",
+    "language": "语言",
+    "switchToChinese": "切换到中文",
+    "switchToEnglish": "切换到英文",
+    "openMenu": "打开导航",
+    "closeMenu": "关闭导航",
+    "studio": "进入工作台"
+  },
+  "footer": {
+    "tagline": "让好方法，持续工作。",
+    "siteLinks": "站内链接",
+    "friends": "友情链接",
+    "omniDataDescription": "聚合搜索与 Agent 数据接口",
+    "blogDescription": "AI、Agent 架构与技术思考",
+    "about": "关于",
+    "github": "GitHub",
+    "docs": "文档",
+    "copyright": "© 2026 OMA Studio · 开源协议 AGPL-3.0"
+  },
+  "page": { "aboutTitle": "关于 — OMA Studio" }
+}
