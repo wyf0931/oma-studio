@@ -1,0 +1,30 @@
+{
+  "skip": "Skip to content",
+  "brand": "OMA Studio home",
+  "pageTitle": "OMA Studio — Good methods, at work.",
+  "navigation": {
+    "label": "Main navigation",
+    "product": "Product",
+    "useCases": "Use cases",
+    "features": "Features",
+    "about": "About",
+    "language": "Language",
+    "switchToChinese": "Switch to Chinese",
+    "switchToEnglish": "Switch to English",
+    "openMenu": "Open navigation",
+    "closeMenu": "Close navigation",
+    "studio": "Open Studio"
+  },
+  "footer": {
+    "tagline": "Good methods, at work.",
+    "siteLinks": "OMA Studio",
+    "friends": "Friends",
+    "omniDataDescription": "Unified search and data APIs for agents",
+    "blogDescription": "AI, agent architecture, and technical notes",
+    "about": "About",
+    "github": "GitHub",
+    "docs": "Docs",
+    "copyright": "© 2026 OMA Studio · Open source under AGPL-3.0"
+  },
+  "page": { "aboutTitle": "About — OMA Studio" }
+}
