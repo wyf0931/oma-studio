@@ -16,6 +16,10 @@ import { createId, writeClipboardText } from "../../browser";
 import { createChatState } from "./state";
 export type State = ReturnType<typeof createChatState>;
 export interface Actions {
+  leaveView(): void;
+  clearConversation(): void;
+  failCurrentTurn(cause: unknown): void;
+  resetSession(): void;
   clearAttachmentCommand(): void;
   setSharedConversation(chat: DTO.SharedChat | null, messages: DTO.Message[]): void;
   setMessagesLoading(loading: boolean): void;
@@ -85,6 +89,31 @@ export interface Dependencies {
 }
 export function createChat(deps: Dependencies): Feature {
   const state = reactive(createChatState());
+  let pollController: AbortController | null = null;
+  let pollVersion = 0;
+  let sendController: AbortController | null = null;
+  function leaveView(): void {
+    stopWatching();
+    abortChatReads();
+    state.chatViewToken += 1;
+  }
+  function clearConversation(): void {
+    state.runError = "";
+    leaveView();
+    state.activeChat = null;
+    state.messages = [];
+    state.draft = "";
+    state.loading = false;
+    state.messagesLoading = false;
+  }
+  function failCurrentTurn(cause: unknown): void {
+    const last = state.messages[state.messages.length - 1];
+    if (last?._streaming) last._streaming = false;
+    state.loading = false;
+    const error = asError(cause);
+    state.runError = error.uiMessage || error.message;
+    deps.shell.showError(cause);
+  }
   function beginChatReads(): void {
     abortChatReads();
     state.chatReadController = new AbortController();
@@ -200,6 +229,7 @@ export function createChat(deps: Dependencies): Feature {
     state.draft = "";
     state.loading = false;
     state.messagesLoading = false;
+    state.runError = "";
     deps.shell.clearError();
     deps.shell.showPage("chat");
     state.agentPickerOpen = false;
@@ -361,12 +391,16 @@ export function createChat(deps: Dependencies): Feature {
   async function sendMessage(): Promise<void> {
     const content = state.draft.trim();
     if (!content || !state.activeChat || state.loading) return;
+    state.runError = "";
     state.loading = true;
+    const controller = new AbortController();
+    sendController = controller;
     const chatId = state.activeChat.id;
     const viewToken = state.chatViewToken;
     const isCurrentView = () => viewToken === state.chatViewToken && state.activeChat?.id === chatId;
     try {
       await deps.artifacts.uploadFiles(state.activeChat);
+      if (!isCurrentView() || controller.signal.aborted) return;
       const messageAttachments = deps.artifacts.pendingAttachments().map((file) => ({
         id: file.id || `artifact:${file.path}`,
         name: file.filename || file.name,
@@ -396,6 +430,7 @@ export function createChat(deps: Dependencies): Feature {
       const requestPath = `/api/chats/${chatId}/messages`;
       const { response, requestId } = await deps.api.request(requestPath, {
         method: "POST",
+        signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
         },
@@ -404,6 +439,7 @@ export function createChat(deps: Dependencies): Feature {
       if (!response.ok) {
         await deps.api.responseData(response, requestId, requestPath);
       }
+      if (controller.signal.aborted) return;
       deps.artifacts.clearAttachments(false);
       if (!response.body) throw new ApiError("Server returned an empty stream");
       const reader = response.body.getReader();
@@ -411,7 +447,7 @@ export function createChat(deps: Dependencies): Feature {
       let buffer = "";
       while (true) {
         const chunk = await reader.read();
-        if (chunk.done) break;
+        if (chunk.done || controller.signal.aborted) break;
         buffer += decoder.decode(chunk.value, { stream: true });
         const frames = buffer.split("\n\n");
         buffer = frames.pop() || "";
@@ -451,12 +487,12 @@ export function createChat(deps: Dependencies): Feature {
     } catch (cause) {
       const e = asError(cause);
       if (isCurrentView()) {
-        deps.shell.showError(e);
-        state.loading = false;
+        failCurrentTurn(e);
         if (chatId) void watchChat(chatId);
       }
       return;
     } finally {
+      if (sendController === controller) sendController = null;
       if (isCurrentView()) {
         state.loading = false;
         state.messages = [...state.messages];
@@ -573,7 +609,7 @@ export function createChat(deps: Dependencies): Feature {
             state.streamSource = null;
             state.watchingChat = null;
             state.loading = false;
-            if (event.type === "error") deps.shell.showError(new ApiError(event.error));
+            if (event.type === "error") failCurrentTurn(new ApiError(event.error));
             void finishWatch(chatId, viewToken);
           }
           return;
@@ -627,31 +663,46 @@ export function createChat(deps: Dependencies): Feature {
   }
   function startPolling(chatId: string, viewToken: number = state.chatViewToken): void {
     stopPolling();
-    state.pollTimer = setInterval(async () => {
-      if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) {
-        stopPolling();
-        return;
-      }
+    const version = pollVersion;
+    const controller = new AbortController();
+    pollController = controller;
+    let failures = 0;
+    const current = () =>
+      version === pollVersion &&
+      !controller.signal.aborted &&
+      viewToken === state.chatViewToken &&
+      state.activeChat?.id === chatId;
+    const schedule = () => {
+      if (current())
+        state.pollTimer = setTimeout(
+          () => {
+            void tick();
+          },
+          3000 * Math.max(1, failures),
+        );
+    };
+    async function tick(): Promise<void> {
+      if (!current()) return;
+      state.pollTimer = null;
       try {
         const chat = unwrap(
           await deps.api.client.GET("/api/chats/{chat_id}", {
             params: { path: { chat_id: chatId } },
-            signal: state.chatReadController?.signal,
+            signal: controller.signal,
           }),
         );
-        if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) {
-          stopPolling();
-          return;
-        }
-        if (chat.status !== "running") {
-          const data = unwrap(
-            await deps.api.client.GET("/api/chats/{chat_id}/messages", {
-              params: { path: { chat_id: chatId }, query: { mode: deps.shell.state.mode } },
-              signal: state.chatReadController?.signal,
-            }),
-          );
-          if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
-          setMessagesIfChanged(data.messages);
+        if (!current()) return;
+        const data = unwrap(
+          await deps.api.client.GET("/api/chats/{chat_id}/messages", {
+            params: { path: { chat_id: chatId }, query: { mode: deps.shell.state.mode } },
+            signal: controller.signal,
+          }),
+        );
+        if (!current()) return;
+        const normalized = setMessagesIfChanged(data.messages);
+        const last = normalized[normalized.length - 1];
+        failures = 0;
+        if (chat.status !== "running" || (last?.role === "assistant" && !last._streaming)) {
           state.activeChat = chat;
           const found = state.chats.find((c) => c.id === chatId);
           if (found) Object.assign(found, chat);
@@ -660,28 +711,25 @@ export function createChat(deps: Dependencies): Feature {
           await deps.artifacts.refreshOpenFiles(chatId);
           return;
         }
-        const data = unwrap(
-          await deps.api.client.GET("/api/chats/{chat_id}/messages", {
-            params: { path: { chat_id: chatId }, query: { mode: deps.shell.state.mode } },
-            signal: state.chatReadController?.signal,
-          }),
-        );
-        if (viewToken !== state.chatViewToken || state.activeChat?.id !== chatId) return;
-        const normalized = setMessagesIfChanged(data.messages);
-        const last = normalized[normalized.length - 1];
-        if (last?.role === "assistant" && !last._streaming) {
-          state.loading = false;
+      } catch (cause) {
+        if (!current() || isAbortError(cause)) return;
+        failures += 1;
+        if (failures >= 3) {
           stopPolling();
-          await deps.artifacts.refreshOpenFiles(chatId);
+          failCurrentTurn(cause);
+          return;
         }
-      } catch {}
-    }, 3000);
+      }
+      schedule();
+    }
+    schedule();
   }
   function stopPolling(): void {
-    if (state.pollTimer) {
-      clearInterval(state.pollTimer);
-      state.pollTimer = null;
-    }
+    pollVersion += 1;
+    pollController?.abort();
+    pollController = null;
+    if (state.pollTimer) clearTimeout(state.pollTimer);
+    state.pollTimer = null;
   }
   function stopWatching(): void {
     if (state.streamSource) {
@@ -786,7 +834,19 @@ export function createChat(deps: Dependencies): Feature {
   function setMessagesLoading(loading: boolean): void {
     state.messagesLoading = loading;
   }
+  function resetSession(): void {
+    stopWatching();
+    abortChatReads();
+    sendController?.abort();
+    const nextToken = state.chatViewToken + 1;
+    Object.assign(state, createChatState());
+    state.chatViewToken = nextToken;
+  }
   return {
+    resetSession,
+    leaveView,
+    clearConversation,
+    failCurrentTurn,
     state,
     beginChatReads,
     abortChatReads,

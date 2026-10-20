@@ -2,12 +2,18 @@ import { marked } from "marked";
 import DOMPurify from "dompurify";
 
 import hljs from "highlight.js/lib/common";
-import mermaid from "mermaid";
+let mermaidModule: Promise<typeof import("mermaid")> | null = null;
+function loadMermaid() {
+  return (mermaidModule ??= import("mermaid").catch((error) => {
+    mermaidModule = null;
+    throw error;
+  }));
+}
 
 import type { Actions as FormatActions } from "./format";
 import type { Actions as I18nActions } from "./i18n";
 export interface Actions {
-  renderMermaidDiagrams(): void;
+  renderMermaidDiagrams(root?: ParentNode): void;
   highlightCode(source: string, language: string): string;
   normalizeCodeLanguage(language: string): string;
   renderMarkdown(source: string): string;
@@ -21,21 +27,30 @@ export interface Actions {
 export type Feature = Actions;
 export interface Dependencies {
   getTheme(): string;
+  onRenderError(): void;
   format: Pick<FormatActions, "escape">;
   i18n: Pick<I18nActions, "t">;
 }
 export function createContent(deps: Dependencies): Feature {
-  function renderMermaidDiagrams(): void {
-    if (!mermaid) return;
-    try {
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: deps.getTheme() === "dark" ? "dark" : "default",
+  let diagramQueue = Promise.resolve();
+  function renderMermaidDiagrams(root: ParentNode = document): void {
+    const nodes = [...root.querySelectorAll<HTMLElement>(".file-markdown .mermaid:not([data-processed])")];
+    if (!nodes.length) return;
+    diagramQueue = diagramQueue
+      .then(async () => {
+        const { default: mermaid } = await loadMermaid();
+        const live = nodes.filter((node) => node.isConnected && !node.dataset.processed);
+        if (!live.length) return;
+        mermaid.initialize({
+          startOnLoad: false,
+          suppressErrorRendering: true,
+          theme: deps.getTheme() === "dark" ? "dark" : "default",
+        });
+        await mermaid.run({ nodes: live });
+      })
+      .catch(() => {
+        deps.onRenderError();
       });
-      mermaid.run({
-        nodes: [...document.querySelectorAll<HTMLElement>(".file-markdown .mermaid")],
-      });
-    } catch {}
   }
   function highlightCode(source: string, language: string): string {
     try {

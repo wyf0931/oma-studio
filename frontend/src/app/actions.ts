@@ -4,7 +4,7 @@ import type { Actions as SharesActions, State as SharesState } from "../features
 import type { Actions as AgentsActions, State as AgentsState } from "../features/agents/actions";
 import type { Actions as ChatActions, State as ChatState } from "../features/chat/actions";
 import type { Actions as ArtifactsActions, State as ArtifactsState } from "../features/artifacts/actions";
-import type { State as PresentationState } from "../features/chat/presentation";
+import type { Actions as PresentationActions, State as PresentationState } from "../features/chat/presentation";
 import type { Actions as DomActions } from "../shared/dom";
 import type { Actions as I18nActions } from "../shared/i18n";
 import type { Actions as ApiActions } from "../shared/api";
@@ -22,6 +22,8 @@ export interface Actions {
   setBootReady(ready: boolean): void;
   clearError(): void;
   init(): Promise<void>;
+  startSession(): Promise<void>;
+  stopSession(expired?: boolean): void;
   loadHealth(): Promise<void>;
   showToast(message: string, kind?: string): void;
   modeQuery(): string;
@@ -39,39 +41,91 @@ export interface Feature extends Actions {
   state: State;
 }
 export interface Dependencies {
-  settings: Pick<SettingsActions, "initializeThemePreference" | "resetAccountPassword"> & {
-    state: Pick<SettingsState, "settingsOpen">;
+  settings: Pick<SettingsActions, "initializeThemePreference" | "resetAccountPassword" | "closeSettings"> & {
+    state: Readonly<Pick<SettingsState, "settingsOpen">>;
   };
-  identity: Pick<IdentityActions, "loadSession"> & {
-    state: Pick<IdentityState, "authChecked" | "authUser" | "loginError" | "profileMenuOpen" | "sessionExpired">;
-  };
-  shares: Pick<SharesActions, "openSharedChat"> & { state: Pick<SharesState, "sharedMode"> };
-  agents: Pick<AgentsActions, "loadAgents" | "loadResources"> & { state: Pick<AgentsState, "agents" | "resources"> };
-  chat: Pick<ChatActions, "abortChatReads" | "loadChats" | "newChat" | "openChat" | "stopWatching"> & {
-    state: Pick<
-      ChatState,
-      | "activeChat"
-      | "chatViewToken"
-      | "chats"
-      | "draft"
-      | "loading"
-      | "messages"
-      | "messagesLoading"
-      | "selectedAgentId"
+  identity: Pick<IdentityActions, "loadSession" | "closeProfileMenu"> & {
+    state: Readonly<
+      Pick<IdentityState, "authChecked" | "authUser" | "loginError" | "profileMenuOpen" | "sessionExpired">
     >;
   };
-  artifacts: Pick<ArtifactsActions, "loadFileViewer" | "loadLibrary"> & {
-    state: Pick<ArtifactsState, "files" | "filesOpen" | "uploadLimits">;
+  shares: Pick<SharesActions, "openSharedChat" | "setSharedMode"> & {
+    state: Readonly<Pick<SharesState, "sharedMode">>;
   };
-  presentation: { state: Pick<PresentationState, "linkDrawerOpen"> };
+  agents: Pick<AgentsActions, "loadAgents" | "loadResources"> & {
+    state: Readonly<Pick<AgentsState, "agents" | "resources">>;
+  };
+  chat: Pick<ChatActions, "leaveView" | "clearConversation" | "chooseAgent" | "loadChats" | "newChat" | "openChat"> & {
+    state: Readonly<
+      Pick<
+        ChatState,
+        | "activeChat"
+        | "chatViewToken"
+        | "chats"
+        | "draft"
+        | "loading"
+        | "messages"
+        | "messagesLoading"
+        | "selectedAgentId"
+      >
+    >;
+  };
+  artifacts: Pick<ArtifactsActions, "loadFileViewer" | "loadLibrary" | "setUploadLimits" | "closeFiles"> & {
+    state: Readonly<Pick<ArtifactsState, "files" | "filesOpen" | "uploadLimits">>;
+  };
+  presentation: Pick<PresentationActions, "closeLinkDrawer"> & {
+    state: Readonly<Pick<PresentationState, "linkDrawerOpen">>;
+  };
   dom: Pick<DomActions, "observeIcons" | "observeImageArtifacts" | "renderIconsSoon">;
   i18n: Pick<I18nActions, "initI18n" | "localizedMessage">;
   api: Pick<ApiActions, "client">;
+  onSessionEnded(expired: boolean): void;
   autopilots: Pick<AutopilotsActions, "loadAutopilots">;
   marketplace: Pick<MarketplaceActions, "loadMarketAgents">;
 }
 export function createShell(deps: Dependencies): Feature {
   const state = reactive(createAppState());
+  let sessionActive = false;
+  let sessionVersion = 0;
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
+  let errorTimer: ReturnType<typeof setTimeout> | undefined;
+  function stopSession(expired = false): void {
+    sessionActive = false;
+    sessionVersion += 1;
+    if (state.healthTimer) clearInterval(state.healthTimer);
+    state.healthTimer = null;
+    clearTimeout(toastTimer);
+    clearTimeout(errorTimer);
+    state.toastMessage = "";
+    state.error = "";
+    deps.onSessionEnded(expired);
+    state.page = "chat";
+    state.appReady = true;
+  }
+  async function startSession(): Promise<void> {
+    if (sessionActive) return;
+    sessionActive = true;
+    const version = ++sessionVersion;
+    state.appReady = false;
+    try {
+      await Promise.all([deps.agents.loadAgents(), deps.chat.loadChats(), loadHealth(), deps.agents.loadResources()]);
+      if (version !== sessionVersion || !deps.identity.state.authUser) return;
+      const agent = deps.agents.state.agents[0];
+      if (agent) deps.chat.chooseAgent(agent.id);
+      syncModeFromUrl();
+      state.healthTimer = setInterval(() => {
+        void loadHealth();
+      }, 5000);
+      await routeFromUrl();
+    } catch (cause) {
+      if (version === sessionVersion) showError(cause);
+    } finally {
+      if (version === sessionVersion) {
+        state.appReady = true;
+        deps.dom.renderIconsSoon();
+      }
+    }
+  }
   async function init(): Promise<void> {
     state.cleanups.push(
       watch(
@@ -85,34 +139,28 @@ export function createShell(deps: Dependencies): Feature {
       watch(
         () => deps.identity.state.authUser,
         (user) => {
-          if (!user) deps.settings.state.settingsOpen = false;
+          if (!user) deps.settings.closeSettings();
         },
       ),
     );
     deps.dom.observeIcons();
     deps.dom.observeImageArtifacts();
-    deps.shares.state.sharedMode =
-      window.location.pathname.startsWith("/share/") || new URLSearchParams(location.search).has("share");
-    if (deps.shares.state.sharedMode) deps.identity.state.authChecked = true;
-    deps.settings.initializeThemePreference();
-    await deps.i18n.initI18n();
-    if (!deps.shares.state.sharedMode) {
-      await deps.identity.loadSession();
-      if (!deps.identity.state.authUser) {
-        state.appReady = true;
-        deps.dom.renderIconsSoon();
-        return;
-      }
-    } else {
-      // Public share views stay anonymous, but a dead link must know whether a
-      // session exists before deciding what to render (see openSharedChat).
-      await deps.identity.loadSession();
-    }
+    deps.shares.setSharedMode(
+      window.location.pathname.startsWith("/share/") || new URLSearchParams(location.search).has("share"),
+    );
     const onPopState = () => {
-      void routeFromUrl();
+      void routeFromUrl().catch(showError);
     };
     window.addEventListener("popstate", onPopState);
     state.cleanups.push(() => window.removeEventListener("popstate", onPopState));
+    deps.settings.initializeThemePreference();
+    await deps.i18n.initI18n();
+    await deps.identity.loadSession();
+    if (!deps.shares.state.sharedMode && !deps.identity.state.authUser) {
+      state.appReady = true;
+      deps.dom.renderIconsSoon();
+      return;
+    }
     try {
       if (deps.shares.state.sharedMode) {
         // Public share view: the regular workspace APIs are auth-gated, so
@@ -120,12 +168,7 @@ export function createShell(deps: Dependencies): Feature {
         await routeFromUrl();
         return;
       }
-      await Promise.all([deps.agents.loadAgents(), deps.chat.loadChats(), loadHealth(), deps.agents.loadResources()]);
-      if (deps.agents.state.agents.length) deps.chat.state.selectedAgentId = deps.agents.state.agents[0]!.id;
-      if (!new URLSearchParams(location.search).has("mode"))
-        state.mode = deps.agents.state.resources.mode || "production";
-      state.healthTimer = setInterval(() => loadHealth(), 5000);
-      await routeFromUrl();
+      await startSession();
     } catch (cause) {
       const e = asError(cause);
       showError(e);
@@ -138,14 +181,15 @@ export function createShell(deps: Dependencies): Feature {
     try {
       const health = unwrap(await deps.api.client.GET("/api/health"));
       state.activeProcesses = health.active_processes || 0;
-      if (health.upload_limits) deps.artifacts.state.uploadLimits = health.upload_limits;
+      if (health.upload_limits) deps.artifacts.setUploadLimits(health.upload_limits);
     } catch {}
   }
   function showToast(message: string, kind: string = "success"): void {
     state.error = "";
     state.toastMessage = deps.i18n.localizedMessage(message);
     state.toastKind = kind;
-    setTimeout(() => {
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
       state.toastMessage = "";
     }, 5000);
   }
@@ -161,9 +205,7 @@ export function createShell(deps: Dependencies): Feature {
   }
   function go(page: DTO.Page): void {
     if (page !== "chat") {
-      deps.chat.stopWatching();
-      deps.chat.abortChatReads();
-      deps.chat.state.chatViewToken += 1;
+      deps.chat.leaveView();
     }
     state.page = page;
     const path =
@@ -194,7 +236,9 @@ export function createShell(deps: Dependencies): Feature {
     showError(new ApiError(`${name} is reserved for the next iteration.`));
   }
   async function routeFromUrl(): Promise<void> {
+    if (deps.identity.state.authChecked && !deps.identity.state.authUser && !deps.shares.state.sharedMode) return;
     syncModeFromUrl();
+    if (!window.location.pathname.startsWith("/chat/")) deps.chat.leaveView();
     if (window.location.pathname === "/file-view") {
       state.page = "file";
       await deps.artifacts.loadFileViewer();
@@ -230,15 +274,11 @@ export function createShell(deps: Dependencies): Feature {
       const chat = deps.chat.state.chats.find((item) => item.id === decodeURIComponent(match[1]!));
       if (chat) await deps.chat.openChat(chat, false);
       else {
-        deps.chat.state.activeChat = null;
-        deps.chat.state.messages = [];
+        deps.chat.clearConversation();
         showError(new ApiError("Chat not found"));
       }
     } else {
-      deps.chat.state.activeChat = null;
-      deps.chat.state.messages = [];
-      deps.chat.state.draft = "";
-      deps.chat.state.loading = false;
+      deps.chat.clearConversation();
     }
   }
   function closeDrawersOutside(event: Event): void {
@@ -256,24 +296,19 @@ export function createShell(deps: Dependencies): Feature {
       event.target.closest?.(".sidebar-profile")
     )
       return;
-    deps.artifacts.state.filesOpen = false;
-    deps.presentation.state.linkDrawerOpen = false;
-    deps.identity.state.profileMenuOpen = false;
+    deps.artifacts.closeFiles();
+    deps.presentation.closeLinkDrawer();
+    deps.identity.closeProfileMenu();
   }
   function showError(cause: unknown): void {
     const error = asError(cause);
-    if (error?.sessionExpired) return;
+    if (error?.sessionExpired || error.name === "AbortError") return;
     state.toastMessage = "";
     state.error = error.uiMessage || deps.i18n.localizedMessage(error.message || String(error));
-    state.runError = state.error;
-    const current = deps.chat.state.messages[deps.chat.state.messages.length - 1];
-    if (current?.role === "assistant") {
-      current._streaming = false;
-      current.content = [];
-    }
-    setTimeout(() => {
+
+    clearTimeout(errorTimer);
+    errorTimer = setTimeout(() => {
       state.error = "";
-      state.runError = "";
     }, 5000);
   }
   function handleUnauthorizedResponse(response: Response, path: string, error: DTO.ApiError): void {
@@ -286,24 +321,7 @@ export function createShell(deps: Dependencies): Feature {
       return;
     error.sessionExpired = true;
     if (deps.identity.state.sessionExpired) return;
-    deps.identity.state.sessionExpired = true;
-    deps.chat.stopWatching();
-    deps.chat.abortChatReads();
-    deps.chat.state.chatViewToken += 1;
-    deps.identity.state.authUser = null;
-    deps.identity.state.authChecked = true;
-    deps.settings.state.settingsOpen = false;
-    deps.chat.state.activeChat = null;
-    deps.agents.state.agents = [];
-    deps.chat.state.chats = [];
-    deps.chat.state.messages = [];
-    deps.artifacts.state.files = [];
-    deps.chat.state.loading = false;
-    deps.chat.state.messagesLoading = false;
-    state.page = "chat";
-    state.runError = "";
-    deps.identity.state.loginError = "";
-    state.appReady = true;
+    stopSession(true);
     history.replaceState({}, "", "/chat" + modeQuery());
     showToast("Your login session has expired. Please sign in again.", "warning");
   }
@@ -319,6 +337,8 @@ export function createShell(deps: Dependencies): Feature {
   return {
     state,
     init,
+    startSession,
+    stopSession,
     loadHealth,
     showToast,
     modeQuery,

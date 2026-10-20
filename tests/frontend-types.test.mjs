@@ -15,6 +15,9 @@ import type { Agent } from "../shared/types";
 import type {Dependencies as SettingsDependencies} from "../features/settings/actions";
 function mutatePeer(deps: SettingsDependencies) {deps.identity.state.authUser = null;}
 void mutatePeer;
+import type {Dependencies as ShellDependencies} from "../app/actions";
+function mutateShellPeer(deps:ShellDependencies) {deps.chat.state.activeChat=null;}
+void mutateShellPeer;
 import type {HttpClient} from "../shared/api";
 function invalidRequests(client:HttpClient) {client.GET("/api/not-a-route",{});client.POST("/api/agents",{body:{name:"Missing instruction"}});}
 void invalidRequests;
