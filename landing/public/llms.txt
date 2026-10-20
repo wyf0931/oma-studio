@@ -1,0 +1,23 @@
+# OMA Studio
+
+> OMA Studio 是面向个人工作室与小团队的开源、local-first Agent 工作台，帮助用户复用工作方法、安排周期任务，并持续整理 Agent 产出的文件。
+
+OMA Studio 以工作为中心：用户可以定义 Agent 角色与指令，在对话中完成研究、写作与日常知识工作，使用 Autopilot 安排重复任务，并在个人 Library 查阅各 Agent 生成的文件。
+
+## 产品页面
+
+- [首页](https://ohmyagent.ai/): 产品定位、使用场景、工作流示例与主要功能。
+- [关于 OMA Studio](https://ohmyagent.ai/about): 项目理念、适用对象与当前能力边界。
+
+## 主要能力
+
+- [Agent 工作台](https://ohmyagent.ai/#product): 创建可复用的 Agent，配置模型、指令与选定能力。
+- [使用场景](https://ohmyagent.ai/#use-cases): 市场研究、内容准备与周期性事务示例。
+- [Marketplace 与团队功能](https://ohmyagent.ai/#marketplace): 浏览共享 Agent 和可组合资源，支持安装即用与按需调整。
+- [功能说明](https://ohmyagent.ai/#features): 对话分享、文件预览、Agent 定义扩写、用户管理与用量统计。
+
+## 开始使用
+
+- [开源代码](https://github.com/wyf0931/oma-studio): 项目源码与贡献信息。
+- [部署指南](https://github.com/wyf0931/oma-studio#quick-start): 本地或自托管运行方式。
+- [在线工作台](https://studio.ohmyagent.ai): 进入 OMA Studio 工作区；使用需要已有账号。
