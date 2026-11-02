@@ -22,7 +22,8 @@ const {
   libraryPages,
   librarySearch,
 } = toRefs(artifactsFeature.state);
-const { downloadUrl, loadLibrary, openLibraryChat, openLibraryFile, selectLibraryAgent } = artifactsFeature;
+const { canPreviewLibraryFile, downloadUrl, loadLibrary, openLibraryChat, openLibraryFile, selectLibraryAgent } =
+  artifactsFeature;
 const formatFeature = useFormat();
 const { formatBytes, formatDateTime, initials } = formatFeature;
 const shellFeature = useShell();
@@ -111,7 +112,11 @@ const debounceSearch = useDebouncedCallback(() => {
           <template v-for="file in libraryFiles" :key="file.chat_id + ':' + file.path"
             ><tr class="bg-base-200">
               <td class="library-file-cell">
-                <button class="library-file-name" @click="openLibraryFile(file)">
+                <button
+                  class="library-file-name"
+                  :disabled="!canPreviewLibraryFile(file)"
+                  @click="openLibraryFile(file)"
+                >
                   <span class="file-type" v-text="file.extension || 'file'"></span
                   ><span><b v-text="file.name"></b><small v-text="file.path"></small></span>
                 </button>
@@ -126,6 +131,7 @@ const debounceSearch = useDebouncedCallback(() => {
                 <div class="library-actions">
                   <button
                     class="btn btn-sm btn-ghost"
+                    :disabled="!canPreviewLibraryFile(file)"
                     @click="openLibraryFile(file)"
                     title="Open file"
                     aria-label="Open file"

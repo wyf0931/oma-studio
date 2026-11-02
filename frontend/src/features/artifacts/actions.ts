@@ -52,6 +52,7 @@ export interface Actions {
   removePendingAttachment(file: DTO.Attachment): void;
   removePendingUpload(upload: Pick<DTO.Attachment, "id">): Promise<void>;
   removePendingArtifact(artifact: Pick<DTO.Attachment, "path">): void;
+  canPreviewLibraryFile(file: DTO.Artifact): boolean;
   openLibraryFile(file: DTO.Artifact): void;
   openLibraryChat(file: DTO.Artifact): void;
   openInternalTab(url: string): void;
@@ -457,7 +458,16 @@ export function createArtifacts(deps: Dependencies): Feature {
   function removePendingArtifact(artifact: Pick<DTO.Attachment, "path">): void {
     state.pendingArtifacts = state.pendingArtifacts.filter((item) => item.path !== artifact.path);
   }
+  function canPreviewLibraryFile(file: DTO.Artifact): boolean {
+    return (
+      opensInNativeBrowser(file) ||
+      deps.content.isCodeFile(file.path) ||
+      deps.content.isCsvFile(file.path) ||
+      ["md", "markdown"].includes(deps.content.fileExtension(file.path))
+    );
+  }
   function openLibraryFile(file: DTO.Artifact): void {
+    if (!canPreviewLibraryFile(file)) return;
     if (opensInNativeBrowser(file)) {
       openInternalTab(browserViewUrl(file.chat_id || "", file.path));
       return;
@@ -718,6 +728,7 @@ export function createArtifacts(deps: Dependencies): Feature {
     removePendingAttachment,
     removePendingUpload,
     removePendingArtifact,
+    canPreviewLibraryFile,
     openLibraryFile,
     openLibraryChat,
     openInternalTab,
