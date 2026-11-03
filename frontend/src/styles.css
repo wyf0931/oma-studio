@@ -4668,6 +4668,55 @@ pre,
  width: min(360px, 100%);
  margin-top: 16px;
 }
+.shortcut-list {
+ display: flex;
+ flex-direction: column;
+ gap: 4px;
+ margin: 0;
+ padding: 0;
+ list-style: none;
+}
+.shortcut-row {
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ gap: 16px;
+ padding: 12px 0;
+ border-bottom: 1px solid var(--line);
+}
+.shortcut-row:last-child {
+ border-bottom: 0;
+}
+.shortcut-name {
+ font-size: 15px;
+ font-weight: 500;
+ color: var(--color-base-content);
+}
+.shortcut-keys {
+ display: inline-flex;
+ align-items: center;
+ gap: 6px;
+ white-space: nowrap;
+}
+.shortcut-key {
+ display: inline-flex;
+ align-items: center;
+ justify-content: center;
+ min-width: 28px;
+ padding: 3px 8px;
+ border: 1px solid var(--line);
+ border-radius: var(--radius-field);
+ background: var(--color-base-200);
+ font-family: var(--font-mono) !important;
+ font-size: 12px;
+ font-weight: 600;
+ color: var(--color-base-content);
+ box-shadow: 0 1px 0 var(--line);
+}
+.shortcut-plus {
+ color: var(--muted);
+ font-size: 12px;
+}
 .account-section-title {
  margin: 0 0 14px;
  font-size: 15px;

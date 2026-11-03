@@ -82,7 +82,7 @@ export function createSettings(deps: Dependencies): Feature {
     if (deps.identity.state.authUser?.role === "admin") await loadSystemSettings();
   }
   async function openSettingsTab(tab: string): Promise<void> {
-    if (tab !== "account") resetAccountPassword();
+    if (tab !== "account" && tab !== "shortcuts") resetAccountPassword();
     state.settingsTab = tab;
   }
   function accountProfileDirty(): boolean {

@@ -95,7 +95,20 @@
     "light": "浅色",
     "dark": "深色",
     "system": "跟随系统",
-    "invalidTimezone": "时区必须是有效的 IANA 时区"
+    "invalidTimezone": "时区必须是有效的 IANA 时区",
+    "shortcuts": {
+      "title": "快捷键",
+      "subtitle": "了解在工作区中快速操作的快捷键。",
+      "quickSearch": {
+        "name": "快速搜索"
+      },
+      "toggleSidebar": {
+        "name": "开/关侧边栏"
+      },
+      "skillTemplate": {
+        "name": "快捷指令/技能模板"
+      }
+    }
   },
   "chat": {
     "files": "文件",
