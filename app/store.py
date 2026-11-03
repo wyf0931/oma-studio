@@ -30,7 +30,13 @@ SUPPORTED_TOOLS = BUILTIN_TOOLS + PLATFORM_TOOLS
 # "not provided": the Auto model triple, which is stored as NULL so the
 # deployment defaults (PI_PROVIDER / PI_MODEL / PI_THINKING_LEVEL) apply, and
 # the optional description, which the agent editor clears by sending null.
-NULLABLE_AGENT_FIELDS = {"provider", "model", "thinking_level", "description"}
+NULLABLE_AGENT_FIELDS = {
+    "provider",
+    "model",
+    "thinking_level",
+    "description",
+    "deliverable",
+}
 DEFAULT_AGENT_INSTRUCTION = "Be helpful, clear, concise and easy to follow; don't sacrifice clarity for brevity."
 LEGACY_DEFAULT_AGENT_INSTRUCTION = "Be helpful, clear, and concise."
 # User-owned platform records. Historical rows created before ownership existed
@@ -296,7 +302,7 @@ class Store:
 
     @staticmethod
     def agent_config(agent: dict) -> dict:
-        return {
+        config = {
             key: agent.get(key)
             for key in (
                 "name",
@@ -313,6 +319,14 @@ class Store:
                 "mcp_servers",
             )
         }
+        # Job-card fields are part of the published definition, but they are only
+        # emitted when set so that agents created before they existed keep the same
+        # content hash and are not reported as marketplace updates.
+        if agent.get("deliverable"):
+            config["deliverable"] = agent["deliverable"]
+        if agent.get("acceptance"):
+            config["acceptance"] = agent["acceptance"]
+        return config
 
     @classmethod
     def agent_content_hash(cls, agent: dict) -> str:
@@ -392,14 +406,18 @@ class Store:
         mcp_servers: list[str] | None = None,
         thinking_level: str | None = None,
         user_id: str | None = None,
+        deliverable: str | None = None,
+        acceptance: list[str] | None = None,
     ) -> dict:
         item = {
             "id": str(uuid4()),
             "name": name.strip(),
             "instruction": instruction.strip(),
             "description": description.strip() if description else None,
+            "deliverable": deliverable.strip() if deliverable else None,
             "tags": tags or [],
             "quickstarts": quickstarts or [],
+            "acceptance": acceptance or [],
             "provider": provider,
             "model": model,
             "extensions": extensions or [],

@@ -1022,6 +1022,10 @@ export interface components {
   schemas: {
     /** AgentCreate */
     AgentCreate: {
+      /** Acceptance */
+      acceptance?: string[];
+      /** Deliverable */
+      deliverable?: string | null;
       /** Description */
       description?: string | null;
       /** Extensions */
@@ -1103,6 +1107,8 @@ export interface components {
     };
     /** AgentResponse */
     AgentResponse: {
+      /** Acceptance */
+      acceptance?: string[];
       /** Author */
       author?: string | null;
       /**
@@ -1118,6 +1124,8 @@ export interface components {
       created_at?: string | null;
       /** Deleted At */
       deleted_at?: string | null;
+      /** Deliverable */
+      deliverable?: string | null;
       /** Description */
       description?: string | null;
       /** Extensions */
@@ -1191,6 +1199,10 @@ export interface components {
     };
     /** AgentUpdate */
     AgentUpdate: {
+      /** Acceptance */
+      acceptance?: string[] | null;
+      /** Deliverable */
+      deliverable?: string | null;
       /** Description */
       description?: string | null;
       /** Extensions */
@@ -2175,7 +2187,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -2193,7 +2205,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -2316,7 +2328,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -2334,7 +2346,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -2457,7 +2469,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -2475,7 +2487,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -2596,7 +2608,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -2614,7 +2626,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -2735,7 +2747,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -2753,7 +2765,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -2878,7 +2890,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -2896,7 +2908,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -3017,7 +3029,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -3035,7 +3047,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -3156,7 +3168,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -3174,7 +3186,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -3295,7 +3307,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -3313,7 +3325,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -3438,7 +3450,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -3456,7 +3468,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -3579,7 +3591,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -3597,7 +3609,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -3716,7 +3728,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -3734,7 +3746,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -3853,7 +3865,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -3871,7 +3883,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -3993,7 +4005,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -4011,7 +4023,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -4134,7 +4146,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -4152,7 +4164,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -4273,7 +4285,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -4291,7 +4303,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -4416,7 +4428,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -4434,7 +4446,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -4555,7 +4567,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -4573,7 +4585,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -4694,7 +4706,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -4712,7 +4724,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -4831,7 +4843,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -4849,7 +4861,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -4972,7 +4984,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -4990,7 +5002,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -5111,7 +5123,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -5129,7 +5141,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -5250,7 +5262,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -5268,7 +5280,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -5393,7 +5405,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -5411,7 +5423,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -5532,7 +5544,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -5550,7 +5562,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -5673,7 +5685,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -5691,7 +5703,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -5814,7 +5826,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -5832,7 +5844,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -5953,7 +5965,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -5971,7 +5983,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -6094,7 +6106,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -6112,7 +6124,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -6235,7 +6247,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -6253,7 +6265,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -6376,7 +6388,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -6394,7 +6406,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -6515,7 +6527,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -6533,7 +6545,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -6656,7 +6668,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -6674,7 +6686,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -6797,7 +6809,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -6815,7 +6827,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -6938,7 +6950,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -6956,7 +6968,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -7079,7 +7091,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -7097,7 +7109,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -7224,7 +7236,7 @@ export interface operations {
           "text/event-stream": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -7242,7 +7254,7 @@ export interface operations {
           "text/event-stream": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -7363,7 +7375,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -7381,7 +7393,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -7502,7 +7514,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -7520,7 +7532,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -7641,7 +7653,7 @@ export interface operations {
           "text/event-stream": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -7659,7 +7671,7 @@ export interface operations {
           "text/event-stream": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -7780,7 +7792,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -7798,7 +7810,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -7919,7 +7931,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -7937,7 +7949,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -8059,7 +8071,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -8077,7 +8089,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -8196,7 +8208,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -8214,7 +8226,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -8338,7 +8350,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -8356,7 +8368,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -8475,7 +8487,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -8493,7 +8505,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -8614,7 +8626,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -8632,7 +8644,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -8753,7 +8765,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -8771,7 +8783,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -8896,7 +8908,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -8914,7 +8926,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -9037,7 +9049,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -9055,7 +9067,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -9178,7 +9190,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -9196,7 +9208,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -9319,7 +9331,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -9337,7 +9349,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -9458,7 +9470,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -9476,7 +9488,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -9599,7 +9611,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -9617,7 +9629,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -9740,7 +9752,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -9758,7 +9770,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -9881,7 +9893,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -9899,7 +9911,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -10022,7 +10034,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -10040,7 +10052,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -10159,7 +10171,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -10177,7 +10189,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -10296,7 +10308,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -10314,7 +10326,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -10437,7 +10449,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -10455,7 +10467,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -10576,7 +10588,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -10594,7 +10606,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -10715,7 +10727,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -10733,7 +10745,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -10856,7 +10868,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -10874,7 +10886,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -10997,7 +11009,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -11015,7 +11027,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -11134,7 +11146,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -11152,7 +11164,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -11273,7 +11285,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -11291,7 +11303,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -11413,7 +11425,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -11431,7 +11443,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -11550,7 +11562,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -11568,7 +11580,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -11691,7 +11703,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -11709,7 +11721,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -11832,7 +11844,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -11850,7 +11862,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -11973,7 +11985,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -11991,7 +12003,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -12112,7 +12124,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -12130,7 +12142,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;
@@ -12255,7 +12267,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Content Too Large */
+      /** @description Request Entity Too Large */
       413: {
         headers: {
           [name: string]: unknown;
@@ -12273,7 +12285,7 @@ export interface operations {
           "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Unprocessable Content */
+      /** @description Unprocessable Entity */
       422: {
         headers: {
           [name: string]: unknown;

@@ -17,6 +17,8 @@ class AgentCreate(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     instruction: str = Field(min_length=1, max_length=10000)
     description: str | None = Field(default=None, max_length=240)
+    deliverable: str | None = Field(default=None, max_length=240)
+    acceptance: list[str] = Field(default_factory=list, max_length=10)
     tags: list[str] = Field(default_factory=list, max_length=5)
     quickstarts: list[str] = Field(default_factory=list, max_length=5)
     provider: str | None = None
@@ -32,6 +34,8 @@ class AgentUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     instruction: str | None = Field(default=None, min_length=1, max_length=10000)
     description: str | None = Field(default=None, max_length=240)
+    deliverable: str | None = Field(default=None, max_length=240)
+    acceptance: list[str] | None = Field(default=None, max_length=10)
     tags: list[str] | None = Field(default=None, max_length=5)
     quickstarts: list[str] | None = Field(default=None, max_length=5)
     provider: str | None = None
@@ -241,6 +245,8 @@ def create_router(
             payload.mcp_servers or [],
             thinking_level=payload.thinking_level,
             user_id=owner_id,
+            deliverable=payload.deliverable,
+            acceptance=payload.acceptance,
         )
 
     @router.post(

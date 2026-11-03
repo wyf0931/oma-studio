@@ -33,6 +33,8 @@ class AgentResponse(BaseModel):
     id: str
     name: str
     instruction: str
+    deliverable: str | None = None
+    acceptance: list[str] = Field(default_factory=list)
     tags: list[str]
     quickstarts: list[str]
     tools: list[str]
