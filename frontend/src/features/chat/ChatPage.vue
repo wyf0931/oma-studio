@@ -24,6 +24,7 @@ const {
   messages,
   messagesLoading,
   selectedAgentId,
+  skillCommandComposing,
   skillCommandIndex,
 } = toRefs(chatFeature.state);
 const {
@@ -36,10 +37,12 @@ const {
   saveChatTitle,
   sendFirst,
   sendMessage,
+  setSkillCommandComposing,
   skillCommandHighlightHtml,
   skillCommandItems,
   skillCommandVisible,
   startEditingChatTitle,
+  syncSkillCommandComposition,
   syncSkillCommandScroll,
   updateSkillCommandState,
 } = chatFeature;
@@ -131,7 +134,7 @@ const { chooseAgent } = chatFeature;
                   </span>
                 </template>
               </div>
-              <div class="skill-command-editor">
+              <div class="skill-command-editor" :class="{ 'is-composing': skillCommandComposing }">
                 <div
                   class="skill-command-highlight"
                   data-ref="skillCommandHighlight"
@@ -146,10 +149,13 @@ const { chooseAgent } = chatFeature;
                   class="textarea textarea-bordered start-input"
                   v-model="draft"
                   @input="
+                    syncSkillCommandComposition($event);
                     resizeStartInput($event);
                     updateSkillCommandState();
                   "
                   @paste="handlePaste($event)"
+                  @compositionstart="setSkillCommandComposing(true)"
+                  @compositionend="setSkillCommandComposing(false)"
                   @scroll="syncSkillCommandScroll($event)"
                   @keydown="handleSkillCommandKeydown($event); if ($event.key === 'Enter' &amp;&amp; $event.metaKey) { $event.preventDefault(); sendFirst(); }"
                   :placeholder="t('chat.whatExplore')"
