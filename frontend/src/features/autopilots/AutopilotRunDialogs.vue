@@ -5,6 +5,7 @@ import { useFormat } from "../../shared/format-context";
 import { useI18n } from "../../shared/i18n-context";
 
 import OmaIcon from "../../ui/Icon.vue";
+import { vEscape } from "../../ui/events";
 const autopilotsFeature = useAutopilots();
 const { autopilotDeleteTarget, autopilotRuns, autopilotRunsItem, autopilotRunsOpen } = toRefs(autopilotsFeature.state);
 const { confirmDeleteAutopilot, runAutopilot } = autopilotsFeature;
@@ -18,6 +19,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(autopilotRunsOpen)"
     v-show="autopilotRunsOpen"
+    v-escape="() => (autopilotRunsOpen = false)"
     @click.self="autopilotRunsOpen = false"
   >
     <div class="modal-box autopilot-runs-dialog">
@@ -89,6 +91,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(autopilotDeleteTarget)"
     v-show="autopilotDeleteTarget"
+    v-escape="() => (autopilotDeleteTarget = null)"
     @click.self="autopilotDeleteTarget = null"
   >
     <div class="modal-box confirm-box">

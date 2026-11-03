@@ -4,6 +4,7 @@ import { useChat } from "./context";
 import { useI18n } from "../../shared/i18n-context";
 
 import OmaIcon from "../../ui/Icon.vue";
+import { vEscape } from "../../ui/events";
 const chatFeature = useChat();
 const { deleteChatTarget } = toRefs(chatFeature.state);
 const { confirmDeleteChat } = chatFeature;
@@ -15,6 +16,7 @@ const { t } = i18nFeature;
     class="modal"
     :open="Boolean(!!deleteChatTarget)"
     v-show="deleteChatTarget"
+    v-escape="() => (deleteChatTarget = null)"
     @click.self="deleteChatTarget = null"
   >
     <div class="modal-box confirm-box">

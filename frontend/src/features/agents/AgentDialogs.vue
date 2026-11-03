@@ -6,6 +6,7 @@ import { useChat } from "../chat/context";
 import { useI18n } from "../../shared/i18n-context";
 
 import OmaIcon from "../../ui/Icon.vue";
+import { vEscape } from "../../ui/events";
 const agentsFeature = useAgents();
 const { dialog } = toRefs(agentsFeature.state);
 const { agentAvatarMarkup, agentSkills, agentTagsMarkup, modelName, providerName, resourceNames } = agentsFeature;
@@ -17,7 +18,13 @@ const i18nFeature = useI18n();
 const { t } = i18nFeature;
 </script>
 <template>
-  <dialog class="modal modal-middle agent-dialog" :open="Boolean(!!dialog)" v-show="dialog" @click.self="dialog = null">
+  <dialog
+    class="modal modal-middle agent-dialog"
+    :open="Boolean(!!dialog)"
+    v-show="dialog"
+    v-escape="() => (dialog = null)"
+    @click.self="dialog = null"
+  >
     <template v-if="dialog"
       ><div class="modal-box agent-dialog-box">
         <div class="agent-dialog-toolbar">

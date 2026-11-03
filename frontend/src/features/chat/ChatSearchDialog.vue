@@ -5,7 +5,7 @@ import { useChat } from "./context";
 import { useFormat } from "../../shared/format-context";
 import { useI18n } from "../../shared/i18n-context";
 
-import { vOutside } from "../../ui/events";
+import { vEscape, vOutside } from "../../ui/events";
 import OmaIcon from "../../ui/Icon.vue";
 const agentsFeature = useAgents();
 const { agents } = toRefs(agentsFeature.state);
@@ -24,6 +24,7 @@ const { t } = i18nFeature;
     class="modal chat-search-dialog"
     :open="Boolean(searchOpen)"
     v-show="searchOpen"
+    v-escape="() => (searchOpen = false)"
     @click.self="searchOpen = false"
   >
     <div class="modal-box">

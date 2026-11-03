@@ -4,6 +4,7 @@ import { useShares } from "./context";
 import { useI18n } from "../../shared/i18n-context";
 
 import OmaIcon from "../../ui/Icon.vue";
+import { vEscape } from "../../ui/events";
 const sharesFeature = useShares();
 const { copiedShare, shareStep, shareTarget, shareUrl } = toRefs(sharesFeature.state);
 const { closeShareDialog, copyShareLink } = sharesFeature;
@@ -15,6 +16,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(shareStep !== null)"
     v-show="shareStep !== null"
+    v-escape="() => closeShareDialog()"
     @click.self="closeShareDialog()"
   >
     <div class="modal-box share-dialog">

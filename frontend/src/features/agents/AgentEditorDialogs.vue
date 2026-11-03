@@ -5,6 +5,7 @@ import { useDom } from "../../shared/dom-context";
 import { useI18n } from "../../shared/i18n-context";
 
 import OmaIcon from "../../ui/Icon.vue";
+import { vEscape } from "../../ui/events";
 const agentsFeature = useAgents();
 const {
   agentSkillSearch,
@@ -57,7 +58,13 @@ const i18nFeature = useI18n();
 const { t } = i18nFeature;
 </script>
 <template>
-  <dialog class="modal" :open="Boolean(!!confirmTarget)" v-show="confirmTarget" @click.self="confirmTarget = null">
+  <dialog
+    class="modal"
+    :open="Boolean(!!confirmTarget)"
+    v-show="confirmTarget"
+    v-escape="() => (confirmTarget = null)"
+    @click.self="confirmTarget = null"
+  >
     <div class="modal-box confirm-box">
       <div class="dialog-head">
         <div>

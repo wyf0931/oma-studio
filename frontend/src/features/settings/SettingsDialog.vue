@@ -7,6 +7,7 @@ import { useI18n } from "../../shared/i18n-context";
 
 import OmaIcon from "../../ui/Icon.vue";
 import { SHORTCUTS } from "../../app/shortcuts";
+import { vEscape } from "../../ui/events";
 const settingsFeature = useSettings();
 const {
   accountCurrentPassword,
@@ -56,6 +57,7 @@ const shortcutsList = (["quickSearch", "toggleSidebar", "skillTemplate"] as cons
     class="modal modal-middle settings-dialog"
     :open="Boolean(settingsOpen)"
     v-show="settingsOpen"
+    v-escape="() => (settingsOpen = false)"
     @click.self="settingsOpen = false"
   >
     <div class="modal-box settings-modal-box">
