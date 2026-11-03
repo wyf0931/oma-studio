@@ -5,7 +5,7 @@ import { useAutopilots } from "./context";
 import { useFormat } from "../../shared/format-context";
 import { useI18n } from "../../shared/i18n-context";
 
-import { vOutside } from "../../ui/events";
+import { vEscape, vOutside } from "../../ui/events";
 import OmaIcon from "../../ui/Icon.vue";
 const agentsFeature = useAgents();
 const { agents } = toRefs(agentsFeature.state);
@@ -34,6 +34,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(autopilotDialog)"
     v-show="autopilotDialog"
+    v-escape="() => (autopilotDialog = false)"
     @click.self="autopilotDialog = false"
   >
     <div class="modal-box autopilot-dialog">

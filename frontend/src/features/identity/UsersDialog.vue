@@ -5,6 +5,7 @@ import { useIdentity } from "./context";
 import { useI18n } from "../../shared/i18n-context";
 
 import OmaIcon from "../../ui/Icon.vue";
+import { vEscape } from "../../ui/events";
 const formatFeature = useFormat();
 const { formatDateTime, statusLabel } = formatFeature;
 const identityFeature = useIdentity();
@@ -18,6 +19,7 @@ const { t } = i18nFeature;
     class="modal modal-middle users-dialog"
     :open="Boolean(usersOpen)"
     v-show="usersOpen"
+    v-escape="() => (usersOpen = false)"
     @click.self="usersOpen = false"
   >
     <div class="modal-box usage-modal-box users-modal-box">

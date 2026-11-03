@@ -4,6 +4,7 @@ import { useMarketplace } from "./context";
 import { useI18n } from "../../shared/i18n-context";
 
 import OmaIcon from "../../ui/Icon.vue";
+import { vEscape } from "../../ui/events";
 const marketplaceFeature = useMarketplace();
 const {
   marketDeleteAgentTarget,
@@ -55,6 +56,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(!!marketUpdateAgentTarget)"
     v-show="marketUpdateAgentTarget"
+    v-escape="() => (marketUpdateAgentTarget = null)"
     @click.self="marketUpdateAgentTarget = null"
   >
     <div class="modal-box confirm-box">
@@ -98,6 +100,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(marketInstallOpen)"
     v-show="marketInstallOpen"
+    v-escape="() => closeMarketInstall()"
     @click.self="closeMarketInstall()"
   >
     <div class="modal-box market-install-dialog">
@@ -250,6 +253,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(marketMcpAddOpen)"
     v-show="marketMcpAddOpen"
+    v-escape="() => closeMarketMcpAdd()"
     @click.self="closeMarketMcpAdd()"
   >
     <div class="modal-box market-install-dialog">
@@ -291,6 +295,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(!!marketUninstallTarget)"
     v-show="marketUninstallTarget"
+    v-escape="() => (marketUninstallTarget = null)"
     @click.self="marketUninstallTarget = null"
   >
     <div class="modal-box confirm-box">
@@ -331,6 +336,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(!!marketPublishTarget)"
     v-show="marketPublishTarget"
+    v-escape="() => (marketPublishTarget = null)"
     @click.self="marketPublishTarget = null"
   >
     <div class="modal-box confirm-box agent-publish-dialog">
@@ -377,6 +383,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(!!marketDeleteAgentTarget)"
     v-show="marketDeleteAgentTarget"
+    v-escape="() => (marketDeleteAgentTarget = null)"
     @click.self="marketDeleteAgentTarget = null"
   >
     <div class="modal-box confirm-box">
@@ -411,6 +418,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(!!marketInstallAgentTarget)"
     v-show="marketInstallAgentTarget"
+    v-escape="() => (marketInstallAgentTarget = null)"
     @click.self="marketInstallAgentTarget = null"
   >
     <div class="modal-box confirm-box">

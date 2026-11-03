@@ -6,6 +6,7 @@ import { useFormat } from "../../shared/format-context";
 import { useI18n } from "../../shared/i18n-context";
 
 import OmaIcon from "../../ui/Icon.vue";
+import { vEscape } from "../../ui/events";
 const settingsFeature = useSettings();
 const {
   accountCurrentPassword,
@@ -50,6 +51,7 @@ const { t } = i18nFeature;
     class="modal modal-middle settings-dialog"
     :open="Boolean(settingsOpen)"
     v-show="settingsOpen"
+    v-escape="() => (settingsOpen = false)"
     @click.self="settingsOpen = false"
   >
     <div class="modal-box settings-modal-box">
