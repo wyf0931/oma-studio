@@ -3,6 +3,7 @@ import { toRefs } from "vue";
 import { useAutopilots } from "./context";
 
 import OmaIcon from "../../ui/Icon.vue";
+import { vEscape } from "../../ui/events";
 const autopilotsFeature = useAutopilots();
 const { autopilotCron, cronBuilderOpen, cronDay, cronDayOfMonth, cronFrequency, cronHour, cronMinute, cronMonth } =
   toRefs(autopilotsFeature.state);
@@ -14,6 +15,7 @@ const { applyCronBuilder, buildCron, cronDaysOfMonth, cronHours, cronMonths, set
     class="modal modal-middle"
     :open="Boolean(cronBuilderOpen)"
     v-show="cronBuilderOpen"
+    v-escape="() => (cronBuilderOpen = false)"
     @click.self="cronBuilderOpen = false"
   >
     <div class="modal-box cron-builder-dialog">

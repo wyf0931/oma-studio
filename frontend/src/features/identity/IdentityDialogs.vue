@@ -4,6 +4,7 @@ import { useIdentity } from "./context";
 import { useI18n } from "../../shared/i18n-context";
 
 import OmaIcon from "../../ui/Icon.vue";
+import { vEscape } from "../../ui/events";
 const identityFeature = useIdentity();
 const { logoutConfirmOpen, newUserEmail, newUserUsername, userAddOpen, userCreating, userDeleteTarget } = toRefs(
   identityFeature.state,
@@ -17,6 +18,7 @@ const { t } = i18nFeature;
     class="modal modal-middle user-add-dialog"
     :open="Boolean(userAddOpen)"
     v-show="userAddOpen"
+    v-escape="() => (userAddOpen = false)"
     @click.self="userAddOpen = false"
   >
     <div class="modal-box">
@@ -59,6 +61,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(!!userDeleteTarget)"
     v-show="userDeleteTarget"
+    v-escape="() => (userDeleteTarget = null)"
     @click.self="userDeleteTarget = null"
   >
     <div class="modal-box confirm-box">
@@ -92,6 +95,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(logoutConfirmOpen)"
     v-show="logoutConfirmOpen"
+    v-escape="() => (logoutConfirmOpen = false)"
     @click.self="logoutConfirmOpen = false"
   >
     <div class="modal-box confirm-box">

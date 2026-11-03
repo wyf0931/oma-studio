@@ -5,6 +5,7 @@ import { useFormat } from "../../shared/format-context";
 import { useI18n } from "../../shared/i18n-context";
 
 import OmaIcon from "../../ui/Icon.vue";
+import { vEscape } from "../../ui/events";
 const sharesFeature = useShares();
 const { shareRecords, shareRecordsLoading, shareRecordsOpen, shareRevokeTarget, shareRevoking } = toRefs(
   sharesFeature.state,
@@ -20,6 +21,7 @@ const { t } = i18nFeature;
     class="modal modal-middle share-records-dialog"
     :open="Boolean(shareRecordsOpen)"
     v-show="shareRecordsOpen"
+    v-escape="() => (shareRecordsOpen = false)"
     @click.self="shareRecordsOpen = false"
   >
     <div class="modal-box usage-modal-box users-modal-box">
@@ -90,6 +92,7 @@ const { t } = i18nFeature;
     class="modal modal-middle"
     :open="Boolean(!!shareRevokeTarget)"
     v-show="shareRevokeTarget"
+    v-escape="() => (shareRevokeTarget = null)"
     @click.self="shareRevokeTarget = null"
   >
     <div class="modal-box confirm-box">
