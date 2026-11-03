@@ -10,7 +10,7 @@ const sharesFeature = useShares();
 const { shareRecords, shareRecordsLoading, shareRecordsOpen, shareRevokeTarget, shareRevoking } = toRefs(
   sharesFeature.state,
 );
-const { confirmRevokeShare, requestRevokeShare, shareRecordTitle, shareRecordUrl } = sharesFeature;
+const { confirmRevokeShare, openShareRecord, requestRevokeShare, shareRecordTitle, shareRecordUrl } = sharesFeature;
 const formatFeature = useFormat();
 const { formatDateTime } = formatFeature;
 const i18nFeature = useI18n();
@@ -51,7 +51,7 @@ const { t } = i18nFeature;
             </thead>
             <tbody>
               <template v-for="share in shareRecords" :key="share.token">
-                <tr class="bg-base-200">
+                <tr class="bg-base-200 share-record-row" @click="openShareRecord(share)">
                   <td v-text="shareRecordTitle(share)"></td>
                   <td>
                     <a
@@ -60,11 +60,21 @@ const { t } = i18nFeature;
                       target="_blank"
                       rel="noopener noreferrer"
                       :aria-label="t('share.openShareRecord') + ' ' + share.token"
+                      @click.stop
                       ><code v-text="share.token"></code
                     ></a>
                   </td>
                   <td v-text="formatDateTime(share.created_at)"></td>
-                  <td>
+                  <td class="share-record-actions" @click.stop>
+                    <a
+                      class="btn btn-ghost btn-sm btn-square"
+                      :href="shareRecordUrl(share)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      :aria-label="t('share.openShareRecord') + ' ' + share.token"
+                      :title="t('share.openShareRecord')"
+                      ><OmaIcon name="eye" aria-hidden="true"
+                    /></a>
                     <button
                       type="button"
                       class="btn btn-ghost btn-error btn-sm btn-square"

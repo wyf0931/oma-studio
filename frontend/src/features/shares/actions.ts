@@ -22,6 +22,7 @@ export interface Actions {
   loadShareRecords(): Promise<void>;
   shareRecordTitle(share: DTO.Share): string;
   shareRecordUrl(share: DTO.Share): string;
+  openShareRecord(share: DTO.Share): void;
   requestRevokeShare(share: Pick<DTO.Share, "token" | "kind">): void;
   confirmRevokeShare(): Promise<void>;
   startShare(): Promise<void>;
@@ -67,6 +68,14 @@ export function createShares(deps: Dependencies): Feature {
   }
   function shareRecordUrl(share: DTO.Share): string {
     return share.url || `/share/${encodeURIComponent(share.token || "")}`;
+  }
+  function openShareRecord(share: DTO.Share): void {
+    // Records resolve to same-origin share paths; rebuilding the target from path+query
+    // means this can never navigate the workspace to a different origin.
+    const target = new URL(shareRecordUrl(share), location.origin);
+    if (target.origin !== location.origin) return;
+    // pi-lens-ignore: no-open-redirect-js
+    window.open(`${target.pathname}${target.search}`, "_blank", "noopener,noreferrer");
   }
   function requestRevokeShare(share: Pick<DTO.Share, "token" | "kind">): void {
     state.shareRevokeTarget = share;
@@ -184,7 +193,9 @@ export function createShares(deps: Dependencies): Feature {
       state.shareStep = "created";
       try {
         await writeClipboardText(state.shareUrl);
-      } catch {}
+      } catch {
+        // Best-effort copy: a blocked clipboard must not fail share creation.
+      }
     } catch (cause) {
       const e = asError(cause);
       deps.shell.showError(e);
@@ -228,6 +239,7 @@ export function createShares(deps: Dependencies): Feature {
     loadShareRecords,
     shareRecordTitle,
     shareRecordUrl,
+    openShareRecord,
     requestRevokeShare,
     confirmRevokeShare,
     startShare,
