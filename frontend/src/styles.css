@@ -447,6 +447,15 @@ body {
  color: var(--muted);
  -webkit-text-fill-color: var(--muted);
 }
+/* While an IME composes, the uncommitted text only exists in the textarea. Let it render
+ natively (with the browser's own composition UI) and step the mirror out of the way. */
+.skill-command-editor.is-composing .skill-command-highlight {
+ visibility: hidden;
+}
+.skill-command-editor.is-composing .start-input {
+ color: var(--ink);
+ -webkit-text-fill-color: var(--ink);
+}
 .skill-command-palette {
  position: absolute;
  left: 16px;

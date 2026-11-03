@@ -48,6 +48,8 @@ export interface Actions {
   handleSkillCommandKeydown(event: KeyboardEvent): void;
   chooseSkillCommand(skill: DTO.Resource): void;
   skillCommandHighlightHtml(): string;
+  syncSkillCommandComposition(event: Event): void;
+  setSkillCommandComposing(composing: boolean): void;
   syncSkillCommandScroll(event: Event): void;
   sendMessage(): Promise<void>;
   markStreamingAssistantMessageEnd(): void;
@@ -381,6 +383,14 @@ export function createChat(deps: Dependencies): Feature {
     );
     if (!skill) return deps.format.escape(state.draft);
     return `<span class="skill-command-highlight-token">${deps.format.escape(command[0])}</span>${deps.format.escape(state.draft.slice(command[0].length))}`;
+  }
+  function syncSkillCommandComposition(event: Event): void {
+    // Composition text reaches the DOM through input(isComposing); this covers IMEs that
+    // report nothing on compositionstart/compositionupdate.
+    if (event instanceof InputEvent) state.skillCommandComposing = event.isComposing;
+  }
+  function setSkillCommandComposing(composing: boolean): void {
+    state.skillCommandComposing = composing;
   }
   function syncSkillCommandScroll(event: Event): void {
     const mirror = document.querySelector<HTMLElement>('[data-ref="skillCommandHighlight"]');
@@ -871,6 +881,8 @@ export function createChat(deps: Dependencies): Feature {
     handleSkillCommandKeydown,
     chooseSkillCommand,
     skillCommandHighlightHtml,
+    syncSkillCommandComposition,
+    setSkillCommandComposing,
     syncSkillCommandScroll,
     sendMessage,
     markStreamingAssistantMessageEnd,
