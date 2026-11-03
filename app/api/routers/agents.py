@@ -9,7 +9,7 @@ from ...avatars import avatar_file, copy_avatar, remove_avatar, save_avatar
 from ...config import Settings
 from ...pi_rpc import PiRpcError, PiRuntimeManager
 from ...resources import discover_resources
-from ...store import SUPPORTED_TOOLS, Store
+from ...store import HR_TOOLS, SUPPORTED_TOOLS, Store
 from .. import contracts
 
 
@@ -88,6 +88,12 @@ def create_router(
 
     def active_agent_or_404(agent_id: str, request: Request) -> dict:
         return visible_or_404(store.get_active_agent(agent_id), request, "Agent")
+
+    def require_admin_for_job_tools(tools: list[str], request: Request) -> None:
+        """Job-management tools exist only for the platform admin."""
+
+        if any(tool in HR_TOOLS for tool in tools):
+            require_admin(request)
 
     def validate_capabilities(
         tools: list[str],
@@ -216,6 +222,7 @@ def create_router(
             if payload.tools is not None
             else list(settings.pi_default_tools)
         )
+        require_admin_for_job_tools(tools, request)
         resource_catalog = catalog()
         validate_capabilities(
             tools,
@@ -436,6 +443,7 @@ def create_router(
         response_model_exclude_unset=True,
     )
     async def update_agent(agent_id: str, payload: AgentUpdate, request: Request):
+        require_admin_for_job_tools(payload.tools or [], request)
         resource_catalog = catalog()
         validate_capabilities(
             payload.tools or [],

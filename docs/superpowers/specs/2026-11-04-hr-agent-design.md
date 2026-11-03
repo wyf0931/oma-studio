@@ -90,7 +90,12 @@ HR Agent 自身：
 
 - **技能本体** = `create_skill` / `update_skill` / `delete_skill`，写磁盘目录。
 - **岗位挂载** = `attach_skill` / `detach_skill`，改 `agents.skills`。
-- `install_skill` / `uninstall_skill` 这两个名字留给"从外部来源安装技能包"（P2，无来源时不做），避免"安装"这个词同时指两件事。
+- **从外部来源安装** = `install_skill` / `uninstall_skill`，**平台已有**：
+  `POST /api/market/skills/{install,uninstall}`（admin only）经 `skills` CLI 装到 Pi home
+  全局目录（`app/market.py`）。HR 只需要包一层同名 tool 转调，不重复实现。
+
+> 更正：审查报告里写的“平台没有任何写 skill 的能力”不准确。平台能**从外部源安装**
+> skill，缺的是**就地创作与修改**（`create_skill` / `update_skill`）。
 
 | Tool           | 入参                                                        | 出参                                                | 说明                                   |
 | -------------- | ----------------------------------------------------------- | --------------------------------------------------- | -------------------------------------- |
@@ -186,15 +191,16 @@ lint 与查重是纯函数（`app/hr_rules.py`），与路由解耦，便于单�
 4. `store.ensure_hr_agent()` 播种内置 HR 岗位（protected、admin 专属）。
 5. HR instruction（≤1200 字符，遵守新契约）+ `oma-hiring` skill 初版（放在内置 skill 目录，随镜像发布）。
 6. 前端不需要改动：HR 就是列表里的一个 Agent。
+7. 岗位卡字段 `deliverable` / `acceptance` 落库（schema v5）+ 契约重新生成。
 
-验收：admin 在对话里能用 HR 查到岗位与技能目录，能挂载/解绑 skill；非 admin 完全看不到 HR 也无法调用工具。
+验收：admin 在对话里能用 HR 查到岗位与技能目录，能建岗改岗，能挂载/解绑 skill；非 admin 完全看不到 HR 也无法调用工具。
 
-### P1（写入能力与闸门）
+### P1（剩余写入能力）
 
-1. `create_agent` / `update_agent` / `delete_agent` + 服务端 lint/查重/验收拦截。
-2. `create_skill` / `update_skill` / `delete_skill` + manifest + 路径校验 + 目录缓存失效。
-3. 岗位卡字段（`deliverable`、`acceptance`）落库：SQLModel 字段 + Pydantic 模型 + `npm run api:generate` + 前端只读展示。
-4. 审计里 15 个存量岗位的迁移脚本（补 description、按新模板重写 instruction、清长尾）。
+1. `create_skill` / `update_skill` / `delete_skill` + 目录校验 + `.oma-skill.json` manifest + 缓存失效；
+   `install_skill` / `uninstall_skill` 转调现有的 `/api/market/skills/*`。
+2. 前端展示岗位卡字段并在编辑器里校验；把 `AgentEditorDialogs.vue` 的 10000 字上限对齐到 lint 预算。
+3. 审计里剩余 14 个存量岗位的迁移（补 description、按新模板重写 instruction）。
 
 验收：HR 能在一次对话里完成"造 skill → 建岗位 → 自检通过"；重复岗位被拦下；删除只能软删且需要显式确认。
 

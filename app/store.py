@@ -24,7 +24,23 @@ DEFAULT_TOOLS = ["read", "write", "edit", "bash"]
 BUILTIN_TOOLS = DEFAULT_TOOLS + ["grep", "find", "ls"]
 WEB_TOOLS = ["web_fetch", "web_search", "publish_artifact"]
 IMAGE_TOOLS = ["generate_image", "edit_image"]
-PLATFORM_TOOLS = WEB_TOOLS + IMAGE_TOOLS
+# Job-management tools. They exist only for the built-in HR agent, which is owned
+# by the platform admin; every other agent is rejected when it selects them.
+HR_TOOLS = [
+    "list_agents",
+    "get_agent",
+    "find_agents",
+    "create_agent",
+    "update_agent",
+    "delete_agent",
+    "list_skills",
+    "get_skill",
+    "find_skills",
+    "attach_skill",
+    "detach_skill",
+    "list_tools",
+]
+PLATFORM_TOOLS = WEB_TOOLS + IMAGE_TOOLS + HR_TOOLS
 SUPPORTED_TOOLS = BUILTIN_TOOLS + PLATFORM_TOOLS
 # Fields where an explicit None clears the stored value instead of meaning
 # "not provided": the Auto model triple, which is stored as NULL so the
@@ -39,6 +55,32 @@ NULLABLE_AGENT_FIELDS = {
 }
 DEFAULT_AGENT_INSTRUCTION = "Be helpful, clear, concise and easy to follow; don't sacrifice clarity for brevity."
 LEGACY_DEFAULT_AGENT_INSTRUCTION = "Be helpful, clear, and concise."
+HR_AGENT_ID = "hr-recruiter"
+HR_AGENT_NAME = "HR"
+HR_AGENT_INSTRUCTION = """# Role
+OMA 的招聘官。负责岗位的设立、变更与撤并：把一句话需求问成一张可验收的岗位卡，
+再落地成 Agent 定义。你不产出业务成果，只产出岗位。
+
+# Deliverable
+一张岗位卡（名称、唯一交付物、职责边界、权限最小集、验收标准）以及落地后的
+Agent 变更结果。
+
+# Boundaries
+- 不代写业务内容。用户要成果时，指出该由哪个岗位接，自己不动手。
+- 未经用户确认不创建、不修改、不删除岗位。删除必须二次确认并说明代价。
+- 没有唯一交付物、没有三条以上可判定验收标准，不建岗位。
+- 默认不授予 bash、写文件与出图权限，除非交付物确实需要。
+- 只管 admin 自己的岗位。越权请求直接拒绝。
+
+# Routing
+oma-hiring：岗位澄清八阶段（任务盘点→定责→查重→定权→定标→起草→落地→review）。
+skill-maker：现有技能覆盖不了能力缺口、需要新建 skill 时加载。
+工具的参数与行为以各自的工具描述为准，不要在对话里复述。
+
+# Environment
+岗位建立后立即出现在左侧列表。技能写在共享 skills 目录，对所有岗位可见。
+删除是软删除，经 API 不可恢复；删除前先说明该岗位还有多少历史会话。
+"""
 # User-owned platform records. Historical rows created before ownership existed
 # carry a NULL user_id and are adopted by admin on startup.
 OWNERSHIP_TABLES = (
@@ -378,6 +420,86 @@ class Store:
             "created_at": now_iso(),
             "updated_at": now_iso(),
         }
+        self._insert("agents", item)
+        return item
+
+    def ensure_hr_agent(
+        self,
+        admin_user_id: str,
+        *,
+        default_tools: list[str] | None = None,
+        skill_paths: list[str] | None = None,
+    ) -> dict:
+        """Seed the built-in hiring job that owns agent creation and review.
+
+        The shipped instruction is reapplied only while it is unedited, so an
+        operator's deliberate rewrite survives a restart.
+        """
+        agent = self.get_agent(HR_AGENT_ID)
+        if agent:
+            values: dict = {}
+            if (
+                not agent.get("instruction")
+                or agent.get("instruction") == HR_AGENT_INSTRUCTION
+            ):
+                values["instruction"] = HR_AGENT_INSTRUCTION
+            tools = list(agent.get("tools") or [])
+            for tool in HR_TOOLS:
+                if tool not in tools:
+                    tools.append(tool)
+            if not agent.get("tools_configured") or tools != (agent.get("tools") or []):
+                values["tools"] = tools
+                values["tools_configured"] = True
+            skills = list(agent.get("skills") or [])
+            for path in skill_paths or []:
+                if path not in skills:
+                    skills.append(path)
+            if skills != (agent.get("skills") or []):
+                values["skills"] = skills
+            for key, value in (
+                ("user_id", admin_user_id),
+                ("protected", True),
+                ("name", HR_AGENT_NAME),
+            ):
+                if agent.get(key) != value:
+                    values[key] = value
+            if values:
+                updated = self.update_agent(HR_AGENT_ID, values)
+                if updated:
+                    agent = updated
+            return agent
+        item = {
+            "id": HR_AGENT_ID,
+            "name": HR_AGENT_NAME,
+            "instruction": HR_AGENT_INSTRUCTION,
+            "description": "内置招聘官：把需求问成岗位卡，建岗、改岗、撤岗与复盘都走它。",
+            "deliverable": "一张岗位卡，以及落地后的 Agent 变更结果",
+            "acceptance": [
+                "岗位卡写明唯一交付物与至少三条可判定验收标准",
+                "新建岗位前报告相似岗位与差异点",
+                "写入前经用户确认，删除经二次确认",
+            ],
+            "tags": ["hr", "岗位编制"],
+            "quickstarts": [
+                "我想招一个能每天给我 AI 行业情报的岗位",
+                "帮我 review 一下现有岗位，哪些该合并",
+                "这个岗位需要能抓网页，看看有什么 skill 可用",
+            ],
+            "provider": None,
+            "model": None,
+            "thinking_level": None,
+            "extensions": [],
+            "skills": list(skill_paths or []),
+            "tools": list(default_tools or []) + HR_TOOLS,
+            "tools_configured": True,
+            "mcp_servers": [],
+            "avatar_path": None,
+            "protected": True,
+            "user_id": admin_user_id,
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }
+        item["content_hash"] = self.agent_content_hash(item)
         self._insert("agents", item)
         return item
 

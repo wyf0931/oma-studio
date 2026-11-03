@@ -19,6 +19,7 @@ from .routers import (
     agents,
     autopilots,
     chats,
+    hr,
     identity,
     marketplace,
     resource_catalog,
@@ -95,6 +96,7 @@ def create_schema() -> dict:
                     _schema_only,
                 ),
                 usage.create_router(settings, store),
+                hr.create_router(settings, store),
             ]
             for router in routers:
                 app.include_router(router)

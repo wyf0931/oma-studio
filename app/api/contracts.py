@@ -87,6 +87,70 @@ class DeletedAgentResponse(OkResponse):
     id: str
 
 
+class HrFinding(BaseModel):
+    code: str
+    level: str
+    message: str
+
+
+class HrDuplicate(BaseModel):
+    agent_id: str | None = None
+    name: str | None = None
+    score: float
+    skills: float
+    description: float
+    deliverable: float
+    shared_skills: list[str] = Field(default_factory=list)
+
+
+class HrAgentDetail(BaseModel):
+    agent: AgentResponse
+    findings: list[HrFinding] = Field(default_factory=list)
+
+
+class HrAgentsResponse(BaseModel):
+    agents: list[AgentResponse]
+
+
+class HrDuplicatesResponse(BaseModel):
+    matches: list[HrDuplicate] = Field(default_factory=list)
+
+
+class HrWriteResponse(BaseModel):
+    agent: AgentResponse
+    findings: list[HrFinding] = Field(default_factory=list)
+    duplicates: list[HrDuplicate] = Field(default_factory=list)
+
+
+class HrSkillSummary(BaseModel):
+    name: str
+    description: str
+    path: str
+    agents: list[str] = Field(default_factory=list)
+
+
+class HrSkillsResponse(BaseModel):
+    skills: list[HrSkillSummary]
+
+
+class HrSkillDetail(BaseModel):
+    skill: HrSkillSummary
+    body: str
+    files: list[str] = Field(default_factory=list)
+
+
+class HrToolSummary(BaseModel):
+    name: str
+    description: str
+    source: str
+    agents: int = 0
+
+
+class HrToolsResponse(BaseModel):
+    tools: list[HrToolSummary]
+    defaults: list[str] = Field(default_factory=list)
+
+
 class ChatResponse(BaseModel):
     id: str
     session_id: str
