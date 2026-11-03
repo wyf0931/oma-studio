@@ -31,6 +31,9 @@ export interface Actions {
   go(page: DTO.Page): void;
   brandClick(): void;
   toggleMobileSidebar(): void;
+  toggleSidebar(): void;
+  quickSearch(): void;
+  insertSkillTemplate(): void;
   comingSoon(name: string): void;
   routeFromUrl(): Promise<void>;
   closeDrawersOutside(event: Event): void;
@@ -55,7 +58,17 @@ export interface Dependencies {
   agents: Pick<AgentsActions, "loadAgents" | "loadResources"> & {
     state: Readonly<Pick<AgentsState, "agents" | "resources">>;
   };
-  chat: Pick<ChatActions, "leaveView" | "clearConversation" | "chooseAgent" | "loadChats" | "newChat" | "openChat"> & {
+  chat: Pick<
+    ChatActions,
+    | "leaveView"
+    | "clearConversation"
+    | "chooseAgent"
+    | "loadChats"
+    | "newChat"
+    | "openChat"
+    | "openChatSearch"
+    | "startSkillTemplate"
+  > & {
     state: Readonly<
       Pick<
         ChatState,
@@ -232,6 +245,18 @@ export function createShell(deps: Dependencies): Feature {
   function toggleMobileSidebar(): void {
     state.mobileSidebarOpen = !state.mobileSidebarOpen;
   }
+  function toggleSidebar(): void {
+    state.sidebarCollapsed = !state.sidebarCollapsed;
+    if (!state.sidebarCollapsed) state.mobileSidebarOpen = false;
+  }
+  function quickSearch(): void {
+    deps.chat.openChatSearch();
+  }
+  function insertSkillTemplate(): void {
+    if (state.page !== "chat") go("chat");
+    if (!deps.chat.state.activeChat) deps.chat.newChat();
+    deps.chat.startSkillTemplate();
+  }
   function comingSoon(name: string): void {
     showError(new ApiError(`${name} is reserved for the next iteration.`));
   }
@@ -346,6 +371,9 @@ export function createShell(deps: Dependencies): Feature {
     go,
     brandClick,
     toggleMobileSidebar,
+    toggleSidebar,
+    quickSearch,
+    insertSkillTemplate,
     comingSoon,
     routeFromUrl,
     closeDrawersOutside,

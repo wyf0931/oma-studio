@@ -35,6 +35,7 @@ export interface Actions {
   cancelEditingChatTitle(): void;
   saveChatTitle(): Promise<void>;
   openChatSearch(): void;
+  startSkillTemplate(): void;
   searchChatResults(): DTO.Chat[];
   selectChatSearchAgent(agentId: string): void;
   selectSearchChat(chat: DTO.Chat): void;
@@ -188,6 +189,14 @@ export function createChat(deps: Dependencies): Feature {
     state.chatSearchAgentFilter = "";
     state.chatSearchAgentPickerOpen = false;
     state.searchOpen = true;
+  }
+  function startSkillTemplate(): void {
+    state.draft = "/skill:";
+    state.skillCommandDismissed = false;
+    void nextTick(() => {
+      if (state.activeChat) document.getElementById("conversation-message")?.focus();
+      else document.getElementById("new-chat-message")?.focus();
+    });
   }
   function searchChatResults(): DTO.Chat[] {
     const query = state.chatSearchQuery.trim().toLowerCase();
@@ -858,6 +867,7 @@ export function createChat(deps: Dependencies): Feature {
     cancelEditingChatTitle,
     saveChatTitle,
     openChatSearch,
+    startSkillTemplate,
     searchChatResults,
     selectChatSearchAgent,
     selectSearchChat,

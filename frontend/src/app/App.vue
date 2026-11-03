@@ -3,6 +3,7 @@ import OmaIcon from "../ui/Icon.vue";
 import { onMounted, onBeforeUnmount, provide, defineAsyncComponent, defineComponent } from "vue";
 import type { Component } from "vue";
 import { installContentEvents } from "../ui/content-events";
+import { SHORTCUTS, matchesShortcut } from "./shortcuts";
 import ChatPage from "../features/chat/ChatPage.vue";
 const LoadFailure = defineComponent({ render: () => null });
 function lazyView(loader: () => Promise<{ default: Component }>) {
@@ -103,8 +104,29 @@ onMounted(() => {
       event.preventDefault();
     }
   };
+  const onShortcut = (event: KeyboardEvent) => {
+    if (application.settings.state.settingsOpen) return;
+    if (matchesShortcut(event, SHORTCUTS.quickSearch)) {
+      event.preventDefault();
+      application.shell.quickSearch();
+    } else if (matchesShortcut(event, SHORTCUTS.toggleSidebar)) {
+      event.preventDefault();
+      application.shell.toggleSidebar();
+    } else if (matchesShortcut(event, SHORTCUTS.skillTemplate)) {
+      // Ignore Cmd+/ while typing so the composer keeps its own "/" skill entry;
+      // otherwise the shortcut pre-fills a new skill command template.
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target?.closest("textarea, input, [contenteditable='true']")) return;
+      event.preventDefault();
+      application.shell.insertSkillTemplate();
+    }
+  };
   window.addEventListener("keydown", onEscape);
-  application.shell.state.cleanups.push(() => window.removeEventListener("keydown", onEscape));
+  window.addEventListener("keydown", onShortcut);
+  application.shell.state.cleanups.push(() => {
+    window.removeEventListener("keydown", onEscape);
+    window.removeEventListener("keydown", onShortcut);
+  });
   void application.shell.init();
 });
 onBeforeUnmount(() => application.dispose());
