@@ -3253,6 +3253,22 @@ pre,
  overflow-wrap: anywhere;
  vertical-align: middle;
 }
+.share-record-row {
+ cursor: pointer;
+}
+.share-record-row:hover {
+ background: var(--color-base-300);
+}
+/* The actions column is not part of the row's open-share target. */
+.share-record-row td:last-child {
+ cursor: default;
+}
+.share-record-actions {
+ white-space: nowrap;
+}
+.share-record-actions > * + * {
+ margin-left: 4px;
+}
 .file-view-back {
  position: fixed;
  top: 18px;
