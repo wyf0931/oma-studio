@@ -6,6 +6,7 @@ import { useFormat } from "../../shared/format-context";
 import { useI18n } from "../../shared/i18n-context";
 
 import OmaIcon from "../../ui/Icon.vue";
+import { SHORTCUTS } from "../../app/shortcuts";
 const settingsFeature = useSettings();
 const {
   accountCurrentPassword,
@@ -44,6 +45,11 @@ const { formatDateTime } = formatFeature;
 const i18nFeature = useI18n();
 const { language } = toRefs(i18nFeature.state);
 const { t } = i18nFeature;
+
+const shortcutsList = (["quickSearch", "toggleSidebar", "skillTemplate"] as const).map((id) => ({
+  id,
+  ...SHORTCUTS[id],
+}));
 </script>
 <template>
   <dialog
@@ -71,6 +77,14 @@ const { t } = i18nFeature;
             :aria-current="settingsTab === 'account' ? 'page' : undefined"
           >
             <OmaIcon name="user-round" aria-hidden="true" /> <span v-text="t('account.title')"></span>
+          </button>
+          <button
+            type="button"
+            :class="{ active: settingsTab === 'shortcuts' }"
+            @click="openSettingsTab('shortcuts')"
+            :aria-current="settingsTab === 'shortcuts' ? 'page' : undefined"
+          >
+            <OmaIcon name="keyboard" aria-hidden="true" /> <span v-text="t('settings.shortcuts.title')"></span>
           </button>
         </aside>
         <section class="settings-content" v-show="settingsTab === 'account'" :aria-label="t('account.title')">
@@ -355,6 +369,28 @@ const { t } = i18nFeature;
                 ><b v-text="t('settings.system')"></b
               ></label>
             </div>
+          </div>
+        </section>
+        <section
+          class="settings-content"
+          v-show="settingsTab === 'shortcuts'"
+          :aria-label="t('settings.shortcuts.title')"
+        >
+          <div class="settings-title">
+            <h3 v-text="t('settings.shortcuts.title')"></h3>
+            <p v-text="t('settings.shortcuts.subtitle')"></p>
+          </div>
+          <div class="settings-section">
+            <ul class="shortcut-list">
+              <li v-for="shortcut in shortcutsList" :key="shortcut.id" class="shortcut-row">
+                <span class="shortcut-name" v-text="t('settings.shortcuts.' + shortcut.id + '.name')"></span>
+                <span class="shortcut-keys">
+                  <kbd class="shortcut-key" v-text="shortcut.modifier()"></kbd>
+                  <span class="shortcut-plus" aria-hidden="true">+</span>
+                  <kbd class="shortcut-key" v-text="shortcut.label"></kbd>
+                </span>
+              </li>
+            </ul>
           </div>
         </section>
       </div>

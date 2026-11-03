@@ -95,7 +95,20 @@
     "light": "Light",
     "dark": "Dark",
     "system": "Follow system",
-    "invalidTimezone": "Timezone must be a valid IANA timezone"
+    "invalidTimezone": "Timezone must be a valid IANA timezone",
+    "shortcuts": {
+      "title": "Keyboard shortcuts",
+      "subtitle": "Learn the shortcuts for moving around the workspace.",
+      "quickSearch": {
+        "name": "Quick search"
+      },
+      "toggleSidebar": {
+        "name": "Toggle sidebar"
+      },
+      "skillTemplate": {
+        "name": "Skill command template"
+      }
+    }
   },
   "chat": {
     "files": "Files",
