@@ -12,8 +12,11 @@ import base64
 import hashlib
 import hmac
 import json
+import os
+import secrets
 import time
 from collections.abc import Iterable
+from pathlib import Path
 
 TOOL_TOKEN_HEADER = "X-OMA-Tool-Token"
 DEFAULT_TTL_SECONDS = 900
@@ -27,6 +30,37 @@ WRITE_SCOPES = READ_SCOPES + (AGENT_WRITE, SKILL_WRITE)
 
 class ToolTokenError(ValueError):
     """Raised when a tool token is malformed, expired, or out of scope."""
+
+
+def resolve_tool_token_secret(configured: str | None, data_dir: Path) -> str:
+    """Return the signing secret, persisting a generated one for the deployment.
+
+    A per-process secret would break tool calls as soon as the app runs more than
+    one worker or restarts between minting and use, so an unset value is stored in
+    the data directory with owner-only permissions instead.
+    """
+
+    if configured:
+        return configured
+    path = data_dir / "tool-token.secret"
+    try:
+        if path.exists():
+            existing = path.read_text(encoding="utf-8").strip()
+            if existing:
+                return existing
+        generated = secrets.token_urlsafe(32)
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        try:
+            handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            return path.read_text(encoding="utf-8").strip() or generated
+        with os.fdopen(handle, "w", encoding="utf-8") as stream:
+            stream.write(generated)
+        return generated
+    except OSError:
+        # A read-only data directory leaves the tokens process-local, which is
+        # still correct for a single worker.
+        return secrets.token_urlsafe(32)
 
 
 def _b64encode(raw: bytes) -> str:

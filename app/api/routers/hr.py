@@ -29,6 +29,7 @@ from ...tool_tokens import (
     SKILL_READ,
     TOOL_TOKEN_HEADER,
     ToolTokenError,
+    resolve_tool_token_secret,
     verify_tool_token,
 )
 from .. import contracts
@@ -99,7 +100,11 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
     def authenticate(token: str | None, scope: str) -> dict:
         try:
             claim = verify_tool_token(
-                settings.tool_token_secret, token, required_scope=scope
+                resolve_tool_token_secret(
+                    settings.tool_token_secret, settings.data_dir
+                ),
+                token,
+                required_scope=scope,
             )
         except ToolTokenError as exc:
             raise HTTPException(401, str(exc)) from exc

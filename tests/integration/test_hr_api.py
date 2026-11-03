@@ -3,7 +3,7 @@ import uuid
 import pytest
 
 import app.main as main_module
-from app.tool_tokens import WRITE_SCOPES, issue_tool_token
+from app.tool_tokens import WRITE_SCOPES, issue_tool_token, resolve_tool_token_secret
 
 GOOD_INSTRUCTION = """# Role
 交付带证据与判断的报告。
@@ -23,7 +23,9 @@ def _token(
     user_id: str, *, scopes=WRITE_SCOPES, ttl_seconds: int = 900, now=None
 ) -> str:
     return issue_tool_token(
-        main_module.settings.tool_token_secret,
+        resolve_tool_token_secret(
+            main_module.settings.tool_token_secret, main_module.settings.data_dir
+        ),
         chat_id="test-chat",
         user_id=user_id,
         scopes=scopes,

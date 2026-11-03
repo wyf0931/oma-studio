@@ -1,5 +1,4 @@
 import os
-import secrets
 from dataclasses import dataclass
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -158,9 +157,9 @@ def get_settings() -> Settings:
         system_timezone=system_timezone,
         max_upload_files=positive_int("OMA_MAX_UPLOAD_FILES", 100),
         max_upload_bytes=positive_int("OMA_MAX_UPLOAD_MB", 100) * 1024 * 1024,
-        # Platform tools call back into this process. The secret only needs to
-        # outlive one Pi child, so an unset value can be random per process.
-        tool_token_secret=value("OMA_TOOL_TOKEN_SECRET") or secrets.token_urlsafe(32),
+        # Job tools sign their calls with this secret. An empty value is resolved
+        # lazily at call time so building Settings never writes to the data dir.
+        tool_token_secret=value("OMA_TOOL_TOKEN_SECRET") or "",
         internal_base_url=(
             value("OMA_INTERNAL_BASE_URL")
             or f"http://127.0.0.1:{value('OMA_PORT', '8000')}"

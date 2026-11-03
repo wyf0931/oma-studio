@@ -10,10 +10,7 @@ from typing import Any
 from .config import subprocess_environment
 from .resources import discover_resources, resolve_extension_path
 from .store import HR_TOOLS, IMAGE_TOOLS, WEB_TOOLS, pi_terminal_failure
-from .tool_tokens import (
-    WRITE_SCOPES,
-    issue_tool_token,
-)
+from .tool_tokens import WRITE_SCOPES, issue_tool_token, resolve_tool_token_secret
 
 logger = logging.getLogger(__name__)
 
@@ -535,7 +532,9 @@ class PiRuntimeManager:
         if not owner or owner.get("role") != "admin":
             return None
         return issue_tool_token(
-            self.settings.tool_token_secret,
+            resolve_tool_token_secret(
+                self.settings.tool_token_secret, self.settings.data_dir
+            ),
             chat_id=str(chat.get("id") or ""),
             user_id=str(owner["id"]),
             scopes=WRITE_SCOPES,

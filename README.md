@@ -311,10 +311,11 @@ OMA_INTERNAL_BASE_URL=
 `OMA_MAX_UPLOAD_FILES` and `OMA_MAX_UPLOAD_MB` configure the maximum number and total size of unique files staged for one chat/session. Re-uploading identical bytes in the same chat reuses the existing upload record and does not consume another slot. They default to 100 files and 100 MiB.
 
 `OMA_TOOL_TOKEN_SECRET` signs the short-lived capability tokens the built-in HR
-agent's tools use to call `/api/hr/*` over loopback. Leaving it empty generates a
-random per-process secret, which is enough for a single-process deployment; set
-it only when the API is reachable at a different address. `OMA_INTERNAL_BASE_URL`
-overrides the `http://127.0.0.1:<OMA_PORT or 8000>` base those tools call.
+agent's tools use to call `/api/hr/*` over loopback. Leaving it empty persists a
+generated secret at `PI_PLATFORM_DATA_DIR/tool-token.secret` (mode `0600`) so
+restarts and multiple workers agree on it; set it explicitly to manage the secret
+yourself. `OMA_INTERNAL_BASE_URL` overrides the
+`http://127.0.0.1:<OMA_PORT or 8000>` base those tools call.
 
 The bundled Docker Compose service exposes FastAPI directly and does not include NGINX. It publishes
 port 8000 on loopback by default, so a reverse proxy on the same host is the only way in; set
