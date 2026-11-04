@@ -42,6 +42,23 @@ export const SHORTCUTS = {
 
 export type ShortcutId = keyof typeof SHORTCUTS;
 
+/**
+ * Composer bindings. Enter sends, Shift+Enter inserts a line break and the
+ * primary modifier plus Enter also sends — the behaviour shared by the ChatGPT
+ * desktop app, Codex and Slack. Kept apart from SHORTCUTS because the display is
+ * a key sequence rather than modifier plus letter.
+ */
+export interface ComposerShortcut {
+  id: string;
+  keys: () => string[];
+}
+
+export const COMPOSER_SHORTCUTS: readonly ComposerShortcut[] = [
+  { id: "sendMessage", keys: () => ["Enter"] },
+  { id: "newline", keys: () => ["Shift", "Enter"] },
+  { id: "sendWithModifier", keys: () => [primaryModifierLabel(), "Enter"] },
+] as const;
+
 /** True when the keydown event matches a shortcut binding. */
 export function matchesShortcut(event: KeyboardEvent, binding: ShortcutBinding): boolean {
   if (!hasPrimaryModifier(event)) return false;

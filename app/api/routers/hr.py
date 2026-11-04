@@ -28,6 +28,10 @@ from ...skill_store import (
     SkillStoreError,
     create_skill,
     delete_skill,
+    inventory,
+    locate,
+    quarantine,
+    read_manifest,
     skill_files,
     update_skill,
 )
@@ -556,16 +560,28 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
             raise HTTPException(400, str(exc)) from exc
         return skill_response(name)
 
+    def extra_skill_roots() -> list[Path]:
+        return [Path(settings.pi_home).expanduser() / "skills"]
+
     @router.delete(
         "/skills/{name}",
-        response_model=contracts.OkResponse,
+        response_model=contracts.HrSkillDeleteResponse,
         response_model_exclude_unset=True,
     )
     def delete_skill_endpoint(
         name: str,
         confirm: bool = False,
+        force: bool = False,
         x_oma_tool_token: str | None = Header(default=None),
     ):
+        """Delete a platform skill, or quarantine an operator-installed one.
+
+        An unmanaged directory (no manifest) is never destroyed silently: without
+        `force` the response carries its file inventory so the operator can review
+        exactly what would move, and `force` only relocates it to the data
+        directory's skill-trash folder.
+        """
+
         authenticate(x_oma_tool_token, SKILL_WRITE)
         if not confirm:
             raise HTTPException(400, "Deleting a skill requires confirm=true")
@@ -574,11 +590,35 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
             raise HTTPException(
                 409, f"Skill {name} is still attached to: {', '.join(sorted(jobs))}"
             )
+        root = skill_root()
+        directory = locate(root, name, extra_skill_roots())
+        if directory is None:
+            raise HTTPException(404, f"Skill {name} is not installed")
+        if read_manifest(directory) is None:
+            files = inventory(directory)
+            if not force:
+                return structured_error(
+                    409,
+                    f"Skill {name} is not managed by the platform",
+                    unmanaged=True,
+                    root=str(directory.parent),
+                    files=files,
+                )
+            target = quarantine(directory, settings.data_dir / "skill-trash", now_iso())
+            return {
+                "ok": True,
+                "deleted": name,
+                "quarantined_to": str(target),
+            }
+        if directory.parent != root.skills_dir.resolve():
+            raise HTTPException(
+                400, f"Skill {name} is managed but not in the shared skills root"
+            )
         try:
-            delete_skill(skill_root(), name)
+            delete_skill(root, name)
         except SkillStoreError as exc:
             raise HTTPException(400, str(exc)) from exc
-        return {"ok": True}
+        return {"ok": True, "deleted": name}
 
     @router.post(
         "/skills/install",
@@ -630,6 +670,152 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
         except RuntimeError as exc:
             raise HTTPException(502, f"skill uninstall failed: {exc}") from exc
         return {"ok": True}
+
+    @router.get(
+        "/market",
+        response_model=contracts.HrMarketResponse,
+        response_model_exclude_unset=True,
+    )
+    def list_market(
+        type: str | None = None,
+        query: str | None = None,
+        x_oma_tool_token: str | None = Header(default=None),
+    ):
+        """List published agents plus the installed skill, MCP and extension catalogues."""
+
+        authenticate(x_oma_tool_token, AGENT_READ)
+        wanted = (type or "").strip().lower()
+        needle = (query or "").strip().casefold()
+        resource_catalog = catalog()
+        items: list[dict] = []
+        if wanted in {"", "agents", "agent"}:
+            for publication in store.list_agent_publications():
+                latest = publication["latest"]
+                items.append(
+                    {
+                        "type": "agent",
+                        "id": publication["id"],
+                        "name": publication["name"],
+                        "description": publication.get("description"),
+                        "detail": f"latest {latest['version']} · {publication.get('install_count', 0)} installs",
+                    }
+                )
+        for kind, key, label in (
+            ("skills", "skills", "skill"),
+            ("mcp", "mcp_servers", "mcp"),
+            ("extensions", "extensions", "extension"),
+        ):
+            if wanted not in {"", kind, label}:
+                continue
+            for item in resource_catalog[key]:
+                items.append(
+                    {
+                        "type": label,
+                        "id": item.get("id") or item.get("path") or item["name"],
+                        "name": item["name"],
+                        "description": item.get("description"),
+                        "detail": item.get("source")
+                        or item.get("author")
+                        or item.get("path"),
+                    }
+                )
+        if needle:
+            items = [
+                item
+                for item in items
+                if needle
+                in f"{item['name']} {item.get('description') or ''}".casefold()
+            ]
+        return {"items": items}
+
+    @router.post(
+        "/market/agents/{agent_id}/publish",
+        response_model=contracts.HrMarketResponse,
+        response_model_exclude_unset=True,
+    )
+    def publish_market_agent(
+        agent_id: str,
+        payload: contracts.HrPublishRequest,
+        x_oma_tool_token: str | None = Header(default=None),
+    ):
+        user = authenticate(x_oma_tool_token, AGENT_WRITE)["user"]
+        agent = own_agent_or_404(agent_id, user)
+        if not payload.confirm:
+            raise HTTPException(400, "Publishing a job requires confirm=true")
+        version = (
+            payload.version
+            if payload.version.startswith("v")
+            else f"v{payload.version}"
+        )
+        publication = next(
+            (
+                item
+                for item in store.list_agent_publications()
+                if item["source_agent_id"] == agent_id
+            ),
+            None,
+        )
+        if publication and store.has_agent_publication_version(
+            publication["id"], version
+        ):
+            raise HTTPException(409, f"Agent version {version} already exists")
+        published = store.publish_agent(agent, user["id"], version)
+        return {
+            "items": [
+                {
+                    "type": "agent",
+                    "id": published["id"],
+                    "name": published["name"],
+                    "description": published.get("description"),
+                    "detail": f"published {version}",
+                }
+            ]
+        }
+
+    @router.delete(
+        "/market/agents/{publication_id}",
+        response_model=contracts.HrSkillDeleteResponse,
+        response_model_exclude_unset=True,
+    )
+    def unpublish_market_agent(
+        publication_id: str,
+        confirm: bool = False,
+        x_oma_tool_token: str | None = Header(default=None),
+    ):
+        authenticate(x_oma_tool_token, AGENT_WRITE)
+        if not confirm:
+            raise HTTPException(400, "Unpublishing a job requires confirm=true")
+        publication = store.get_agent_publication(publication_id)
+        if not publication:
+            raise HTTPException(404, "Published Agent not found")
+        if not store.delete_agent_publication(publication_id):
+            raise HTTPException(404, "Published Agent not found")
+        return {"ok": True, "deleted": str(publication.get("name") or publication_id)}
+
+    @router.post(
+        "/market/agents/{publication_id}/install",
+        status_code=201,
+        response_model=contracts.HrAgentsResponse,
+        response_model_exclude_unset=True,
+    )
+    def install_market_agent(
+        publication_id: str,
+        payload: contracts.HrInstallRequest,
+        x_oma_tool_token: str | None = Header(default=None),
+    ):
+        user = authenticate(x_oma_tool_token, AGENT_WRITE)["user"]
+        if not payload.confirm:
+            raise HTTPException(400, "Installing a job requires confirm=true")
+        publication = store.get_agent_publication(publication_id)
+        if not publication:
+            raise HTTPException(404, "Published Agent not found")
+        version = payload.version
+        if version and not version.startswith("v"):
+            version = f"v{version}"
+        installed = store.install_agent_publication(publication_id, user["id"], version)
+        if not installed:
+            raise HTTPException(404, "Published Agent version not found")
+        return {"agents": [installed]}
 
     return router
 

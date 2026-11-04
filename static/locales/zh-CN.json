@@ -107,6 +107,17 @@
       },
       "skillTemplate": {
         "name": "快捷指令/技能模板"
+      },
+      "composerTitle": "输入框",
+      "composerNote": "Enter 直接发送；Shift+Enter 换行，与 ChatGPT、Codex 一致。",
+      "sendMessage": {
+        "name": "发送消息"
+      },
+      "newline": {
+        "name": "换行"
+      },
+      "sendWithModifier": {
+        "name": "发送消息（备用）"
       }
     }
   },

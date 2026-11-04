@@ -382,16 +382,116 @@ const deleteSkillTool = defineTool({
   name: "delete_skill",
   label: "Delete Skill",
   description:
-    "Delete a platform-authored skill. Refuses skills that are still attached to a job or were not created here.",
-  promptSnippet: "delete_skill: remove a skill only after detaching it from every job.",
+    "Delete a platform-authored skill, or quarantine an operator-installed one. Refuses skills still attached to a job. Without force, an unmanaged skill returns its file inventory instead of being removed.",
+  promptSnippet:
+    "delete_skill: detach first; for an installed skill, show the inventory and get explicit approval before force.",
   parameters: Type.Object({
     name: Type.String({ description: "Skill name." }),
+    confirm: Type.Boolean({ description: "Set true only after the user confirmed the removal." }),
+    force: Type.Optional(
+      Type.Boolean({
+        description:
+          "Move an unmanaged skill to the data directory's skill-trash instead of refusing. Requires the user to approve the file inventory first.",
+      }),
+    ),
+  }),
+  async execute(_toolCallId, params) {
+    const query = new URLSearchParams({
+      confirm: params.confirm ? "true" : "false",
+      force: params.force ? "true" : "false",
+    });
+    const payload = await callPlatform(
+      "DELETE",
+      `/api/hr/skills/${encodeURIComponent(params.name.trim())}?${query.toString()}`,
+    );
+    return { content: [{ type: "text", text: stringify(payload) }], details: {} };
+  },
+});
+
+const listMarketTool = defineTool({
+  name: "list_market",
+  label: "List Marketplace",
+  description:
+    "List published jobs plus installed skills, MCP servers and extensions, optionally filtered by type and text.",
+  promptSnippet: "list_market: check what already exists before hiring or authoring.",
+  parameters: Type.Object({
+    type: Type.Optional(
+      Type.String({ description: "agent, skill, mcp or extension. Omit for everything." }),
+    ),
+    query: Type.Optional(Type.String({ description: "Case-insensitive text filter." })),
+  }),
+  async execute(_toolCallId, params) {
+    const query = new URLSearchParams();
+    if (params.type) query.set("type", params.type);
+    if (params.query) query.set("query", params.query);
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    const payload = asRecord(await callPlatform("GET", `/api/hr/market${suffix}`));
+    const items = recordList(payload?.items);
+    const text = items.length
+      ? items
+          .map(
+            (item) =>
+              `- [${fieldText(item, "type")}] ${fieldText(item, "name")} — ${fieldText(item, "description").slice(0, 110)}${fieldText(item, "detail") ? ` (${fieldText(item, "detail")})` : ""}`,
+          )
+          .join("\n")
+      : "Nothing published or installed for that filter.";
+    return { content: [{ type: "text", text }], details: { count: items.length } };
+  },
+});
+
+const publishAgentTool = defineTool({
+  name: "publish_agent",
+  label: "Publish Job",
+  description: "Publish an owned job to the organization marketplace with a SemVer version.",
+  promptSnippet: "publish_agent: share a finished job, after the user confirms the version.",
+  parameters: Type.Object({
+    agent_id: Type.String({ description: "Job id." }),
+    version: Type.String({ description: "SemVer such as v1.0.0." }),
+    confirm: Type.Boolean({ description: "Set true only when the user confirmed the publication." }),
+  }),
+  async execute(_toolCallId, params) {
+    const payload = await callPlatform(
+      "POST",
+      `/api/hr/market/agents/${encodeURIComponent(params.agent_id.trim())}/publish`,
+      { version: params.version, confirm: params.confirm },
+    );
+    return { content: [{ type: "text", text: stringify(payload) }], details: {} };
+  },
+});
+
+const unpublishAgentTool = defineTool({
+  name: "unpublish_agent",
+  label: "Unpublish Job",
+  description: "Remove a job publication from the marketplace. Installed copies stay untouched.",
+  promptSnippet: "unpublish_agent: pull a listing, keeping installed copies.",
+  parameters: Type.Object({
+    publication_id: Type.String({ description: "Publication id from list_market." }),
     confirm: Type.Boolean({ description: "Set true only after the user confirmed the removal." }),
   }),
   async execute(_toolCallId, params) {
     const payload = await callPlatform(
       "DELETE",
-      `/api/hr/skills/${encodeURIComponent(params.name.trim())}?confirm=${params.confirm ? "true" : "false"}`,
+      `/api/hr/market/agents/${encodeURIComponent(params.publication_id.trim())}?confirm=${params.confirm ? "true" : "false"}`,
+    );
+    return { content: [{ type: "text", text: stringify(payload) }], details: {} };
+  },
+});
+
+const installMarketAgentTool = defineTool({
+  name: "install_market_agent",
+  label: "Install Job",
+  description: "Install a published job as a private copy, optionally pinned to a version.",
+  promptSnippet: "install_market_agent: hire a published job instead of writing a new one.",
+  parameters: Type.Object({
+    publication_id: Type.String({ description: "Publication id from list_market." }),
+    version: Type.Optional(Type.String({ description: "Optional SemVer to pin." })),
+    confirm: Type.Boolean({ description: "Set true only when the user confirmed the install." }),
+  }),
+  async execute(_toolCallId, params) {
+    const payload = await callPlatform(
+      "POST",
+      `/api/hr/market/agents/${encodeURIComponent(params.publication_id.trim())}/install`,
+      { version: params.version ?? null, confirm: params.confirm },
     );
     return { content: [{ type: "text", text: stringify(payload) }], details: {} };
   },
@@ -451,5 +551,9 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool(deleteSkillTool);
   pi.registerTool(installSkillTool);
   pi.registerTool(uninstallSkillTool);
+  pi.registerTool(listMarketTool);
+  pi.registerTool(publishAgentTool);
+  pi.registerTool(unpublishAgentTool);
+  pi.registerTool(installMarketAgentTool);
   pi.registerTool(listToolsTool);
 }

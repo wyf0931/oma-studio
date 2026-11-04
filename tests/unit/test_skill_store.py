@@ -8,6 +8,9 @@ from app.skill_store import (
     SkillStoreError,
     create_skill,
     delete_skill,
+    inventory,
+    locate,
+    quarantine,
     read_manifest,
     skill_files,
     split_skill,
@@ -185,3 +188,46 @@ def test_reference_symlink_cannot_escape_the_skill_directory(tmp_path):
         )
 
     assert list(outside.iterdir()) == []
+
+
+def test_locate_finds_a_skill_in_extra_roots(tmp_path):
+    root = make_root(tmp_path)
+    create_skill(root, "shared-skill", DESCRIPTION, BODY, timestamp=TIMESTAMP)
+    pi_home_skills = tmp_path / "pi-home" / "skills"
+    (pi_home_skills / "installed-skill").mkdir(parents=True)
+    (pi_home_skills / "installed-skill" / "SKILL.md").write_text(
+        "body", encoding="utf-8"
+    )
+
+    assert locate(root, "shared-skill", [pi_home_skills]) is not None
+    assert locate(root, "installed-skill", [pi_home_skills]) is not None
+    assert locate(root, "missing-skill", [pi_home_skills]) is None
+    with pytest.raises(SkillStoreError):
+        locate(root, "../escape", [pi_home_skills])
+
+
+def test_inventory_and_quarantine_keep_the_files(tmp_path):
+    root = make_root(tmp_path)
+    directory = create_skill(
+        root,
+        "hiring-test",
+        DESCRIPTION,
+        BODY,
+        references={"references/a.md": "abc"},
+        timestamp=TIMESTAMP,
+    )
+
+    entries = inventory(directory)
+    assert {entry["path"] for entry in entries} == {
+        "SKILL.md",
+        "references/a.md",
+        MANIFEST_NAME,
+    }
+    assert all(isinstance(entry["bytes"], int) for entry in entries)
+
+    trash = tmp_path / "data" / "skill-trash"
+    target = quarantine(directory, trash, TIMESTAMP)
+
+    assert not directory.exists()
+    assert (target / "SKILL.md").is_file()
+    assert (target / "references" / "a.md").read_text(encoding="utf-8") == "abc"

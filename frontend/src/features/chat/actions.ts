@@ -47,6 +47,7 @@ export interface Actions {
   skillCommandVisible(): boolean;
   updateSkillCommandState(): void;
   handleSkillCommandKeydown(event: KeyboardEvent): void;
+  handleComposerKeydown(event: KeyboardEvent, send: () => void | Promise<void>): void;
   chooseSkillCommand(skill: DTO.Resource): void;
   skillCommandHighlightHtml(): string;
   syncSkillCommandComposition(event: Event): void;
@@ -347,6 +348,21 @@ export function createChat(deps: Dependencies): Feature {
       )
       .filter((skill) => skill.name.toLowerCase().includes(match.query))
       .slice(0, 8);
+  }
+  /**
+   * Composer key handling shared by the start view and the chat view.
+   *
+   * Enter sends, Shift+Enter inserts a line break, and the primary modifier plus
+   * Enter also sends. Enter never sends while an IME is composing, and a visible
+   * command palette consumes the key first (it calls preventDefault).
+   */
+  function handleComposerKeydown(event: KeyboardEvent, send: () => void | Promise<void>): void {
+    if (event.key !== "Enter") return;
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.defaultPrevented) return;
+    if (event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    void send();
   }
   function skillCommandVisible(): boolean {
     return Boolean(skillCommandMatch()) && !state.skillCommandDismissed;
@@ -889,6 +905,7 @@ export function createChat(deps: Dependencies): Feature {
     skillCommandVisible,
     updateSkillCommandState,
     handleSkillCommandKeydown,
+    handleComposerKeydown,
     chooseSkillCommand,
     skillCommandHighlightHtml,
     syncSkillCommandComposition,

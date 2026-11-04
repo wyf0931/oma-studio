@@ -107,6 +107,17 @@
       },
       "skillTemplate": {
         "name": "Skill command template"
+      },
+      "composerTitle": "Composer",
+      "composerNote": "Enter sends; Shift+Enter starts a new line, as in ChatGPT and Codex.",
+      "sendMessage": {
+        "name": "Send message"
+      },
+      "newline": {
+        "name": "New line"
+      },
+      "sendWithModifier": {
+        "name": "Send message (alternative)"
       }
     }
   },
