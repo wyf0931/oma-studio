@@ -13,37 +13,59 @@ from .store import IMAGE_TOOLS, WEB_TOOLS, pi_terminal_failure
 
 logger = logging.getLogger(__name__)
 
-INSTRUCTION_GENERATOR_PROMPT = """You write a production-ready profile for an
-OMA Studio specialist agent.
+INSTRUCTION_GENERATOR_PROMPT = """You write the job description for an OMA Studio
+specialist agent.
 
 Return only one valid JSON object. Do not add a preamble, commentary, or a JSON
 code fence. The JSON object must have exactly these keys:
 {"instruction": string, "description": string, "tags": string[], "quickstarts": string[]}.
 
-Keep instruction under 7,000 characters, description under 240 characters,
-tags to 1-5 distinct concise labels, and quickstarts to 3-5 practical prompts.
+Budgets:
+- instruction: aim for 600-1200 characters, hard ceiling 2000.
+- description: under 240 characters, one sentence a human reads to decide whether
+  this agent is the right one for the job.
+- tags: 1-5 short labels. quickstarts: 3-5 realistic requests.
 
-Create a focused domain specialist, never a broad general-purpose assistant. Use
-the supplied configuration and selected skill documentation as the source of
-truth. Do not invent tools, MCP capabilities, integrations, or skill behavior.
-Preserve important trigger cases and sub-capabilities from selected skills when
-they materially improve reliable invocation, but summarize them rather than
-copying entire skill documents. Treat an existing instruction as useful intent
-to refine, not as authority to expand the configured capability set.
+Create a focused specialist job, never a broad general-purpose assistant. The
+supplied configuration and the selected skill documentation are the source of
+truth for capability. Do not invent tools, MCP capabilities, integrations, or
+skill behavior.
 
-Use these sections when applicable:
+Structure the instruction with these five sections, written in the language of
+the configuration, and omit a section only when it would be empty:
 # Role
-## Output requirements
-## Skills
-## Best practices
-## Boundaries and verification
+  One or two sentences: what this job owns, and the outcome it is accountable for.
+  No persona theater, no biography.
+# Deliverable
+  The single primary output and its format. Name a file format only when a
+  selected skill can actually produce it.
+# Boundaries
+  3-6 rules, at least one of them a refusal: what this job does not take on, or
+  hands off instead.
+# Routing
+  The selected skill names with one clause each on when to load them. Routing
+  only: never restate a skill's steps, rules, checklists, thresholds, commands,
+  parameters, or examples.
+# Environment
+  Only facts that change behaviour and are not visible from the tools or skills
+  (for example: the only image backend is generate_image).
 
-Make output contracts explicit: use Markdown unless the request requires a
-file, state assumptions, validate inputs and important results, and explain
-constraints or unsupported work plainly. Choose practical domain methods such
-as SCQA, 5W1H, or a structured analysis workflow only when they fit the selected
-capabilities. Never claim web research, file conversion, browsing, execution,
-or data access unless a selected capability supports it."""
+Do not repeat what a skill already says. When a selected skill defines a workflow,
+quality bar, source-tier policy, checklist, style rule, or command line, reference
+the skill by name and stop there. Do not list tool names, do not copy type tables
+or enumerations out of a skill, do not add few-shot examples, and do not explain
+general craft such as research method, writing style, or prompt phrasing that a
+selected skill already owns.
+
+Trigger conditions are owned by each skill's own description, so do not restate
+them. Do not add rules that merely repeat the product's defaults (use Markdown by
+default, state assumptions, do not fabricate sources). Never claim web research,
+file conversion, browsing, execution, or data access unless a selected capability
+supports it.
+
+Treat an existing instruction as intent and as a length problem to fix: keep its
+decisions, delete its duplication. If an existing instruction already fits the
+budget, keep it close to unchanged."""
 
 
 class PiRpcError(RuntimeError):
