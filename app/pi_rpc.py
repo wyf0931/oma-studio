@@ -9,7 +9,8 @@ from typing import Any
 
 from .config import subprocess_environment
 from .resources import discover_resources, resolve_extension_path
-from .store import IMAGE_TOOLS, WEB_TOOLS, pi_terminal_failure
+from .store import HR_TOOLS, IMAGE_TOOLS, WEB_TOOLS, pi_terminal_failure
+from .tool_tokens import WRITE_SCOPES, issue_tool_token, resolve_tool_token_secret
 
 logger = logging.getLogger(__name__)
 
@@ -399,6 +400,9 @@ class PiRuntimeManager:
                 Path(__file__).parent.parent / "extensions" / "oma-image-tools.ts"
             )
             command += ["--extension", str(extension)]
+        if any(tool in tools for tool in HR_TOOLS):
+            extension = Path(__file__).parent.parent / "extensions" / "oma-hr-tools.ts"
+            command += ["--extension", str(extension)]
         extension_paths = self._extension_paths(agent)
         if any("pi-mcp-adapter" in path for path in extension_paths):
             for tool in ("mcp", "mcpScript"):
@@ -499,7 +503,9 @@ class PiRuntimeManager:
                 return str(Path(root) / suffix)
         return value
 
-    def _environment(self) -> dict[str, str]:
+    def _environment(
+        self, agent: dict | None = None, chat: dict | None = None
+    ) -> dict[str, str]:
         environment = subprocess_environment()
         for name, value in {
             "JINA_API_KEY": getattr(self.settings, "jina_api_key", None),
@@ -523,7 +529,38 @@ class PiRuntimeManager:
         }.items():
             if value:
                 environment[name] = value
+        token = self._tool_token(agent, chat)
+        if token:
+            environment["OMA_TOOL_TOKEN"] = token
+            environment["OMA_INTERNAL_BASE_URL"] = str(
+                getattr(self.settings, "internal_base_url", "")
+                or "http://127.0.0.1:8000"
+            )
         return environment
+
+    def _tool_token(self, agent: dict | None, chat: dict | None) -> str | None:
+        """Mint a scoped capability token for job-management tools.
+
+        Only an admin chat that actually selected one of the HR tools gets one, so
+        a specialist agent cannot reach the platform's write surface even if a
+        tool name leaks into its definition.
+        """
+
+        if not agent or not chat or self.store is None:
+            return None
+        if not any(tool in HR_TOOLS for tool in agent.get("tools") or []):
+            return None
+        owner = self.store.get_user(str(chat.get("user_id") or ""))
+        if not owner or owner.get("role") != "admin":
+            return None
+        return issue_tool_token(
+            resolve_tool_token_secret(
+                self.settings.tool_token_secret, self.settings.data_dir
+            ),
+            chat_id=str(chat.get("id") or ""),
+            user_id=str(owner["id"]),
+            scopes=WRITE_SCOPES,
+        )
 
     def _mcp_override(self, agent: dict) -> tuple[str | None, list[Path]]:
         if not any(
@@ -563,7 +600,7 @@ class PiRuntimeManager:
             command,
             str(self.settings.pi_cwd),
             cleanup_paths=cleanup_paths,
-            env=self._environment(),
+            env=self._environment(agent, chat),
         )
         state = await client.start()
         if register:

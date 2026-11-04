@@ -31,6 +31,15 @@ export declare function validateExtensionResultResponse(
 ): value is components["schemas"]["ExtensionResultResponse"];
 export declare function validateFilesResponse(value: unknown): value is components["schemas"]["FilesResponse"];
 export declare function validateHealthResponse(value: unknown): value is components["schemas"]["HealthResponse"];
+export declare function validateHrAgentDetail(value: unknown): value is components["schemas"]["HrAgentDetail"];
+export declare function validateHrAgentsResponse(value: unknown): value is components["schemas"]["HrAgentsResponse"];
+export declare function validateHrDuplicatesResponse(
+  value: unknown,
+): value is components["schemas"]["HrDuplicatesResponse"];
+export declare function validateHrSkillDetail(value: unknown): value is components["schemas"]["HrSkillDetail"];
+export declare function validateHrSkillsResponse(value: unknown): value is components["schemas"]["HrSkillsResponse"];
+export declare function validateHrToolsResponse(value: unknown): value is components["schemas"]["HrToolsResponse"];
+export declare function validateHrWriteResponse(value: unknown): value is components["schemas"]["HrWriteResponse"];
 export declare function validateLibraryResponse(value: unknown): value is components["schemas"]["LibraryResponse"];
 export declare function validateMcpAddedResponse(value: unknown): value is components["schemas"]["McpAddedResponse"];
 export declare function validateMcpRemovedResponse(

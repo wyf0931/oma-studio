@@ -302,11 +302,20 @@ OMA_ADMIN_PASSWORD=replace-with-a-local-admin-password
 OMA_DEFAULT_USER_PASSWORD=replace-with-a-temporary-user-password
 OMA_MAX_UPLOAD_FILES=100
 OMA_MAX_UPLOAD_MB=100
+OMA_TOOL_TOKEN_SECRET=
+OMA_INTERNAL_BASE_URL=
 ```
 
 `PI_CWD` is Pi's working directory. It is **not** a filesystem security boundary: Pi can access anything available to the operating-system user when tools such as `bash` are enabled.
 
 `OMA_MAX_UPLOAD_FILES` and `OMA_MAX_UPLOAD_MB` configure the maximum number and total size of unique files staged for one chat/session. Re-uploading identical bytes in the same chat reuses the existing upload record and does not consume another slot. They default to 100 files and 100 MiB.
+
+`OMA_TOOL_TOKEN_SECRET` signs the short-lived capability tokens the built-in HR
+agent's tools use to call `/api/hr/*` over loopback. Leaving it empty persists a
+generated secret at `PI_PLATFORM_DATA_DIR/tool-token.secret` (mode `0600`) so
+restarts and multiple workers agree on it; set it explicitly to manage the secret
+yourself. `OMA_INTERNAL_BASE_URL` overrides the
+`http://127.0.0.1:<OMA_PORT or 8000>` base those tools call.
 
 The bundled Docker Compose service exposes FastAPI directly and does not include NGINX. It publishes
 port 8000 on loopback by default, so a reverse proxy on the same host is the only way in; set
@@ -452,7 +461,18 @@ This MVP is a single FastAPI application with a static frontend. The main endpoi
 | `PUT /api/agents/{id}/avatar` | Upload or replace an Agent avatar |
 | `POST /api/agents/{id}/publish` | Publish an owned Agent snapshot to the organization Marketplace |
 | `POST /api/agents/{id}/market-update` | Replace an installed Marketplace Agent with its publication's latest version |
-| `GET /api/resources` | Discover extensions, skills, MCP servers, Providers, and Models |
+| `GET /api/resources` | Discover extensions, skills, MCP servers, Providers, and Models; job-management tools are listed to admins only |
+| `GET /api/hr/agents` | List the admin's jobs (capability token, not session cookie) |
+| `POST /api/hr/agents` | Create a job; requires a deliverable, three acceptance criteria and `confirm` |
+| `POST /api/hr/agents/find` | Rank existing jobs by similarity before hiring a new one |
+| `PATCH /api/hr/agents/{id}` | Update a job; re-runs the definition lint |
+| `DELETE /api/hr/agents/{id}?confirm=true` | Soft-delete a job |
+| `GET /api/hr/skills` | List installed skills with routing descriptions and job usage |
+| `POST /api/hr/skills/find` | Search installed skills by need or keyword |
+| `GET /api/hr/skills/{name}` | Read a skill's SKILL.md and file list |
+| `POST /api/hr/agents/{id}/skills` | Attach a skill to a job (`attach_skill`) |
+| `DELETE /api/hr/agents/{id}/skills/{name}` | Detach a skill from a job (`detach_skill`) |
+| `GET /api/hr/tools` | List available tools and per-tool job counts |
 | `GET /api/market/agents` | List organization Agent publications and latest versions |
 | `GET /api/market/agents/{id}/avatar` | Read a published Agent avatar |
 | `DELETE /api/market/agents/{id}` | Delete a published Agent listing (admin only; installed copies remain) |
