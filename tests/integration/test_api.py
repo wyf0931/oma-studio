@@ -692,8 +692,15 @@ def test_agent_tools_use_product_capability_groups_with_safe_defaults():
     assert "Web access" in script
     assert "Run scripts" in script
     assert "Image creation" in script
+    assert "Job management" in script
+    assert "Skill management" in script
     assert "generate_image" in script
-    assert 'group.id !== "run_scripts"' in script
+    # Script execution and job/skill administration stay out of the defaults.
+    assert (
+        'const optInGroups = new Set(["run_scripts", "job_management", "skill_management"])'
+        in script
+    )
+    assert "optInGroups.has(group.id)" in script
     assert ".tool-group-grid" in styles
     assert "authUser?.role === 'admin'" in html
     assert "t('agents.adminConfig')" in html
