@@ -1,4 +1,8 @@
-"""Export API metadata from temporary resources, without importing app.main or starting Pi."""
+"""Export API metadata from temporary resources, without importing app.main or starting Pi.
+
+Every router must be listed here so the snapshot and the live schema stay equal;
+the HR router is admin-only at runtime but still part of the HTTP surface.
+"""
 
 import json
 import logging

@@ -470,6 +470,11 @@ This MVP is a single FastAPI application with a static frontend. The main endpoi
 | `GET /api/hr/skills` | List installed skills with routing descriptions and job usage |
 | `POST /api/hr/skills/find` | Search installed skills by need or keyword |
 | `GET /api/hr/skills/{name}` | Read a skill's SKILL.md and file list |
+| `POST /api/hr/skills` | Author a platform-managed skill; requires `confirm` |
+| `PATCH /api/hr/skills/{name}` | Update a platform-managed skill; refuses skills the platform did not create |
+| `DELETE /api/hr/skills/{name}?confirm=true` | Delete a platform-managed skill; refuses skills still attached to a job |
+| `POST /api/hr/skills/install` | Install a skill from a GitHub source via the skills CLI |
+| `POST /api/hr/skills/uninstall` | Uninstall a skill; refuses skills still attached to a job |
 | `POST /api/hr/agents/{id}/skills` | Attach a skill to a job (`attach_skill`) |
 | `DELETE /api/hr/agents/{id}/skills/{name}` | Detach a skill from a job (`detach_skill`) |
 | `GET /api/hr/tools` | List available tools and per-tool job counts |
