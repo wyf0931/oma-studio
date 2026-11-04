@@ -32,10 +32,13 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install dependencies
-        run: |
-          uv sync
-          npm run api:check
+      # Split so a failure names the command that broke: the public jobs API
+      # exposes step conclusions, which is the only status a non-admin can read.
+      - name: Install Python dependencies (uv sync)
+        run: uv sync
+
+      - name: Verify API contracts (api:check)
+        run: npm run api:check
 
       - name: Lint (ruff)
         run: uv run ruff check
@@ -50,14 +53,17 @@ jobs:
         run: uv run pytest -q
 
       - name: Install browser engines
-        run: npx playwright install --with-deps --only-shell chromium firefox webkit
+        run: |
+          npx playwright install --with-deps --only-shell \
+            chromium firefox webkit
 
       - name: Frontend browser regression tests
         run: npm run test:frontend
 
       - name: Upload browser failure evidence
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        # actions/upload-artifact v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: frontend-browser-results
           path: |

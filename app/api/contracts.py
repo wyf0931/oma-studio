@@ -1,6 +1,6 @@
 """HTTP wire models. Pi transcript fields remain extensible and are never persisted here."""
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, RootModel
 from starlette.responses import StreamingResponse
@@ -551,3 +551,36 @@ def error_responses() -> dict:
         status: {"model": ErrorResponse}
         for status in (400, 401, 403, 404, 409, 413, 415, 422, 429, 500, 502, 503, 504)
     }
+
+
+# Python's http.client phrase table changes between versions (3.13 renamed 413
+# and 422), and FastAPI copies those phrases into every response description. The
+# contract snapshot and the CI gate must not depend on the interpreter that built
+# them, so pin the two affected phrases to their RFC 9110 names.
+STABLE_STATUS_PHRASES = {413: "Content Too Large", 422: "Unprocessable Content"}
+
+
+def stabilize_status_phrases(schema: dict) -> dict:
+    for item in (schema.get("paths") or {}).values():
+        for operation in item.values():
+            if not isinstance(operation, dict):
+                continue
+            for status, response in (operation.get("responses") or {}).items():
+                phrase = (
+                    STABLE_STATUS_PHRASES.get(int(status)) if status.isdigit() else None
+                )
+                if phrase and isinstance(response, dict) and "description" in response:
+                    response["description"] = phrase
+    return schema
+
+
+def stabilize_openapi(app: Any) -> Any:
+    """Wrap app.openapi() so the exported schema is interpreter-independent."""
+
+    original = app.openapi
+
+    def openapi() -> dict:
+        return stabilize_status_phrases(original())
+
+    app.openapi = openapi
+    return app
