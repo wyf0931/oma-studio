@@ -43,6 +43,10 @@ HR_TOOLS = [
     "delete_skill",
     "install_skill",
     "uninstall_skill",
+    "list_market",
+    "publish_agent",
+    "unpublish_agent",
+    "install_market_agent",
     "list_tools",
 ]
 PLATFORM_TOOLS = WEB_TOOLS + IMAGE_TOOLS + HR_TOOLS

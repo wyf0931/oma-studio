@@ -299,6 +299,52 @@ def split_skill(text: str) -> tuple[str, str]:
     return description, parts[2].strip()
 
 
+def locate(root: SkillRoot, name: str, extra_roots: list[Path]) -> Path | None:
+    """Find a skill directory by name in the shared root first, then the extras."""
+
+    validate_name(name)
+    candidates = [root.skills_dir, *extra_roots]
+    for base in candidates:
+        directory = (base / name).resolve()
+        if directory.parent != base.resolve():
+            continue
+        if (directory / SKILL_FILE).is_file():
+            return directory
+    return None
+
+
+def inventory(directory: Path) -> list[dict[str, object]]:
+    """List a skill directory's files with sizes, for an explicit confirmation."""
+
+    if not directory.is_dir():
+        return []
+    entries: list[dict[str, object]] = []
+    for path in sorted(directory.rglob("*")):
+        if path.is_file():
+            entries.append(
+                {
+                    "path": str(path.relative_to(directory)),
+                    "bytes": path.stat().st_size,
+                }
+            )
+    return entries
+
+
+def quarantine(directory: Path, trash_root: Path, timestamp: str) -> Path:
+    """Move an unmanaged skill out of the skills root instead of destroying it."""
+
+    stamp = re.sub(r"[^0-9A-Za-z]", "", timestamp)[:20] or "now"
+    target = trash_root / f"{directory.name}-{stamp}"
+    trash_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        shutil.move(str(directory), str(target))
+    except OSError as exc:
+        raise SkillStoreError(
+            f"Skill {directory.name} could not be moved: {exc}"
+        ) from exc
+    return target
+
+
 def skill_files(directory: Path) -> list[str]:
     if not directory.is_dir():
         return []

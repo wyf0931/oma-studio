@@ -120,6 +120,15 @@ HR Agent 自身：
 - 正文上限 20 KB，references 合计上限 200 KB，文件数 ≤ 20。
 - 写入后使资源目录缓存失效，新 skill 立即出现在 Agent 编辑器的可选列表里。
 
+### 5.2b Market（复用已有存储层）
+
+| Tool | 端点 | 说明 |
+| --- | --- | --- |
+| `list_market` | `GET /api/hr/market?type=&query=` | 已发布岗位 + 已装 skill / MCP / extension，按类型与文本过滤 |
+| `publish_agent` | `POST /api/hr/market/agents/{id}/publish` | SemVer 发布，复用 `store.publish_agent` |
+| `unpublish_agent` | `DELETE /api/hr/market/agents/{publication_id}` | 复用 `store.delete_agent_publication`，已安装副本不受影响 |
+| `install_market_agent` | `POST /api/hr/market/agents/{publication_id}/install` | 复用 `store.install_agent_publication` |
+
 ### 5.3 只读目录
 
 | Tool         | 说明                                                                                            |
@@ -211,6 +220,8 @@ lint 与查重是纯函数（`app/hr_rules.py`），与路由解耦，便于单�
 2. 审计里剩余 14 个存量岗位的迁移（补 description、按新模板重写 instruction）。
 3. 内置 skill 的升级策略：`ensure_builtin_skills` 目前只写缺失文件，`oma-hiring`
    装好后不会随版本更新；需要 manifest 版本号 + 内容指纹比对。
+4. `PI_HOME/skills` 下的第三方技能只能"隔离"（移到 `skill-trash`）不能真正卸载，
+   因为它们不是 `skills` CLI 注册的；需要 `uninstall_skill` 覆盖手工拷贝的情形。
 
 验收：HR 能在一次对话里完成"造 skill → 建岗位 → 自检通过"；重复岗位被拦下；删除只能软删且需要显式确认。
 

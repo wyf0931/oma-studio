@@ -110,6 +110,12 @@ export function createAgentsState() {
           "uninstall_skill",
         ],
       },
+      {
+        id: "marketplace",
+        label: "Marketplace",
+        description: "Publish, unpublish and install jobs. Admin only.",
+        tools: ["list_market", "publish_agent", "unpublish_agent", "install_market_agent"],
+      },
     ],
     productionToolAllowlist: [
       "read",
@@ -124,6 +130,14 @@ export function createAgentsState() {
       "delete_agent",
       "attach_skill",
       "detach_skill",
+      "create_skill",
+      "update_skill",
+      "delete_skill",
+      "install_skill",
+      "uninstall_skill",
+      "publish_agent",
+      "unpublish_agent",
+      "install_market_agent",
     ],
   };
 }

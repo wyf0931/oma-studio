@@ -32,6 +32,7 @@ const {
   cancelEditingChatTitle,
   chooseSkillCommand,
   copyMessage,
+  handleComposerKeydown,
   handleSkillCommandKeydown,
   isActionableAssistant,
   saveChatTitle,
@@ -157,7 +158,10 @@ const { chooseAgent } = chatFeature;
                   @compositionstart="setSkillCommandComposing(true)"
                   @compositionend="setSkillCommandComposing(false)"
                   @scroll="syncSkillCommandScroll($event)"
-                  @keydown="handleSkillCommandKeydown($event); if ($event.key === 'Enter' &amp;&amp; $event.metaKey) { $event.preventDefault(); sendFirst(); }"
+                  @keydown="
+                    handleSkillCommandKeydown($event);
+                    handleComposerKeydown($event, sendFirst);
+                  "
                   :placeholder="t('chat.whatExplore')"
                 ></textarea>
               </div>
@@ -374,7 +378,10 @@ const { chooseAgent } = chatFeature;
                 updateAttachmentCommandState();
               "
               @paste="handlePaste($event)"
-              @keydown="handleAttachmentKeydown($event)"
+              @keydown="
+                handleAttachmentKeydown($event);
+                handleComposerKeydown($event, sendMessage);
+              "
               :disabled="loading"
               placeholder="Message this agent…"
             ></textarea

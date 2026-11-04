@@ -344,3 +344,113 @@ def test_hr_refuses_to_edit_skills_it_did_not_create(client, hr_headers):
 
     assert response.status_code == 400
     assert "not managed by the platform" in response.text
+
+
+def test_hr_lists_the_market_by_type(client, hr_headers):
+    skills = client.get("/api/hr/market?type=skill", headers=hr_headers)
+    assert skills.status_code == 200
+    items = skills.json()["items"]
+    assert items and all(item["type"] == "skill" for item in items)
+
+    everything = client.get("/api/hr/market", headers=hr_headers)
+    assert everything.status_code == 200
+    assert {item["type"] for item in everything.json()["items"]} >= {
+        "skill",
+        "extension",
+    }
+
+    filtered = client.get("/api/hr/market?query=deep", headers=hr_headers)
+    assert filtered.status_code == 200
+    assert all(
+        "deep" in f"{item['name']} {item.get('description') or ''}".casefold()
+        for item in filtered.json()["items"]
+    )
+
+
+def test_hr_publishes_and_unpublishes_a_job(client, hr_headers):
+    created = client.post("/api/hr/agents", json=job_payload(), headers=hr_headers)
+    assert created.status_code == 201
+    agent_id = created.json()["agent"]["id"]
+    version = f"v1.0.{uuid.uuid4().int % 1000}"
+
+    try:
+        published = client.post(
+            f"/api/hr/market/agents/{agent_id}/publish",
+            json={"version": version, "confirm": True},
+            headers=hr_headers,
+        )
+        assert published.status_code == 200, published.text
+        publication_id = published.json()["items"][0]["id"]
+
+        listed = client.get("/api/hr/market?type=agent", headers=hr_headers)
+        assert publication_id in {item["id"] for item in listed.json()["items"]}
+
+        unpublish = client.delete(
+            f"/api/hr/market/agents/{publication_id}?confirm=true", headers=hr_headers
+        )
+        assert unpublish.status_code == 200
+    finally:
+        client.delete(f"/api/hr/agents/{agent_id}?confirm=true", headers=hr_headers)
+
+
+def test_hr_quarantines_an_unmanaged_skill_only_with_force(
+    client, hr_headers, tmp_path
+):
+    shared = main_module.settings.pi_agents_home / "skills"
+    name = f"oma-orphan-{uuid.uuid4().hex[:8]}"
+    directory = shared / name
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "SKILL.md").write_text("---\nname: x\n---\n\nbody\n", encoding="utf-8")
+
+    try:
+        refused = client.delete(
+            f"/api/hr/skills/{name}?confirm=true", headers=hr_headers
+        )
+        assert refused.status_code == 409
+        detail = refused.json()
+        assert detail["unmanaged"] is True
+        assert [entry["path"] for entry in detail["files"]] == ["SKILL.md"]
+
+        forced = client.delete(
+            f"/api/hr/skills/{name}?confirm=true&force=true", headers=hr_headers
+        )
+        assert forced.status_code == 200, forced.text
+        assert not directory.exists()
+        assert forced.json()["quarantined_to"]
+    finally:
+        for leftover in (directory,):
+            if leftover.exists():
+                import shutil
+
+                shutil.rmtree(leftover)
+
+
+def test_hr_refuses_to_quarantine_a_skill_a_job_still_uses(client, hr_headers):
+    shared = main_module.settings.pi_agents_home / "skills"
+    name = f"oma-orphan-{uuid.uuid4().hex[:8]}"
+    directory = shared / name
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "SKILL.md").write_text("body", encoding="utf-8")
+    created = client.post("/api/hr/agents", json=job_payload(), headers=hr_headers)
+    assert created.status_code == 201
+    agent_id = created.json()["agent"]["id"]
+
+    try:
+        attached = client.post(
+            f"/api/hr/agents/{agent_id}/skills",
+            json={"skill": name, "confirm": True},
+            headers=hr_headers,
+        )
+        assert attached.status_code == 200, attached.text
+
+        blocked = client.delete(
+            f"/api/hr/skills/{name}?confirm=true&force=true", headers=hr_headers
+        )
+        assert blocked.status_code == 409
+        assert "still attached" in blocked.text
+    finally:
+        client.delete(f"/api/hr/agents/{agent_id}?confirm=true", headers=hr_headers)
+        import shutil
+
+        if directory.exists():
+            shutil.rmtree(directory)

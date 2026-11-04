@@ -6,7 +6,7 @@ import { useFormat } from "../../shared/format-context";
 import { useI18n } from "../../shared/i18n-context";
 
 import OmaIcon from "../../ui/Icon.vue";
-import { SHORTCUTS } from "../../app/shortcuts";
+import { COMPOSER_SHORTCUTS, SHORTCUTS } from "../../app/shortcuts";
 import { vEscape } from "../../ui/events";
 const settingsFeature = useSettings();
 const {
@@ -50,6 +50,10 @@ const { t } = i18nFeature;
 const shortcutsList = (["quickSearch", "toggleSidebar", "skillTemplate"] as const).map((id) => ({
   id,
   ...SHORTCUTS[id],
+}));
+const composerShortcutsList = COMPOSER_SHORTCUTS.map((shortcut) => ({
+  id: shortcut.id,
+  keys: shortcut.keys(),
 }));
 </script>
 <template>
@@ -390,6 +394,19 @@ const shortcutsList = (["quickSearch", "toggleSidebar", "skillTemplate"] as cons
                   <kbd class="shortcut-key" v-text="shortcut.modifier()"></kbd>
                   <span class="shortcut-plus" aria-hidden="true">+</span>
                   <kbd class="shortcut-key" v-text="shortcut.label"></kbd>
+                </span>
+              </li>
+            </ul>
+            <h4 class="shortcut-section-title" v-text="t('settings.shortcuts.composerTitle')"></h4>
+            <p class="shortcut-section-note" v-text="t('settings.shortcuts.composerNote')"></p>
+            <ul class="shortcut-list">
+              <li v-for="shortcut in composerShortcutsList" :key="shortcut.id" class="shortcut-row">
+                <span class="shortcut-name" v-text="t('settings.shortcuts.' + shortcut.id + '.name')"></span>
+                <span class="shortcut-keys">
+                  <template v-for="(key, index) in shortcut.keys" :key="key">
+                    <span v-if="index" class="shortcut-plus" aria-hidden="true">+</span>
+                    <kbd class="shortcut-key" v-text="key"></kbd>
+                  </template>
                 </span>
               </li>
             </ul>

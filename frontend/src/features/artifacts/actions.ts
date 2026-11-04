@@ -292,7 +292,7 @@ export function createArtifacts(deps: Dependencies): Feature {
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       state.attachmentCommandIndex = (state.attachmentCommandIndex - 1 + items.length) % items.length;
-    } else if (event.key === "Tab") {
+    } else if (event.key === "Tab" || event.key === "Enter") {
       event.preventDefault();
       chooseFileAttachment(items[state.attachmentCommandIndex]!);
     } else if (event.key === "Escape") {
