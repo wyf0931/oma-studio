@@ -13,13 +13,15 @@ from sqlmodel import SQLModel, create_engine
 
 from .storage_models import TABLE_MODELS
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 SCHEMA_ALTERS = {
     "agents": {
         "description": "TEXT",
         "tags_json": "TEXT NOT NULL DEFAULT '[]'",
         "quickstarts_json": "TEXT NOT NULL DEFAULT '[]'",
         "deleted_at": "TEXT",
+        "deliverable": "TEXT",
+        "acceptance_json": "TEXT NOT NULL DEFAULT '[]'",
     }
 }
 T = TypeVar("T", bound=SQLModel)
@@ -30,6 +32,7 @@ JSON_FIELDS = {
     "mcp_servers": "mcp_servers_json",
     "tags": "tags_json",
     "quickstarts": "quickstarts_json",
+    "acceptance": "acceptance_json",
     "version_sort": "version_sort_json",
     "content": "content_json",
 }

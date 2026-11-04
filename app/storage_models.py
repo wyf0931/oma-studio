@@ -43,8 +43,10 @@ class Agent(SQLModel, table=True):
     name: str
     instruction: str
     description: str | None = None
+    deliverable: str | None = None
     tags_json: str = "[]"
     quickstarts_json: str = "[]"
+    acceptance_json: str = "[]"
     provider: str | None = None
     model: str | None = None
     thinking_level: str | None = None

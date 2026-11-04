@@ -4,7 +4,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.pi_rpc import PiRpcClient, PiRpcError, PiRuntimeManager, parse_agent_profile
+from app.pi_rpc import (
+    INSTRUCTION_GENERATOR_PROMPT,
+    PiRpcClient,
+    PiRpcError,
+    PiRuntimeManager,
+    parse_agent_profile,
+)
 
 
 def test_agent_provider_and_model_override_global_defaults():
@@ -240,6 +246,23 @@ def test_instruction_generator_is_ephemeral_and_loads_selected_skills_read_only(
     assert "/home/node/.agents/skills/diagram-design" in command
     assert command[command.index("--provider") + 1] == "zhipu"
     assert command[command.index("--model") + 1] == "glm-5.3-flash"
+
+
+def test_instruction_generator_prompt_forbids_restating_skills():
+    # The generator used to allow 7,000-character instructions with a mandatory
+    # "## Skills" section, which produced job descriptions that paraphrased the
+    # very skills Pi injects separately. Guard the tighter contract.
+    prompt = INSTRUCTION_GENERATOR_PROMPT
+
+    assert "600-1200 characters" in prompt
+    assert "hard ceiling 2000" in prompt
+    assert "# Deliverable" in prompt
+    assert "# Boundaries" in prompt
+    assert "# Routing" in prompt
+    assert "## Skills" not in prompt
+    assert "7,000" not in prompt
+    assert "do not restate" in prompt.lower()
+    assert "at least one of them a refusal" in prompt
 
 
 def test_parse_agent_profile_requires_structured_profile_fields():

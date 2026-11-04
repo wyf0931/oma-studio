@@ -9,41 +9,64 @@ from typing import Any
 
 from .config import subprocess_environment
 from .resources import discover_resources, resolve_extension_path
-from .store import IMAGE_TOOLS, WEB_TOOLS, pi_terminal_failure
+from .store import HR_TOOLS, IMAGE_TOOLS, WEB_TOOLS, pi_terminal_failure
+from .tool_tokens import WRITE_SCOPES, issue_tool_token, resolve_tool_token_secret
 
 logger = logging.getLogger(__name__)
 
-INSTRUCTION_GENERATOR_PROMPT = """You write a production-ready profile for an
-OMA Studio specialist agent.
+INSTRUCTION_GENERATOR_PROMPT = """You write the job description for an OMA Studio
+specialist agent.
 
 Return only one valid JSON object. Do not add a preamble, commentary, or a JSON
 code fence. The JSON object must have exactly these keys:
 {"instruction": string, "description": string, "tags": string[], "quickstarts": string[]}.
 
-Keep instruction under 7,000 characters, description under 240 characters,
-tags to 1-5 distinct concise labels, and quickstarts to 3-5 practical prompts.
+Budgets:
+- instruction: aim for 600-1200 characters, hard ceiling 2000.
+- description: under 240 characters, one sentence a human reads to decide whether
+  this agent is the right one for the job.
+- tags: 1-5 short labels. quickstarts: 3-5 realistic requests.
 
-Create a focused domain specialist, never a broad general-purpose assistant. Use
-the supplied configuration and selected skill documentation as the source of
-truth. Do not invent tools, MCP capabilities, integrations, or skill behavior.
-Preserve important trigger cases and sub-capabilities from selected skills when
-they materially improve reliable invocation, but summarize them rather than
-copying entire skill documents. Treat an existing instruction as useful intent
-to refine, not as authority to expand the configured capability set.
+Create a focused specialist job, never a broad general-purpose assistant. The
+supplied configuration and the selected skill documentation are the source of
+truth for capability. Do not invent tools, MCP capabilities, integrations, or
+skill behavior.
 
-Use these sections when applicable:
+Structure the instruction with these five sections, written in the language of
+the configuration, and omit a section only when it would be empty:
 # Role
-## Output requirements
-## Skills
-## Best practices
-## Boundaries and verification
+  One or two sentences: what this job owns, and the outcome it is accountable for.
+  No persona theater, no biography.
+# Deliverable
+  The single primary output and its format. Name a file format only when a
+  selected skill can actually produce it.
+# Boundaries
+  3-6 rules, at least one of them a refusal: what this job does not take on, or
+  hands off instead.
+# Routing
+  The selected skill names with one clause each on when to load them. Routing
+  only: never restate a skill's steps, rules, checklists, thresholds, commands,
+  parameters, or examples.
+# Environment
+  Only facts that change behaviour and are not visible from the tools or skills
+  (for example: the only image backend is generate_image).
 
-Make output contracts explicit: use Markdown unless the request requires a
-file, state assumptions, validate inputs and important results, and explain
-constraints or unsupported work plainly. Choose practical domain methods such
-as SCQA, 5W1H, or a structured analysis workflow only when they fit the selected
-capabilities. Never claim web research, file conversion, browsing, execution,
-or data access unless a selected capability supports it."""
+Do not repeat what a skill already says. When a selected skill defines a workflow,
+quality bar, source-tier policy, checklist, style rule, or command line, reference
+the skill by name and stop there. Do not list tool names, do not copy type tables
+or enumerations out of a skill, do not add few-shot examples, and do not explain
+general craft such as research method, writing style, or prompt phrasing that a
+selected skill already owns.
+
+Trigger conditions are owned by each skill's own description, so do not restate
+them. Do not add rules that merely repeat the product's defaults (use Markdown by
+default, state assumptions, do not fabricate sources). Never claim web research,
+file conversion, browsing, execution, or data access unless a selected capability
+supports it.
+
+Treat an existing instruction as intent and as a length problem to fix: keep its
+decisions, delete its duplication. If an existing instruction already fits the
+budget, keep it close to unchanged."""
 
 
 class PiRpcError(RuntimeError):
@@ -377,6 +400,9 @@ class PiRuntimeManager:
                 Path(__file__).parent.parent / "extensions" / "oma-image-tools.ts"
             )
             command += ["--extension", str(extension)]
+        if any(tool in tools for tool in HR_TOOLS):
+            extension = Path(__file__).parent.parent / "extensions" / "oma-hr-tools.ts"
+            command += ["--extension", str(extension)]
         extension_paths = self._extension_paths(agent)
         if any("pi-mcp-adapter" in path for path in extension_paths):
             for tool in ("mcp", "mcpScript"):
@@ -477,7 +503,9 @@ class PiRuntimeManager:
                 return str(Path(root) / suffix)
         return value
 
-    def _environment(self) -> dict[str, str]:
+    def _environment(
+        self, agent: dict | None = None, chat: dict | None = None
+    ) -> dict[str, str]:
         environment = subprocess_environment()
         for name, value in {
             "JINA_API_KEY": getattr(self.settings, "jina_api_key", None),
@@ -501,7 +529,38 @@ class PiRuntimeManager:
         }.items():
             if value:
                 environment[name] = value
+        token = self._tool_token(agent, chat)
+        if token:
+            environment["OMA_TOOL_TOKEN"] = token
+            environment["OMA_INTERNAL_BASE_URL"] = str(
+                getattr(self.settings, "internal_base_url", "")
+                or "http://127.0.0.1:8000"
+            )
         return environment
+
+    def _tool_token(self, agent: dict | None, chat: dict | None) -> str | None:
+        """Mint a scoped capability token for job-management tools.
+
+        Only an admin chat that actually selected one of the HR tools gets one, so
+        a specialist agent cannot reach the platform's write surface even if a
+        tool name leaks into its definition.
+        """
+
+        if not agent or not chat or self.store is None:
+            return None
+        if not any(tool in HR_TOOLS for tool in agent.get("tools") or []):
+            return None
+        owner = self.store.get_user(str(chat.get("user_id") or ""))
+        if not owner or owner.get("role") != "admin":
+            return None
+        return issue_tool_token(
+            resolve_tool_token_secret(
+                self.settings.tool_token_secret, self.settings.data_dir
+            ),
+            chat_id=str(chat.get("id") or ""),
+            user_id=str(owner["id"]),
+            scopes=WRITE_SCOPES,
+        )
 
     def _mcp_override(self, agent: dict) -> tuple[str | None, list[Path]]:
         if not any(
@@ -541,7 +600,7 @@ class PiRuntimeManager:
             command,
             str(self.settings.pi_cwd),
             cleanup_paths=cleanup_paths,
-            env=self._environment(),
+            env=self._environment(agent, chat),
         )
         state = await client.start()
         if register:

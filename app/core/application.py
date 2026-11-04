@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from ..autopilots import AutopilotScheduler
 from ..avatars import seed_default_avatar
+from ..builtin_skills import ensure_builtin_skills
 from ..config import Settings, get_settings
 from ..observability import configure_logging, trace_request
 from ..pi_rpc import PiRuntimeManager
@@ -50,6 +51,13 @@ def create_context() -> ApplicationContext:
         )
     admin_user = store.ensure_default_user(settings.admin_password)
     store.backfill_ownership(admin_user["id"])
+
+    builtin_skills = ensure_builtin_skills(settings.pi_agents_home)
+    store.ensure_hr_agent(
+        admin_user["id"],
+        default_tools=list(settings.pi_default_tools),
+        skill_paths=[str(path) for path in builtin_skills],
+    )
 
     return ApplicationContext(
         settings=settings,

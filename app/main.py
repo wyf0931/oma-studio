@@ -17,6 +17,7 @@ from .api.routers.chats import (
     create_router as create_chat_router,
 )
 from .api.routers.chats import visible_messages
+from .api.routers.hr import create_router as create_hr_router
 from .api.routers.identity import create_router as create_identity_router
 from .api.routers.marketplace import create_router as create_marketplace_router
 from .api.routers.resource_catalog import (
@@ -95,7 +96,8 @@ def _request_user(request: Request) -> dict | None:
 def _is_auth_exempt(path: str) -> bool:
     return (
         path in {"/api/health", "/api/auth/login", "/api/auth/session"}
-        or path.startswith("/api/share/")
+        # Platform tools authenticate with a capability token, not a cookie.
+        or path.startswith(("/api/hr/", "/api/share/"))
         or not path.startswith("/api/")
     )
 
@@ -181,6 +183,7 @@ def _has_session_file(chat: dict) -> bool:
 
 
 app.include_router(create_system_router(settings, runtime))
+app.include_router(create_hr_router(settings, store))
 
 app.include_router(
     create_share_router(
