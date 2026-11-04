@@ -347,24 +347,34 @@ def test_hr_refuses_to_edit_skills_it_did_not_create(client, hr_headers):
 
 
 def test_hr_lists_the_market_by_type(client, hr_headers):
-    skills = client.get("/api/hr/market?type=skill", headers=hr_headers)
-    assert skills.status_code == 200
-    items = skills.json()["items"]
-    assert items and all(item["type"] == "skill" for item in items)
-
-    everything = client.get("/api/hr/market", headers=hr_headers)
-    assert everything.status_code == 200
-    assert {item["type"] for item in everything.json()["items"]} >= {
-        "skill",
-        "extension",
-    }
-
-    filtered = client.get("/api/hr/market?query=deep", headers=hr_headers)
-    assert filtered.status_code == 200
-    assert all(
-        "deep" in f"{item['name']} {item.get('description') or ''}".casefold()
-        for item in filtered.json()["items"]
+    # Seed the catalogue so the assertions do not depend on what the host machine
+    # happens to have installed (CI has no skills at all).
+    name = f"oma-market-{uuid.uuid4().hex[:8]}"
+    created = client.post(
+        "/api/hr/skills", json=skill_payload(name), headers=hr_headers
     )
+    assert created.status_code == 201, created.text
+
+    try:
+        skills = client.get("/api/hr/market?type=skill", headers=hr_headers)
+        assert skills.status_code == 200
+        items = skills.json()["items"]
+        assert name in {item["name"] for item in items}
+        assert all(item["type"] == "skill" for item in items)
+
+        everything = client.get("/api/hr/market", headers=hr_headers)
+        assert everything.status_code == 200
+        assert "skill" in {item["type"] for item in everything.json()["items"]}
+
+        filtered = client.get(f"/api/hr/market?query={name[:10]}", headers=hr_headers)
+        assert filtered.status_code == 200
+        assert any(item["name"] == name for item in filtered.json()["items"])
+        assert all(
+            name[:10] in f"{item['name']} {item.get('description') or ''}".casefold()
+            for item in filtered.json()["items"]
+        )
+    finally:
+        client.delete(f"/api/hr/skills/{name}?confirm=true", headers=hr_headers)
 
 
 def test_hr_publishes_and_unpublishes_a_job(client, hr_headers):
