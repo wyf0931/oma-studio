@@ -14,6 +14,7 @@ from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from ... import market
 from ...config import Settings
 from ...hr_rules import (
     blocking,
@@ -22,11 +23,20 @@ from ...hr_rules import (
     skill_name,
 )
 from ...resources import discover_resources
-from ...store import PLATFORM_TOOLS, SUPPORTED_TOOLS, Store
+from ...skill_store import (
+    SkillRoot,
+    SkillStoreError,
+    create_skill,
+    delete_skill,
+    skill_files,
+    update_skill,
+)
+from ...store import PLATFORM_TOOLS, SUPPORTED_TOOLS, Store, now_iso
 from ...tool_tokens import (
     AGENT_READ,
     AGENT_WRITE,
     SKILL_READ,
+    SKILL_WRITE,
     TOOL_TOKEN_HEADER,
     ToolTokenError,
     resolve_tool_token_secret,
@@ -81,6 +91,28 @@ class HrSkillRef(BaseModel):
 
 class HrSkillQuery(BaseModel):
     query: str = Field(min_length=1, max_length=400)
+
+
+class HrSkillCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    description: str = Field(min_length=1, max_length=500)
+    body: str = Field(min_length=1, max_length=20000)
+    references: dict[str, str] = Field(default_factory=dict)
+    confirm: bool = False
+
+
+class HrSkillUpdate(BaseModel):
+    description: str | None = Field(default=None, max_length=500)
+    body: str | None = Field(default=None, max_length=20000)
+    references: dict[str, str] = Field(default_factory=dict)
+    remove_references: list[str] = Field(default_factory=list)
+    confirm: bool = False
+
+
+class HrSkillInstall(BaseModel):
+    source: str = Field(min_length=1, max_length=300)
+    skill: str = Field(min_length=1, max_length=200)
+    confirm: bool = False
 
 
 def structured_error(status_code: int, message: str, **extra: Any) -> JSONResponse:
@@ -434,6 +466,170 @@ def create_router(settings: Settings, store: Store) -> APIRouter:
         if not updated:
             raise HTTPException(404, "Agent not found")
         return {"agent": updated, "findings": lint(updated), "duplicates": []}
+
+    def skill_root() -> SkillRoot:
+        return SkillRoot.from_agents_home(settings.pi_agents_home)
+
+    def skill_response(name: str) -> dict:
+        resource_catalog = catalog()
+        skill = skill_by_ref(name, resource_catalog)
+        directory = Path(skill["path"]).resolve()
+        usage = skill_usage(resource_catalog)
+        return {
+            "skill": {
+                "name": skill["name"],
+                "description": skill.get("description") or "",
+                "path": skill["path"],
+                "agents": sorted(usage.get(skill["name"], [])),
+            },
+            "body": (directory / "SKILL.md").read_text(
+                encoding="utf-8", errors="replace"
+            ),
+            "files": skill_files(directory),
+        }
+
+    def attached_jobs(name: str) -> list[str]:
+        return [
+            agent["name"]
+            for agent in store.list_agents()
+            if name in {skill_name(path) for path in agent.get("skills") or []}
+        ]
+
+    @router.post(
+        "/skills",
+        status_code=201,
+        response_model=contracts.HrSkillDetail,
+        response_model_exclude_unset=True,
+    )
+    def create_skill_endpoint(
+        payload: HrSkillCreate, x_oma_tool_token: str | None = Header(default=None)
+    ):
+        authenticate(x_oma_tool_token, SKILL_WRITE)
+        if not payload.confirm:
+            raise HTTPException(400, "Creating a skill requires confirm=true")
+        if any(item["name"] == payload.name for item in catalog()["skills"]):
+            raise HTTPException(409, f"Skill {payload.name} already exists")
+        try:
+            create_skill(
+                skill_root(),
+                payload.name,
+                payload.description,
+                payload.body,
+                references=payload.references,
+                timestamp=now_iso(),
+            )
+        except SkillStoreError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        return skill_response(payload.name)
+
+    @router.patch(
+        "/skills/{name}",
+        response_model=contracts.HrSkillDetail,
+        response_model_exclude_unset=True,
+    )
+    def update_skill_endpoint(
+        name: str,
+        payload: HrSkillUpdate,
+        x_oma_tool_token: str | None = Header(default=None),
+    ):
+        authenticate(x_oma_tool_token, SKILL_WRITE)
+        if not payload.confirm:
+            raise HTTPException(400, "Updating a skill requires confirm=true")
+        if (
+            payload.description is None
+            and payload.body is None
+            and not payload.references
+            and not payload.remove_references
+        ):
+            raise HTTPException(400, "Nothing to update")
+        try:
+            update_skill(
+                skill_root(),
+                name,
+                description=payload.description,
+                body=payload.body,
+                references=payload.references,
+                remove_references=payload.remove_references,
+                timestamp=now_iso(),
+            )
+        except SkillStoreError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        return skill_response(name)
+
+    @router.delete(
+        "/skills/{name}",
+        response_model=contracts.OkResponse,
+        response_model_exclude_unset=True,
+    )
+    def delete_skill_endpoint(
+        name: str,
+        confirm: bool = False,
+        x_oma_tool_token: str | None = Header(default=None),
+    ):
+        authenticate(x_oma_tool_token, SKILL_WRITE)
+        if not confirm:
+            raise HTTPException(400, "Deleting a skill requires confirm=true")
+        jobs = attached_jobs(name)
+        if jobs:
+            raise HTTPException(
+                409, f"Skill {name} is still attached to: {', '.join(sorted(jobs))}"
+            )
+        try:
+            delete_skill(skill_root(), name)
+        except SkillStoreError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        return {"ok": True}
+
+    @router.post(
+        "/skills/install",
+        response_model=contracts.HrSkillDetail,
+        response_model_exclude_unset=True,
+    )
+    async def install_skill_endpoint(
+        payload: HrSkillInstall, x_oma_tool_token: str | None = Header(default=None)
+    ):
+        authenticate(x_oma_tool_token, SKILL_WRITE)
+        if not payload.confirm:
+            raise HTTPException(400, "Installing a skill requires confirm=true")
+        if any(item["name"] == payload.skill for item in catalog()["skills"]):
+            raise HTTPException(409, f"Skill {payload.skill} is already installed")
+        try:
+            market.validate_skill_source(payload.source, payload.skill)
+            await market.install_skill(payload.source, payload.skill)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except TimeoutError as exc:
+            raise HTTPException(504, str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(502, f"skill install failed: {exc}") from exc
+        return skill_response(payload.skill)
+
+    @router.post(
+        "/skills/uninstall",
+        response_model=contracts.OkResponse,
+        response_model_exclude_unset=True,
+    )
+    async def uninstall_skill_endpoint(
+        payload: HrSkillInstall, x_oma_tool_token: str | None = Header(default=None)
+    ):
+        authenticate(x_oma_tool_token, SKILL_WRITE)
+        if not payload.confirm:
+            raise HTTPException(400, "Uninstalling a skill requires confirm=true")
+        jobs = attached_jobs(payload.skill)
+        if jobs:
+            raise HTTPException(
+                409,
+                f"Skill {payload.skill} is still attached to: {', '.join(sorted(jobs))}",
+            )
+        try:
+            await market.uninstall_skill(payload.source or None, payload.skill)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except TimeoutError as exc:
+            raise HTTPException(504, str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(502, f"skill uninstall failed: {exc}") from exc
+        return {"ok": True}
 
     return router
 

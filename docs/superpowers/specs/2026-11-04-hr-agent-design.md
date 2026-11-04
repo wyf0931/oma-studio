@@ -108,9 +108,12 @@ HR Agent 自身：
 | `attach_skill` | `agent_id`、`skill`（name 或 path）                         | 更新后的 agent 权限集                               | 走现有 `validate_capabilities`         |
 | `detach_skill` | `agent_id`、`skill`                                         | 同上                                                | 同上                                   |
 
-写入规则：
+写入规则（实现见 `app/skill_store.py`）：
 
 - 落点固定 `PI_AGENTS_HOME/skills/<name>/`（agent-neutral 共享根）。`PI_HOME/skills` 属于第三方包目录，平台只读。
+- 名称 `^[a-z0-9][a-z0-9-]{0,63}$`，`resolve()` 后父目录必须等于共享根；引用路径再过一层 `_contained()`，符号链接逃逸直接拒绝。
+- 正文 ≤ 20 KB，description ≤ 500 字符且必须单行，引用 ≤ 20 个文件、单文件 ≤ 100 KB、合计 ≤ 200 KB。
+- 删除前要求：有 manifest、且没有任何岗位挂载它（`attached_jobs` 检查），否则 409 并列出岗位名。
 - 目录名 `^[a-z0-9][a-z0-9-]{0,63}$`；`realpath` 必须落在共享根内（复用 `files.py` 的两段式校验思路，防符号链接逃逸）。
 - 写入时生成 `.oma-skill.json`：`{created_by: "oma-hr", created_at, version, updated_at}`。没有该标记的目录，`update_skill` / `delete_skill` 一律拒绝。
 - `description` ≤ 500 字符且必须含"什么时候用"，否则拒绝（它是唯一的路由字段）。
@@ -195,12 +198,19 @@ lint 与查重是纯函数（`app/hr_rules.py`），与路由解耦，便于单�
 
 验收：admin 在对话里能用 HR 查到岗位与技能目录，能建岗改岗，能挂载/解绑 skill；非 admin 完全看不到 HR 也无法调用工具。
 
-### P1（剩余写入能力）
+### P1（已完成）
 
-1. `create_skill` / `update_skill` / `delete_skill` + 目录校验 + `.oma-skill.json` manifest + 缓存失效；
-   `install_skill` / `uninstall_skill` 转调现有的 `/api/market/skills/*`。
-2. 前端展示岗位卡字段并在编辑器里校验；把 `AgentEditorDialogs.vue` 的 10000 字上限对齐到 lint 预算。
-3. 审计里剩余 14 个存量岗位的迁移（补 description、按新模板重写 instruction）。
+1. `app/skill_store.py` + `/api/hr/skills` 的 create / update / delete，`install_skill` /
+   `uninstall_skill` 转调 `app/market.py` 的 skills CLI；扩展补齐 5 个工具。
+   `discover_resources` 每次请求重新扫描，所以新 skill 立即出现在 `/api/resources`。
+2. 前端 Skill management 分组补上 5 个新工具（共 10 个），新建 Agent 默认不带。
+
+### P2（剩余）
+
+1. 前端展示岗位卡字段（`deliverable` / `acceptance`）并把编辑器上限对齐 lint 预算。
+2. 审计里剩余 14 个存量岗位的迁移（补 description、按新模板重写 instruction）。
+3. 内置 skill 的升级策略：`ensure_builtin_skills` 目前只写缺失文件，`oma-hiring`
+   装好后不会随版本更新；需要 manifest 版本号 + 内容指纹比对。
 
 验收：HR 能在一次对话里完成"造 skill → 建岗位 → 自检通过"；重复岗位被拦下；删除只能软删且需要显式确认。
 

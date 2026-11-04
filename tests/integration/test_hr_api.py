@@ -219,3 +219,128 @@ def test_hr_tools_lists_job_tools_for_admin(client, hr_headers):
     assert response.status_code == 200
     names = {tool["name"] for tool in response.json()["tools"]}
     assert {"create_agent", "attach_skill", "list_tools"} <= names
+
+
+def skill_payload(name: str, **overrides) -> dict:
+    payload = {
+        "name": name,
+        "description": f"集成测试技能 {name}：只在测试里使用。",
+        "body": "# 测试技能\n\n先读一遍，再动手。\n",
+        "references": {"references/checklist.md": "- 一步\n"},
+        "confirm": True,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_hr_authors_updates_and_deletes_a_skill(client, hr_headers):
+    name = f"oma-test-{uuid.uuid4().hex[:8]}"
+    created = client.post(
+        "/api/hr/skills", json=skill_payload(name), headers=hr_headers
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["skill"]["name"] == name
+    assert "references/checklist.md" in body["files"]
+
+    try:
+        listed = client.get("/api/hr/skills", headers=hr_headers)
+        assert name in {skill["name"] for skill in listed.json()["skills"]}
+
+        updated = client.patch(
+            f"/api/hr/skills/{name}",
+            json={
+                "description": "更新后的路由描述：只在岗位复盘时使用。",
+                "body": "# 复盘\n\n先看数据。\n",
+                "remove_references": ["references/checklist.md"],
+                "confirm": True,
+            },
+            headers=hr_headers,
+        )
+        assert updated.status_code == 200, updated.text
+        assert updated.json()["files"] == ["SKILL.md"]
+        assert "先看数据" in updated.json()["body"]
+    finally:
+        # Deleting through the endpoint is covered below; guarantee cleanup here.
+        client.delete(f"/api/hr/skills/{name}?confirm=true", headers=hr_headers)
+
+    assert name not in {
+        skill["name"]
+        for skill in client.get("/api/hr/skills", headers=hr_headers).json()["skills"]
+    }
+
+
+def test_hr_skill_writes_require_confirmation(client, hr_headers):
+    name = f"oma-test-{uuid.uuid4().hex[:8]}"
+
+    assert (
+        client.post(
+            "/api/hr/skills",
+            json=skill_payload(name, confirm=False),
+            headers=hr_headers,
+        ).status_code
+        == 400
+    )
+    assert client.patch(
+        f"/api/hr/skills/{name}", json={"body": "x"}, headers=hr_headers
+    ).status_code in {
+        400,
+        401,
+        422,
+    }
+    assert (
+        client.delete(f"/api/hr/skills/{name}", headers=hr_headers).status_code == 400
+    )
+
+
+def test_hr_skill_delete_is_blocked_while_attached(client, hr_headers):
+    name = f"oma-test-{uuid.uuid4().hex[:8]}"
+    created = client.post(
+        "/api/hr/skills", json=skill_payload(name), headers=hr_headers
+    )
+    assert created.status_code == 201, created.text
+
+    agent = client.post("/api/hr/agents", json=job_payload(), headers=hr_headers)
+    assert agent.status_code == 201
+    agent_id = agent.json()["agent"]["id"]
+
+    try:
+        attached = client.post(
+            f"/api/hr/agents/{agent_id}/skills",
+            json={"skill": name, "confirm": True},
+            headers=hr_headers,
+        )
+        assert attached.status_code == 200, attached.text
+
+        blocked = client.delete(
+            f"/api/hr/skills/{name}?confirm=true", headers=hr_headers
+        )
+        assert blocked.status_code == 409
+        assert "still attached" in blocked.text
+
+        client.delete(
+            f"/api/hr/agents/{agent_id}/skills/{name}?confirm=true", headers=hr_headers
+        )
+        removed = client.delete(
+            f"/api/hr/skills/{name}?confirm=true", headers=hr_headers
+        )
+        assert removed.status_code == 200
+    finally:
+        client.delete(f"/api/hr/agents/{agent_id}?confirm=true", headers=hr_headers)
+        client.delete(f"/api/hr/skills/{name}?confirm=true", headers=hr_headers)
+
+
+def test_hr_refuses_to_edit_skills_it_did_not_create(client, hr_headers):
+    skills = client.get("/api/hr/skills", headers=hr_headers).json()["skills"]
+    if not skills:
+        pytest.skip("no skills are installed in this environment")
+    foreign = skills[0]["name"]
+
+    response = client.patch(
+        f"/api/hr/skills/{foreign}",
+        json={"body": "should not be written", "confirm": True},
+        headers=hr_headers,
+    )
+
+    assert response.status_code == 400
+    assert "not managed by the platform" in response.text
