@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from ..api.contracts import stabilize_openapi
 from ..autopilots import AutopilotScheduler
 from ..avatars import seed_default_avatar
 from ..builtin_skills import ensure_builtin_skills
@@ -83,4 +84,4 @@ def create_app(context: ApplicationContext, **options: Any) -> FastAPI:
     app = FastAPI(title="Pi Agent Platform", lifespan=lifespan, **options)
     app.state.oma = context
     app.middleware("http")(trace_request)
-    return app
+    return stabilize_openapi(app)

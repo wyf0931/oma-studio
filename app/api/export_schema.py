@@ -14,7 +14,7 @@ from ..autopilots import AutopilotScheduler
 from ..config import get_settings
 from ..pi_rpc import PiRuntimeManager
 from ..store import Store
-from .contracts import error_responses
+from .contracts import error_responses, stabilize_openapi
 from .routers import (
     agents,
     autopilots,
@@ -100,7 +100,7 @@ def create_schema() -> dict:
             ]
             for router in routers:
                 app.include_router(router)
-            return app.openapi()
+            return stabilize_openapi(app).openapi()
         finally:
             store.close()
 
