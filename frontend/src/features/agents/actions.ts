@@ -313,7 +313,9 @@ export function createAgents(deps: Dependencies): Feature {
         : levels[0] || "off";
   }
   function defaultAgentTools(): string[] {
-    const preferred = state.toolGroups.filter((group) => group.id !== "run_scripts").flatMap((group) => group.tools);
+    // Script execution and job management are opt-in capabilities, never defaults.
+    const optInGroups = new Set(["run_scripts", "job_management", "skill_management"]);
+    const preferred = state.toolGroups.filter((group) => !optInGroups.has(group.id)).flatMap((group) => group.tools);
     return preferred.filter((name) => state.toolCatalog.some((tool) => tool.name === name));
   }
   function defaultModelFor(providerId: string): string {

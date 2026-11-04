@@ -60,9 +60,7 @@ function stringify(value: unknown): string {
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
 function recordList(value: unknown): Record<string, unknown>[] {
@@ -123,8 +121,7 @@ const getAgentTool = defineTool({
 const findAgentsTool = defineTool({
   name: "find_agents",
   label: "Find Similar Jobs",
-  description:
-    "Compare a proposed job against existing jobs and return similarity so a duplicate is not created.",
+  description: "Compare a proposed job against existing jobs and return similarity so a duplicate is not created.",
   promptSnippet: "find_agents: check for an existing job that already covers this work.",
   parameters: Type.Object({
     name: Type.String({ description: "Proposed job name." }),
@@ -159,7 +156,9 @@ const createAgentTool = defineTool({
     deliverable: Type.String({ description: "The single output this job owns." }),
     acceptance: Type.Array(Type.String(), { description: "Three or more checkable acceptance criteria." }),
     skills: Type.Optional(Type.Array(Type.String(), { description: "Skill paths to attach." })),
-    tools: Type.Optional(Type.Array(Type.String(), { description: "Tool names; defaults to the platform default set." })),
+    tools: Type.Optional(
+      Type.Array(Type.String(), { description: "Tool names; defaults to the platform default set." }),
+    ),
     tags: Type.Optional(Type.Array(Type.String())),
     quickstarts: Type.Optional(Type.Array(Type.String())),
     duplicate_decision: Type.Optional(
@@ -181,7 +180,8 @@ const updateAgentTool = defineTool({
   parameters: Type.Object({
     agent_id: Type.String({ description: "Job id." }),
     patch: Type.Record(Type.String(), Type.Unknown(), {
-      description: "Subset of name, instruction, description, deliverable, acceptance, tags, quickstarts, tools, skills.",
+      description:
+        "Subset of name, instruction, description, deliverable, acceptance, tags, quickstarts, tools, skills.",
     }),
     confirm: Type.Boolean({ description: "Set true only when the user confirmed the change." }),
   }),
@@ -268,11 +268,10 @@ const attachSkillTool = defineTool({
     confirm: Type.Boolean({ description: "Set true only when the user confirmed the grant." }),
   }),
   async execute(_toolCallId, params) {
-    const payload = await callPlatform(
-      "POST",
-      `/api/hr/agents/${encodeURIComponent(params.agent_id.trim())}/skills`,
-      { skill: params.skill, confirm: params.confirm },
-    );
+    const payload = await callPlatform("POST", `/api/hr/agents/${encodeURIComponent(params.agent_id.trim())}/skills`, {
+      skill: params.skill,
+      confirm: params.confirm,
+    });
     return { content: [{ type: "text", text: stringify(payload) }], details: {} };
   },
 });

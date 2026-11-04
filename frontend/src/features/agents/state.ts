@@ -79,7 +79,40 @@ export function createAgentsState() {
         description: "Generate and edit images with the configured automatic image provider.",
         tools: ["generate_image", "edit_image"],
       },
+      {
+        id: "job_management",
+        label: "Job management",
+        description: "Hire, change and retire agent jobs. Admin only.",
+        tools: [
+          "list_agents",
+          "get_agent",
+          "find_agents",
+          "create_agent",
+          "update_agent",
+          "delete_agent",
+          "list_tools",
+        ],
+      },
+      {
+        id: "skill_management",
+        label: "Skill management",
+        description: "Read the skill catalogue and attach or detach skills on a job. Admin only.",
+        tools: ["list_skills", "get_skill", "find_skills", "attach_skill", "detach_skill"],
+      },
     ],
-    productionToolAllowlist: ["read", "write", "edit", "web_search", "web_fetch"],
+    productionToolAllowlist: [
+      "read",
+      "write",
+      "edit",
+      "web_search",
+      "web_fetch",
+      // Job and skill changes are the HR job's product, so keep them visible
+      // instead of hiding them as process noise.
+      "create_agent",
+      "update_agent",
+      "delete_agent",
+      "attach_skill",
+      "detach_skill",
+    ],
   };
 }
