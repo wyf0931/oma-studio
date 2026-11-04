@@ -40,6 +40,33 @@ jobs:
       - name: Verify API contracts (api:check)
         run: npm run api:check
 
+      # TEMPORARY diagnostics: surface the drift as a check-run annotation so it
+      # is readable without repository admin rights. Removed after the fix.
+      - name: Debug contract drift
+        if: failure()
+        run: |
+          npm run api:check > /tmp/check.log 2>&1 || true
+          npm run api:generate > /tmp/gen.log 2>&1 || true
+          {
+            echo "=== check.log ==="
+            tail -20 /tmp/check.log
+            echo "=== gen.log ==="
+            tail -20 /tmp/gen.log
+            echo "=== diffstat ==="
+            git diff --stat
+            echo "=== diff head ==="
+            git diff -- schemas/openapi.json | head -80
+            git diff -- frontend/src/generated/validators.mjs | head -40
+            git diff -- frontend/src/generated/api.d.ts | head -40
+          } > /tmp/drift.txt 2>&1
+          python3 - <<'PY'
+          import pathlib
+          text = pathlib.Path("/tmp/drift.txt").read_text(errors="replace")
+          text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          for index in range(0, len(text), 6000):
+              print(f"::warning title=drift::{text[index:index + 6000]}")
+          PY
+
       - name: Lint (ruff)
         run: uv run ruff check
 
