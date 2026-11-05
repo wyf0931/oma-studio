@@ -698,7 +698,12 @@ def test_agent_tools_use_product_capability_groups_with_safe_defaults():
     # Script execution and the admin surfaces stay out of the defaults. Assert the
     # membership of each opt-in group rather than the source formatting.
     assert "optInGroups.has(group.id)" in script
-    for group_id in ("run_scripts", "job_management", "skill_management", "marketplace"):
+    for group_id in (
+        "run_scripts",
+        "job_management",
+        "skill_management",
+        "marketplace",
+    ):
         assert f'"{group_id}"' in script
     assert ".tool-group-grid" in styles
     assert "authUser?.role === 'admin'" in html
