@@ -36,6 +36,10 @@ export declare function validateHrAgentsResponse(value: unknown): value is compo
 export declare function validateHrDuplicatesResponse(
   value: unknown,
 ): value is components["schemas"]["HrDuplicatesResponse"];
+export declare function validateHrMarketResponse(value: unknown): value is components["schemas"]["HrMarketResponse"];
+export declare function validateHrSkillDeleteResponse(
+  value: unknown,
+): value is components["schemas"]["HrSkillDeleteResponse"];
 export declare function validateHrSkillDetail(value: unknown): value is components["schemas"]["HrSkillDetail"];
 export declare function validateHrSkillsResponse(value: unknown): value is components["schemas"]["HrSkillsResponse"];
 export declare function validateHrToolsResponse(value: unknown): value is components["schemas"]["HrToolsResponse"];

@@ -38,6 +38,15 @@ HR_TOOLS = [
     "find_skills",
     "attach_skill",
     "detach_skill",
+    "create_skill",
+    "update_skill",
+    "delete_skill",
+    "install_skill",
+    "uninstall_skill",
+    "list_market",
+    "publish_agent",
+    "unpublish_agent",
+    "install_market_agent",
     "list_tools",
 ]
 PLATFORM_TOOLS = WEB_TOOLS + IMAGE_TOOLS + HR_TOOLS

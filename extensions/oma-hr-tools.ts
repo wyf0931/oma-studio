@@ -316,6 +316,224 @@ const listToolsTool = defineTool({
   },
 });
 
+const createSkillTool = defineTool({
+  name: "create_skill",
+  label: "Create Skill",
+  description:
+    "Author a new skill in the shared skills root. Requires confirm=true. Fails when the name is taken or the body, description or references break the size rules.",
+  promptSnippet:
+    "create_skill: write the skill itself only when no installed skill covers the capability.",
+  parameters: Type.Object({
+    name: Type.String({ description: "Lowercase dash-separated name, max 64 characters." }),
+    description: Type.String({
+      description: "Single-line routing description: what it does and when to use it. Max 500 characters.",
+    }),
+    body: Type.String({ description: "SKILL.md body in Markdown (frontmatter is generated)." }),
+    references: Type.Optional(
+      Type.Record(Type.String(), Type.String(), {
+        description: "Optional extra files keyed by relative path, for example references/checklist.md.",
+      }),
+    ),
+    confirm: Type.Boolean({ description: "Set true only when the user confirmed the skill content." }),
+  }),
+  async execute(_toolCallId, params) {
+    const payload = await callPlatform("POST", "/api/hr/skills", {
+      name: params.name,
+      description: params.description,
+      body: params.body,
+      references: asRecord(params.references) ?? {},
+      confirm: params.confirm,
+    });
+    return { content: [{ type: "text", text: stringify(payload) }], details: {} };
+  },
+});
+
+const updateSkillTool = defineTool({
+  name: "update_skill",
+  label: "Update Skill",
+  description:
+    "Patch a platform-authored skill. Refuses skills it did not create. Requires confirm=true.",
+  promptSnippet: "update_skill: revise a skill after the user agrees to the new wording.",
+  parameters: Type.Object({
+    name: Type.String({ description: "Skill name." }),
+    description: Type.Optional(Type.String({ description: "Replacement routing description." })),
+    body: Type.Optional(Type.String({ description: "Replacement SKILL.md body." })),
+    references: Type.Optional(
+      Type.Record(Type.String(), Type.String(), { description: "Files to write or overwrite." }),
+    ),
+    remove_references: Type.Optional(
+      Type.Array(Type.String(), { description: "Relative reference paths to delete." }),
+    ),
+    confirm: Type.Boolean({ description: "Set true only when the user confirmed the change." }),
+  }),
+  async execute(_toolCallId, params) {
+    const payload = await callPlatform("PATCH", `/api/hr/skills/${encodeURIComponent(params.name.trim())}`, {
+      ...(params.description === undefined ? {} : { description: params.description }),
+      ...(params.body === undefined ? {} : { body: params.body }),
+      references: asRecord(params.references) ?? {},
+      remove_references: params.remove_references ?? [],
+      confirm: params.confirm,
+    });
+    return { content: [{ type: "text", text: stringify(payload) }], details: {} };
+  },
+});
+
+const deleteSkillTool = defineTool({
+  name: "delete_skill",
+  label: "Delete Skill",
+  description:
+    "Delete a platform-authored skill, or quarantine an operator-installed one. Refuses skills still attached to a job. Without force, an unmanaged skill returns its file inventory instead of being removed.",
+  promptSnippet:
+    "delete_skill: detach first; for an installed skill, show the inventory and get explicit approval before force.",
+  parameters: Type.Object({
+    name: Type.String({ description: "Skill name." }),
+    confirm: Type.Boolean({ description: "Set true only after the user confirmed the removal." }),
+    force: Type.Optional(
+      Type.Boolean({
+        description:
+          "Move an unmanaged skill to the data directory's skill-trash instead of refusing. Requires the user to approve the file inventory first.",
+      }),
+    ),
+  }),
+  async execute(_toolCallId, params) {
+    const query = new URLSearchParams({
+      confirm: params.confirm ? "true" : "false",
+      force: params.force ? "true" : "false",
+    });
+    const payload = await callPlatform(
+      "DELETE",
+      `/api/hr/skills/${encodeURIComponent(params.name.trim())}?${query.toString()}`,
+    );
+    return { content: [{ type: "text", text: stringify(payload) }], details: {} };
+  },
+});
+
+const listMarketTool = defineTool({
+  name: "list_market",
+  label: "List Marketplace",
+  description:
+    "List published jobs plus installed skills, MCP servers and extensions, optionally filtered by type and text.",
+  promptSnippet: "list_market: check what already exists before hiring or authoring.",
+  parameters: Type.Object({
+    type: Type.Optional(
+      Type.String({ description: "agent, skill, mcp or extension. Omit for everything." }),
+    ),
+    query: Type.Optional(Type.String({ description: "Case-insensitive text filter." })),
+  }),
+  async execute(_toolCallId, params) {
+    const query = new URLSearchParams();
+    if (params.type) query.set("type", params.type);
+    if (params.query) query.set("query", params.query);
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    const payload = asRecord(await callPlatform("GET", `/api/hr/market${suffix}`));
+    const items = recordList(payload?.items);
+    const text = items.length
+      ? items
+          .map(
+            (item) =>
+              `- [${fieldText(item, "type")}] ${fieldText(item, "name")} — ${fieldText(item, "description").slice(0, 110)}${fieldText(item, "detail") ? ` (${fieldText(item, "detail")})` : ""}`,
+          )
+          .join("\n")
+      : "Nothing published or installed for that filter.";
+    return { content: [{ type: "text", text }], details: { count: items.length } };
+  },
+});
+
+const publishAgentTool = defineTool({
+  name: "publish_agent",
+  label: "Publish Job",
+  description: "Publish an owned job to the organization marketplace with a SemVer version.",
+  promptSnippet: "publish_agent: share a finished job, after the user confirms the version.",
+  parameters: Type.Object({
+    agent_id: Type.String({ description: "Job id." }),
+    version: Type.String({ description: "SemVer such as v1.0.0." }),
+    confirm: Type.Boolean({ description: "Set true only when the user confirmed the publication." }),
+  }),
+  async execute(_toolCallId, params) {
+    const payload = await callPlatform(
+      "POST",
+      `/api/hr/market/agents/${encodeURIComponent(params.agent_id.trim())}/publish`,
+      { version: params.version, confirm: params.confirm },
+    );
+    return { content: [{ type: "text", text: stringify(payload) }], details: {} };
+  },
+});
+
+const unpublishAgentTool = defineTool({
+  name: "unpublish_agent",
+  label: "Unpublish Job",
+  description: "Remove a job publication from the marketplace. Installed copies stay untouched.",
+  promptSnippet: "unpublish_agent: pull a listing, keeping installed copies.",
+  parameters: Type.Object({
+    publication_id: Type.String({ description: "Publication id from list_market." }),
+    confirm: Type.Boolean({ description: "Set true only after the user confirmed the removal." }),
+  }),
+  async execute(_toolCallId, params) {
+    const payload = await callPlatform(
+      "DELETE",
+      `/api/hr/market/agents/${encodeURIComponent(params.publication_id.trim())}?confirm=${params.confirm ? "true" : "false"}`,
+    );
+    return { content: [{ type: "text", text: stringify(payload) }], details: {} };
+  },
+});
+
+const installMarketAgentTool = defineTool({
+  name: "install_market_agent",
+  label: "Install Job",
+  description: "Install a published job as a private copy, optionally pinned to a version.",
+  promptSnippet: "install_market_agent: hire a published job instead of writing a new one.",
+  parameters: Type.Object({
+    publication_id: Type.String({ description: "Publication id from list_market." }),
+    version: Type.Optional(Type.String({ description: "Optional SemVer to pin." })),
+    confirm: Type.Boolean({ description: "Set true only when the user confirmed the install." }),
+  }),
+  async execute(_toolCallId, params) {
+    const payload = await callPlatform(
+      "POST",
+      `/api/hr/market/agents/${encodeURIComponent(params.publication_id.trim())}/install`,
+      { version: params.version ?? null, confirm: params.confirm },
+    );
+    return { content: [{ type: "text", text: stringify(payload) }], details: {} };
+  },
+});
+
+const installSkillTool = defineTool({
+  name: "install_skill",
+  label: "Install Skill",
+  description:
+    "Install a skill from a GitHub repository or skills.sh source using the platform's skills CLI.",
+  promptSnippet: "install_skill: pull an existing public skill instead of rewriting it.",
+  parameters: Type.Object({
+    source: Type.String({ description: "GitHub repository or skill URL." }),
+    skill: Type.String({ description: "Skill name inside that source." }),
+    confirm: Type.Boolean({ description: "Set true only when the user confirmed the install." }),
+  }),
+  async execute(_toolCallId, params) {
+    const payload = await callPlatform("POST", "/api/hr/skills/install", params);
+    return { content: [{ type: "text", text: stringify(payload) }], details: {} };
+  },
+});
+
+const uninstallSkillTool = defineTool({
+  name: "uninstall_skill",
+  label: "Uninstall Skill",
+  description: "Remove an installed skill. Refuses skills that are still attached to a job.",
+  promptSnippet: "uninstall_skill: remove an installed skill after detaching it from every job.",
+  parameters: Type.Object({
+    skill: Type.String({ description: "Skill name." }),
+    source: Type.Optional(Type.String({ description: "Original source, when known." })),
+    confirm: Type.Boolean({ description: "Set true only after the user confirmed the removal." }),
+  }),
+  async execute(_toolCallId, params) {
+    const payload = await callPlatform("POST", "/api/hr/skills/uninstall", {
+      source: params.source ?? "",
+      skill: params.skill,
+      confirm: params.confirm,
+    });
+    return { content: [{ type: "text", text: stringify(payload) }], details: {} };
+  },
+});
+
 export default function (pi: ExtensionAPI) {
   pi.registerTool(listAgentsTool);
   pi.registerTool(getAgentTool);
@@ -328,5 +546,14 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool(getSkillTool);
   pi.registerTool(attachSkillTool);
   pi.registerTool(detachSkillTool);
+  pi.registerTool(createSkillTool);
+  pi.registerTool(updateSkillTool);
+  pi.registerTool(deleteSkillTool);
+  pi.registerTool(installSkillTool);
+  pi.registerTool(uninstallSkillTool);
+  pi.registerTool(listMarketTool);
+  pi.registerTool(publishAgentTool);
+  pi.registerTool(unpublishAgentTool);
+  pi.registerTool(installMarketAgentTool);
   pi.registerTool(listToolsTool);
 }

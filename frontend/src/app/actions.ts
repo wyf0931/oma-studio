@@ -55,7 +55,7 @@ export interface Dependencies {
   shares: Pick<SharesActions, "openSharedChat" | "setSharedMode"> & {
     state: Readonly<Pick<SharesState, "sharedMode">>;
   };
-  agents: Pick<AgentsActions, "loadAgents" | "loadResources"> & {
+  agents: Pick<AgentsActions, "loadAgents" | "loadResources" | "refreshAgents" | "refreshResources"> & {
     state: Readonly<Pick<AgentsState, "agents" | "resources">>;
   };
   chat: Pick<
@@ -291,6 +291,9 @@ export function createShell(deps: Dependencies): Feature {
     }
     if (window.location.pathname === "/agents") {
       state.page = "agents";
+      // The roster can change from a chat (the HR job retires jobs) or the market,
+      // so entering the page always re-reads it instead of trusting the boot snapshot.
+      await Promise.all([deps.agents.refreshAgents(), deps.agents.refreshResources()]);
       return;
     }
     const match = window.location.pathname.match(/^\/chat\/([^/]+)$/);

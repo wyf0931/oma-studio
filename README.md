@@ -470,6 +470,15 @@ This MVP is a single FastAPI application with a static frontend. The main endpoi
 | `GET /api/hr/skills` | List installed skills with routing descriptions and job usage |
 | `POST /api/hr/skills/find` | Search installed skills by need or keyword |
 | `GET /api/hr/skills/{name}` | Read a skill's SKILL.md and file list |
+| `POST /api/hr/skills` | Author a platform-managed skill; requires `confirm` |
+| `PATCH /api/hr/skills/{name}` | Update a platform-managed skill; refuses skills the platform did not create |
+| `DELETE /api/hr/skills/{name}?confirm=true` | Delete a platform-managed skill; unmanaged ones need `force` and are quarantined |
+| `POST /api/hr/skills/install` | Install a skill from a GitHub source via the skills CLI |
+| `POST /api/hr/skills/uninstall` | Uninstall a skill; refuses skills still attached to a job |
+| `GET /api/hr/market` | List published jobs plus installed skills, MCP servers and extensions (`type`, `query`) |
+| `POST /api/hr/market/agents/{id}/publish` | Publish an owned job with a SemVer version |
+| `DELETE /api/hr/market/agents/{id}?confirm=true` | Remove a publication; installed copies remain |
+| `POST /api/hr/market/agents/{id}/install` | Install a published job as a private copy |
 | `POST /api/hr/agents/{id}/skills` | Attach a skill to a job (`attach_skill`) |
 | `DELETE /api/hr/agents/{id}/skills/{name}` | Detach a skill from a job (`detach_skill`) |
 | `GET /api/hr/tools` | List available tools and per-tool job counts |

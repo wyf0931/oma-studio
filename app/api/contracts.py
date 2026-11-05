@@ -139,6 +139,38 @@ class HrSkillDetail(BaseModel):
     files: list[str] = Field(default_factory=list)
 
 
+class HrSkillFile(BaseModel):
+    path: str
+    bytes: int
+
+
+class HrSkillDeleteResponse(OkResponse):
+    deleted: str
+    quarantined_to: str | None = None
+
+
+class HrMarketItem(BaseModel):
+    type: str
+    id: str
+    name: str
+    description: str | None = None
+    detail: str | None = None
+
+
+class HrMarketResponse(BaseModel):
+    items: list[HrMarketItem]
+
+
+class HrPublishRequest(BaseModel):
+    version: str = Field(pattern=r"^v?\d+\.\d+\.\d+$")
+    confirm: bool = False
+
+
+class HrInstallRequest(BaseModel):
+    version: str | None = Field(default=None, pattern=r"^v?\d+\.\d+\.\d+$")
+    confirm: bool = False
+
+
 class HrToolSummary(BaseModel):
     name: str
     description: str
