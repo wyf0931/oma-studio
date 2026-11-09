@@ -12,16 +12,16 @@ session transcripts**. Status: MVP, single user, localhost.
 
 ## Tech stack (and why)
 
-| Layer | Choice | Notes |
-| --- | --- | --- |
-| Python | 3.11+ managed by **uv** | Never use pip directly; use `uv` / `uv run`. |
-| API | FastAPI + Pydantic | Request validation lives in Pydantic models in `app/main.py`. |
-| Storage | SQLModel + SQLite (file `~/.oma-studio/data/platform.sqlite3`) | Metadata only; SQLite is the sole metadata store. Legacy TinyDB JSON is a read-only archive that no code path reads. |
-| Agent runtime | Pi RPC subprocess | One short-lived Pi process per operation (send / stream / messages). |
-| Frontend | Vite-built Vue 3 + TypeScript + DaisyUI 5 + Tailwind 4 | Source in `frontend/`, public assets in `static/`, output in ignored `dist/`. Lucide is the required icon system. |
-| Markdown rendering | marked + DOMPurify + highlight.js + mermaid (locked npm packages) | Sanitized HTML only; never inject raw model output. |
-| Frontend build/compatibility | Vite + Tailwind Vite plugin + Lightning CSS + core-js | `npm run build`; one `.browserslistrc`; generated `dist/` is not committed. |
-| Observability | stdlib JSONL logging + request IDs | Logs go to stdout and rotating `PI_LOG_DIR`; no external collector in the MVP. |
+| Layer                        | Choice                                                            | Notes                                                                                                                |
+| ---------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Python                       | 3.11+ managed by **uv**                                           | Never use pip directly; use `uv` / `uv run`.                                                                         |
+| API                          | FastAPI + Pydantic                                                | Request validation lives in Pydantic models in `app/main.py`.                                                        |
+| Storage                      | SQLModel + SQLite (file `~/.oma-studio/data/platform.sqlite3`)    | Metadata only; SQLite is the sole metadata store. Legacy TinyDB JSON is a read-only archive that no code path reads. |
+| Agent runtime                | Pi RPC subprocess                                                 | One short-lived Pi process per operation (send / stream / messages).                                                 |
+| Frontend                     | Vite-built Vue 3 + TypeScript + DaisyUI 5 + Tailwind 4            | Source in `frontend/`, public assets in `static/`, output in ignored `dist/`. Lucide is the required icon system.    |
+| Markdown rendering           | marked + DOMPurify + highlight.js + mermaid (locked npm packages) | Sanitized HTML only; never inject raw model output.                                                                  |
+| Frontend build/compatibility | Vite + Tailwind Vite plugin + Lightning CSS + core-js             | `npm run build`; one `.browserslistrc`; generated `dist/` is not committed.                                          |
+| Observability                | stdlib JSONL logging + request IDs                                | Logs go to stdout and rotating `PI_LOG_DIR`; no external collector in the MVP.                                       |
 
 ## Commands
 
@@ -98,7 +98,7 @@ data/           Legacy runtime data (pre-normalization archive, gitignored, supe
 2. **Chat id == Pi session id.** The UUID is shared deliberately; there is no mapping layer.
    Do not introduce one.
 3. **One Agent per chat.** The binding is fixed at the first prompt and never changes.
-4. **Discovery ≠ enablement.** `resources.py` only *lists* what exists. An Agent must opt
+4. **Discovery ≠ enablement.** `resources.py` only _lists_ what exists. An Agent must opt
    in to tools/extensions/skills/MCP servers, and every selection must be validated against
    the discovered catalog before persistence (see create/update handlers in `main.py`).
 5. **File serving is authorized twice over.** `resolve_chat_file` only returns files that
@@ -111,13 +111,25 @@ data/           Legacy runtime data (pre-normalization archive, gitignored, supe
    catch-all route renders the built `index.html`. The owner authorized Vite in #171.
    Do not add a second production server or replace the UI framework without a decision.
 
+## Project skills
+
+Project-level coding skills are installed in `.pi/skills/` and recorded in
+`skills-lock.json`. Read the relevant `SKILL.md` before working in its area:
+
+- `vue` — Vue component and application work (`antfu/skills`).
+- `vite` — Vite build and configuration work (`antfu/skills`).
+- `daisyui` — DaisyUI components and styling (`saadeghi/daisyui`).
+
+Repository conventions and the installed dependency versions take precedence when
+upstream skill guidance differs from this project.
+
 ## Development philosophy
 
 - **Don't reinvent wheels.** Prefer standard-library and community packages over
   hand-rolled code: Pydantic for validation, SQLModel for storage, Vue 3 + TypeScript + DaisyUI for
   UI, marked/DOMPurify/mermaid/highlight.js for rendering. Before writing a utility,
   check whether a small, well-maintained package already covers it.
-  *Known deliberate exception:* the mini dotenv reader in `config.py` exists so that
+  _Known deliberate exception:_ the mini dotenv reader in `config.py` exists so that
   `uvicorn --reload` workers and tests pick up `.env` without adding a dependency. Don't
   grow it; if env handling becomes more complex, adopt `python-dotenv`/`pydantic-settings`
   instead of extending it.
@@ -133,7 +145,7 @@ data/           Legacy runtime data (pre-normalization archive, gitignored, supe
 ## Conventions
 
 - **Commits:** conventional style — `feat:`, `fix:`, short imperative subject.
-- **Config changes:** adding/renaming an env var means updating `.env.example` *and* the
+- **Config changes:** adding/renaming an env var means updating `.env.example` _and_ the
   README Configuration section in the same change.
 - **API changes:** README documents the full HTTP surface table — add/update rows when
   endpoints change.
@@ -186,7 +198,7 @@ Each issue gets one branch and one worktree, preferably including the issue numb
 
 ```bash
 git fetch origin
-git worktree add /private/tmp/pi-rpc-pydemo-issue-42 -b feat/issue-42-short-name origin/develop
+git worktree add /private/tmp/pi-rpc-pydemo-issue-42 -b feat/issue-42-short-name origin/main
 ```
 
 Parallel work is allowed only when the issues are independent. Do not modify the
@@ -219,13 +231,13 @@ mobile widths. The worker must inspect the final diff and confirm that generated
 files, `.env`, runtime data, and unrelated concurrent changes are not included.
 
 After validation, comment the commit SHA, test results, and any known limitation
-on the Issue, then move it to `status:ready-to-merge`. The worker may merge and
-push its branch as requested by this project, but the merge gate is serialized:
+on the Issue, then move it to `status:ready-to-merge`. Merging or pushing to
+`main` requires explicit owner authorization, and the merge gate is serialized:
 
 ```bash
 git fetch origin
-git switch develop
-git pull --ff-only origin develop
+git switch main
+git pull --ff-only origin main
 git merge --no-ff <issue-branch> -m "merge: <issue summary>"
 uv run ruff format --check app tests
 uv run ruff check
@@ -241,17 +253,17 @@ npm run build
 uvx pyright app tests
 uv run pytest -q
 npm run test:frontend
-git push origin develop
+git push origin main
 ```
 
 Only one worker may perform this merge/push sequence at a time. On macOS/Linux,
 use an atomic directory under the shared Git directory as a short-lived merge
 lock, for example `mkdir "$GIT_COMMON_DIR/oma-merge.lock"`; if it already exists,
 wait or skip the merge. Never force-push. If push is rejected, release the lock,
-rebase or merge the new `origin/develop` into the feature branch, rerun validation,
+rebase or merge the new `origin/main` into the feature branch, rerun validation,
 and retry.
 
-A develop push triggers CI only. A release merge from develop to main and its push require explicit owner authorization and the same serialized validation gate; only main pushes run production deploy.
+A push to `main` runs production deployment; it requires explicit owner authorization and the serialized validation gate.
 The worker must inspect the workflow result with `gh run view` and comment it on
 the Issue. A successful deploy is not user acceptance: keep the Issue in
 `status:awaiting-user` until the product owner verifies the production behavior.
@@ -261,7 +273,7 @@ only after the acceptance criteria and production smoke check are satisfied.
 
 ## Development workflow
 
-The repository uses `develop` for integration and `main` for releases; `origin` is the deployment remote. Start feature branches from `develop`; never commit directly on either integration or release branches. Use the
+The repository uses `main` as its base and deployment branch; `origin` is the deployment remote. Start feature and bug-fix branches from `main`; never commit directly on `main`. Use the
 Multi-agent Issue loop above for claimed Issue work, including its worktree,
 validation, merge-lock, and publication rules. For user-directed work outside an
 Issue, use the same branch-first and full-validation discipline, and only merge or
@@ -312,4 +324,4 @@ force-push it.
 - The isolated exporter must not import app.main, touch production storage, start Pi, or resolve credentials. Keep CI live-schema verification and Node-only build fingerprint checks.
 - Response-validation logs must not include invalid input/output payloads or exception tracebacks containing them.
 - Template icons use Vue Lucide components; imperative replacement stays inside dynamic HTML containers. Keep existing FastAPI/static deployment, CSS and browser baseline.
-- New feature work is based on develop. Do not merge/push the current feature branch or release main unless explicitly authorized in the session.
+- Base feature and bug-fix work on main. Do not merge or push to main unless explicitly authorized in the session.
