@@ -42,7 +42,7 @@ RUN mkdir -p "$UV_TOOL_DIR" \
 
 # Pi CLI — the app layer spawns it via PI_CLI_PATH (multi-process: one
 # short-lived pi process per chat operation)
-RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.84.4
+RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent@1.5.2
 
 WORKDIR /app
 
